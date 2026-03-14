@@ -1,0 +1,7 @@
+{
+  "name": "mangaApp",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "react-vite"
+}
