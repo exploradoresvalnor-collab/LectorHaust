@@ -67,3 +67,8 @@ ion-tab-bar {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
+
+/* Navigation Utility */
+.tab-bar-hidden {
+    display: none !important;
+}

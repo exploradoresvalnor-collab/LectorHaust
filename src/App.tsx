@@ -95,22 +95,23 @@ const AppContent: React.FC = () => {
             <Redirect to="/home" />
           </Route>
         </IonRouterOutlet>
-        {!shouldHideTabs && (
-          <IonTabBar slot="bottom">
-            <IonTabButton tab="home" href="/home">
-              <IonIcon aria-hidden="true" icon={home} />
-              <IonLabel>Inicio</IonLabel>
-            </IonTabButton>
-            <IonTabButton tab="search" href="/search">
-              <IonIcon aria-hidden="true" icon={search} />
-              <IonLabel>Explorar</IonLabel>
-            </IonTabButton>
-            <IonTabButton tab="library" href="/library">
-              <IonIcon aria-hidden="true" icon={library} />
-              <IonLabel>Biblioteca</IonLabel>
-            </IonTabButton>
-          </IonTabBar>
-        )}
+        <IonTabBar 
+          slot="bottom" 
+          className={shouldHideTabs ? 'tab-bar-hidden' : ''}
+        >
+          <IonTabButton tab="home" href="/home">
+            <IonIcon aria-hidden="true" icon={home} />
+            <IonLabel>Inicio</IonLabel>
+          </IonTabButton>
+          <IonTabButton tab="search" href="/search">
+            <IonIcon aria-hidden="true" icon={search} />
+            <IonLabel>Explorar</IonLabel>
+          </IonTabButton>
+          <IonTabButton tab="library" href="/library">
+            <IonIcon aria-hidden="true" icon={library} />
+            <IonLabel>Biblioteca</IonLabel>
+          </IonTabButton>
+        </IonTabBar>
       </IonTabs>
 
       <IonToast
