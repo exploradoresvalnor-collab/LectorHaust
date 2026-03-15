@@ -3,7 +3,7 @@
  */
 
 const BASE_URL = 'https://api.mangadex.org';
-const IMAGE_PROXY_URL = ''; // Se puede configurar un proxy como https://cors-anywhere.herokuapp.com/ si es necesario
+const CORS_PROXY = 'https://corsproxy.io/?'; 
 const CLOUDINARY_CLOUD_NAME = 'djzak5yb2';
 
 /**
@@ -21,12 +21,20 @@ async function rateLimitedFetch(url: string): Promise<Response> {
 }
 
 /**
- * Helper to fetch from MangaDex using proxy if needed
+ * Helper to construct proxied URLs for MangaDex
+ */
+function getProxyUrl(endpoint: string) {
+    const fullUrl = endpoint.startsWith('http') ? endpoint : `${BASE_URL}${endpoint}`;
+    // We wrap the MangaDex URL in the CORS proxy to bypass browser restrictions on Vercel
+    return `${CORS_PROXY}${encodeURIComponent(fullUrl)}`;
+}
+
+/**
+ * Helper to fetch from MangaDex using proxy
  */
 async function apiFetch(endpoint: string) {
-    const url = endpoint.startsWith('http') ? endpoint : `${BASE_URL}${endpoint}`;
-    const targetUrl = IMAGE_PROXY_URL ? `${IMAGE_PROXY_URL}${encodeURIComponent(url)}` : url;
-    const response = await rateLimitedFetch(targetUrl);
+    const proxiedUrl = getProxyUrl(endpoint);
+    const response = await rateLimitedFetch(proxiedUrl);
     if (!response.ok) throw new Error(`MangaDex API Error: ${response.status}`);
     return response.json();
 }
@@ -288,8 +296,7 @@ export const mangadexService = {
      * Helper to proxy URLs if configured
      */
     getProxiedUrl(url: string) {
-        if (!IMAGE_PROXY_URL) return url;
-        return `${IMAGE_PROXY_URL}${encodeURIComponent(url)}`;
+        return getProxyUrl(url);
     },
 
     /**
