@@ -19,6 +19,11 @@ export default defineConfig({
         headers: {
           'User-Agent': 'MiravoyApp/1.0 (Local Dev)',
         }
+      },
+      '/api-consumet': {
+        target: 'https://api.consumet.org',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api-consumet/, ''),
       }
     }
   },

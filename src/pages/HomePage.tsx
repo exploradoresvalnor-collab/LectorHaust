@@ -26,6 +26,7 @@ import {
 import { personCircleOutline, notifications, refreshOutline, chevronDownOutline, libraryOutline, sparklesOutline, checkmarkCircle } from 'ionicons/icons';
 import MangaCard from '../components/MangaCard';
 import { mangadexService } from '../services/mangadexService';
+import { consumetService } from '../services/consumetService';
 import LoadingScreen from '../components/LoadingScreen';
 import { useLibraryStore } from '../store/useLibraryStore';
 import './HomePage.css';
@@ -41,6 +42,8 @@ const HomePage: React.FC = () => {
   const [showNewBanner, setShowNewBanner] = useState(false);
   const [showSecretToast, setShowSecretToast] = useState(false);
   const [latestLang, setLatestLang] = useState('es');
+  const [trendingFansub, setTrendingFansub] = useState<any[]>([]);
+  const [fansubLoading, setFansubLoading] = useState(false);
   const { history } = useLibraryStore();
   const router = useIonRouter();
   const heroTimer = useRef<NodeJS.Timeout | null>(null);
@@ -107,7 +110,9 @@ const HomePage: React.FC = () => {
       ];
 
       // Shuffle logic to ensure variety on every load
+      const seen = new Set<string>();
       const shuffledHero = pool
+        .filter(m => { if (seen.has(m.id)) return false; seen.add(m.id); return true; })
         .sort(() => Math.random() - 0.5)
         .slice(0, 6); // Take up to 6 for the rotation
 
@@ -129,6 +134,13 @@ const HomePage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+
+    // Independent Fansub fetch — doesn't block MangaDex content
+    setFansubLoading(true);
+    consumetService.getTrending(15).then(data => {
+      setTrendingFansub(data);
+      setFansubLoading(false);
+    }).catch(() => setFansubLoading(false));
   };
 
   const loadMoreLatest = async (e: any) => {
@@ -136,7 +148,11 @@ const HomePage: React.FC = () => {
       const latestData = await mangadexService.getLatestUpdatedManga(12, latestOffset, latestLang);
       const data = latestData.data || [];
       if (data.length < 12) setIsDone(true);
-      setLatest(prev => [...prev, ...data]);
+      setLatest(prev => {
+        const existingIds = new Set(prev.map((m: any) => m.id));
+        const unique = data.filter((m: any) => !existingIds.has(m.id));
+        return [...prev, ...unique];
+      });
       setLatestOffset(prev => prev + 12);
     } catch (err) {
       console.error('Error loading more mangas:', err);
@@ -278,6 +294,41 @@ const HomePage: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* --- CARRUSEL FANSUB: Tendencias Populares (carga independiente) --- */}
+        {(trendingFansub.length > 0 || fansubLoading) && (
+          <div className="animate-fade-in" style={{ marginTop: '1rem' }}>
+            <div className="section-header" style={{ paddingBottom: '0.5rem' }}>
+              <div className="accent-bar" style={{ background: '#ffca28' }}></div>
+              <h2>Tendencias Fansub 🔥</h2>
+            </div>
+            <div className="manga-carousel">
+              {fansubLoading ? (
+                [1,2,3,4,5].map(i => (
+                  <div key={`skel-${i}`} className="carousel-card">
+                    <IonSkeletonText animated style={{ width: '130px', height: '190px', borderRadius: '8px' }} />
+                  </div>
+                ))
+              ) : (
+                trendingFansub.map((manga: any) => (
+                  <div 
+                    key={manga.id} 
+                    className="carousel-card"
+                    onClick={() => router.push(`/manga/${manga.id}`)}
+                  >
+                    <img 
+                      src={consumetService.getCoverUrl(manga)} 
+                      className="carousel-cover" 
+                      alt={manga.attributes.title.en} 
+                      loading="lazy"
+                    />
+                    <div className="carousel-title">{manga.attributes.title.en}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="animate-fade-in">

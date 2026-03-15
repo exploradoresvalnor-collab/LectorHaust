@@ -1,5 +1,5 @@
 /**
- * Consumet API Service — "Zona Gris" Parallel Provider
+ * Consumet API Service — Servidor Fansub (Extendido)
  * 
  * Uses the public Consumet Meta AniList endpoint to search, fetch chapters,
  * and read pages from alternative manga providers.
@@ -8,7 +8,13 @@
  * can distinguish them from MangaDex IDs.
  */
 
-const CONSUMET_BASE = 'https://api.consumet.org/meta/anilist-manga';
+// Smart URL: local uses Vite proxy to bypass CORS, production uses direct URL
+const isLocalhost = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+const CONSUMET_BASE = isLocalhost 
+  ? '/api-consumet/meta/anilist-manga' 
+  : 'https://api.consumet.org/meta/anilist-manga';
 
 export const consumetService = {
 
@@ -38,7 +44,6 @@ export const consumetService = {
           })),
         },
         relationships: [],
-        // Extra fields for Consumet handling
         _consumet: {
           rawId: manga.id,
           image: manga.image,
@@ -49,7 +54,46 @@ export const consumetService = {
         }
       }));
     } catch (error) {
-      console.error('[Consumet] Search error:', error);
+      console.error('[Fansub] Error buscando:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Get trending/popular manga from AniList via Consumet
+   */
+  async getTrending(limit = 15) {
+    try {
+      const response = await fetch(`${CONSUMET_BASE}/popular`);
+      if (!response.ok) throw new Error(`Consumet Trending Error: ${response.status}`);
+      const data = await response.json();
+
+      if (!data.results || data.results.length === 0) return [];
+
+      return data.results.slice(0, limit).map((manga: any) => ({
+        id: `consumet-${manga.id}`,
+        attributes: {
+          title: {
+            en: manga.title?.english || manga.title?.romaji || manga.title?.native || 'Sin Título',
+          },
+          originalLanguage: (manga.countryOfOrigin || 'JP').toLowerCase() === 'jp' ? 'ja' : (manga.countryOfOrigin || 'ja').toLowerCase(),
+          status: manga.status || 'unknown',
+          tags: (manga.genres || []).map((g: string, i: number) => ({
+            id: `genre-${i}`,
+            attributes: { name: { en: g }, group: 'genre' }
+          })),
+        },
+        relationships: [],
+        _consumet: {
+          rawId: manga.id,
+          image: manga.image,
+          cover: manga.cover || manga.image,
+          title: manga.title?.romaji || manga.title?.english || '',
+          rating: manga.rating,
+        }
+      }));
+    } catch (error) {
+      console.error('[Fansub] Error trayendo tendencias:', error);
       return [];
     }
   },
@@ -59,14 +103,13 @@ export const consumetService = {
    */
   async getMangaInfo(consumetId: string) {
     try {
-      // Strip our prefix if present
       const rawId = consumetId.replace('consumet-', '');
       const response = await fetch(`${CONSUMET_BASE}/info/${rawId}`);
       if (!response.ok) throw new Error(`Consumet Info Error: ${response.status}`);
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('[Consumet] Info error:', error);
+      console.error('[Fansub] Info error:', error);
       return null;
     }
   },
@@ -97,7 +140,7 @@ export const consumetService = {
 
       return { data: chapters, total: chapters.length, mangaInfo: info };
     } catch (error) {
-      console.error('[Consumet] Chapters error:', error);
+      console.error('[Fansub] Chapters error:', error);
       return { data: [], total: 0, mangaInfo: null };
     }
   },
@@ -107,7 +150,6 @@ export const consumetService = {
    */
   async getChapterPages(consumetChapterId: string) {
     try {
-      // Strip our prefix
       const rawId = consumetChapterId.replace('consumet-ch-', '');
       const response = await fetch(`${CONSUMET_BASE}/read?chapterId=${encodeURIComponent(rawId)}`);
       if (!response.ok) throw new Error(`Consumet Read Error: ${response.status}`);
@@ -118,13 +160,13 @@ export const consumetService = {
       const pages = data.map((page: any) => page.img);
       return { pages, hash: 'consumet', baseUrl: '' };
     } catch (error) {
-      console.error('[Consumet] Pages error:', error);
+      console.error('[Fansub] Pages error:', error);
       return { pages: [], hash: '', baseUrl: '' };
     }
   },
 
   /**
-   * Get cover URL for Consumet manga (already optimized by AniList)
+   * Get cover URL for Consumet manga (already optimized by AniList CDN)
    */
   getCoverUrl(manga: any): string {
     if (manga?._consumet?.image) return manga._consumet.image;
@@ -132,16 +174,10 @@ export const consumetService = {
     return 'https://placehold.co/512x768/222222/cccccc?text=Sin+Portada';
   },
 
-  /**
-   * Check if an ID belongs to the Consumet system
-   */
   isConsumetId(id: string): boolean {
     return id.startsWith('consumet-');
   },
 
-  /**
-   * Check if a chapter ID belongs to the Consumet system
-   */
   isConsumetChapterId(id: string): boolean {
     return id.startsWith('consumet-ch-');
   }

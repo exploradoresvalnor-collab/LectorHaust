@@ -255,9 +255,9 @@ const SearchPage: React.FC = () => {
         {activeSegment === 'search' && (
           <div className="search-section animate-fade-in">
             <div className="search-header-container">
-              {/* Consumet / MangaDex Toggle */}
+              {/* Selector de Fuente de Búsqueda */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 4px 10px', justifyContent: 'center' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: !useConsumet ? 'var(--ion-color-primary)' : 'gray' }}>MangaDex</span>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: !useConsumet ? 'var(--ion-color-primary)' : 'gray' }}>Original</span>
                 <IonButton 
                   fill="clear" 
                   size="small" 
@@ -266,12 +266,12 @@ const SearchPage: React.FC = () => {
                 >
                   <IonIcon icon={swapHorizontalOutline} style={{ fontSize: '1.3rem', color: useConsumet ? '#ffca28' : 'var(--ion-color-primary)' }} />
                 </IonButton>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: useConsumet ? '#ffca28' : 'gray' }}>Zona Gris</span>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: useConsumet ? '#ffca28' : 'gray' }}>Fansub</span>
               </div>
 
               <div className="search-bar-row">
                 <IonSearchbar 
-                  placeholder={useConsumet ? 'Buscar en Zona Gris...' : '¿Qué quieres leer hoy?'}
+                  placeholder={useConsumet ? 'Buscar en Servidor Fansub...' : '¿Qué quieres leer hoy?'}
                   onIonInput={(e) => handleSearch(e.detail.value!)}
                   debounce={500}
                   className="custom-searchbar floating-search"
