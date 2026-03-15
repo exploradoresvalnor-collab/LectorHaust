@@ -3,7 +3,7 @@
  */
 
 const BASE_URL = 'https://api.mangadex.org';
-const CORS_PROXY = 'https://corsproxy.io/?'; 
+const CORS_PROXY = 'https://api.allorigins.win/raw?url='; 
 const CLOUDINARY_CLOUD_NAME = 'djzak5yb2';
 
 /**
