@@ -38,13 +38,30 @@ function getProxyUrl(endpoint: string) {
 }
 
 /**
- * Helper to fetch from MangaDex using proxy
+ * Helper to fetch from MangaDex using proxy with automatic retry for 500 errors
  */
-async function apiFetch(endpoint: string) {
+async function apiFetch(endpoint: string, retries = 2) {
     const proxiedUrl = getProxyUrl(endpoint);
-    const response = await rateLimitedFetch(proxiedUrl);
-    if (!response.ok) throw new Error(`MangaDex API Error: ${response.status}`);
-    return response.json();
+    try {
+        const response = await rateLimitedFetch(proxiedUrl);
+        
+        // If 500 and we have retries, wait a bit and try again
+        if (response.status === 500 && retries > 0) {
+            console.warn(`[MangaDex] API 500 Error. Retrying... (${retries} left)`);
+            await new Promise(r => setTimeout(r, 1000)); // Wait 1s
+            return apiFetch(endpoint, retries - 1);
+        }
+
+        if (!response.ok) throw new Error(`MangaDex API Error: ${response.status}`);
+        return response.json();
+    } catch (err) {
+        if (retries > 0) {
+            console.warn(`[MangaDex] Network Error. Retrying... (${retries} left)`, err);
+            await new Promise(r => setTimeout(r, 1000));
+            return apiFetch(endpoint, retries - 1);
+        }
+        throw err;
+    }
 }
 
 export interface Manga {
@@ -181,23 +198,178 @@ export const mangadexService = {
     },
 
     /**
-     * Get mangas ordered by latest chapter update (AnimeFLV style)
+     * Deep Fetch: Gets completed mangas and strictly verifies if all published chapters 
+     * are translated to the target language (default 'es').
      */
-    async getLatestUpdatedManga(limit = 12, offset = 0, lang = 'es') {
-        let url = `/manga?limit=${limit}&offset=${offset}&hasAvailableChapters=true&contentRating[]=safe&contentRating[]=suggestive&order[latestUploadedChapter]=desc&includes[]=cover_art`;
+    async getFullyTranslatedMasterpieces(origin: string | null = null, lang: string | null = 'es', limit = 12, offset = 0, genre: string | null = null): Promise<any> {
+        // Lower limit pool to avoid 500 timeouts on complex queries
+        const fetchLimit = limit * 2; 
+        let url = `/manga?limit=${fetchLimit}&offset=${offset}&hasAvailableChapters=true&status[]=completed&contentRating[]=safe&contentRating[]=suggestive&order[rating]=desc&includes[]=cover_art`;
         
-        if (lang) {
-            url += `&availableTranslatedLanguage[]=${lang}`;
-            if (lang === 'es') {
-                url += `&availableTranslatedLanguage[]=es-la`;
-            }
+        const aggregatedLang = lang === 'es' ? ['es', 'es-la'] : [lang || 'en'];
+        
+        aggregatedLang.forEach(l => {
+            url += `&availableTranslatedLanguage[]=${l}`;
+        });
+
+        if (genre) {
+            url += `&includedTags[]=${genre}`;
         }
 
-        return apiFetch(url);
+        if (origin) {
+            const langMap: { [key: string]: string } = { 
+                'JP': 'ja', 
+                'KR': 'ko', 
+                'CN': 'zh'
+            };
+            const originValue = langMap[origin] || origin;
+            url += `&originalLanguage[]=${originValue.toLowerCase()}`;
+        }
+
+        try {
+            const response = await apiFetch(url);
+            if (!response.data || response.data.length === 0) {
+                return { data: [], total: 0, offset };
+            }
+
+            const validMangas: any[] = [];
+
+            // Parallel validation
+            const validationPromises = response.data.map(async (manga: any) => {
+                try {
+                    const lastChapterStr = manga.attributes.lastChapter;
+                    if (!lastChapterStr) return null; // If we don't know the end, discard it
+
+                    const lastChapterNum = parseFloat(lastChapterStr);
+                    if (isNaN(lastChapterNum)) return null;
+
+                    let aggUrl = `/manga/${manga.id}/aggregate?`;
+                    aggregatedLang.forEach(l => {
+                        aggUrl += `translatedLanguage[]=${l}&`;
+                    });
+                    
+                    const aggData = await apiFetch(aggUrl.slice(0, -1));
+                    if (!aggData || !aggData.volumes) return null;
+
+                    const volumes = Object.values(aggData.volumes) as any[];
+                    let hasLastChapter = false;
+
+                    for (const vol of volumes) {
+                        if (vol.chapters && typeof vol.chapters === 'object') {
+                            const chapterKeys = Object.keys(vol.chapters);
+                            
+                            // Strict check
+                            if (chapterKeys.includes(lastChapterStr)) {
+                                hasLastChapter = true;
+                                break;
+                            }
+
+                            // Flexible check (1 chapter margin)
+                            const maxTranslated = Math.max(...chapterKeys.map(k => parseFloat(k)).filter(n => !isNaN(n)));
+                            if (maxTranslated >= lastChapterNum - 1) {
+                                hasLastChapter = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (hasLastChapter) {
+                        return manga;
+                    }
+                    return null;
+                } catch (err) {
+                    console.warn(`[MangaDex] Failed to parse aggregate for ${manga.id}`, err);
+                    return null;
+                }
+            });
+
+            const results = await Promise.all(validationPromises);
+            validMangas.push(...results.filter(m => m !== null));
+
+            return {
+                data: validMangas.slice(0, limit),
+                total: validMangas.length, // Rough estimate for the UI
+                offset: offset,
+                rawOffsetNext: offset + fetchLimit // Next fetch offset for the caller
+            };
+        } catch (err) {
+            console.error('Error fetching deep completed manga:', err);
+            throw err;
+        }
+    },
+
+    /**
+     * Get mangas ordered by latest chapter update (AnimeFLV style)
+     */
+    /**
+     * Get mangas ordered by latest chapter update with ACCURATE timestamps (readableAt).
+     * This fetches chapters and groups them by manga.
+     */
+    /**
+     * Get mangas ordered by latest chapter update with ACCURATE timestamps (readableAt).
+     * This fetches chapters first to get timestamps, then fetches full manga data with covers.
+     */
+    async getLatestUpdatedManga(limit = 12, offset = 0, lang = 'es') {
+        const fetchLimit = limit * 2;
+        let url = `/chapter?limit=${fetchLimit}&offset=${offset}&contentRating[]=safe&contentRating[]=suggestive&order[readableAt]=desc&includes[]=manga`;
+        
+        if (lang === 'es') {
+            url += `&translatedLanguage[]=es&translatedLanguage[]=es-la`;
+        } else if (lang) {
+            url += `&translatedLanguage[]=${lang}`;
+        }
+
+        try {
+            const resp = await apiFetch(url);
+            const chapters = resp.data || [];
+            
+            const seenMangaIds = new Set<string>();
+            const mangaIdToChapterData: Record<string, { readableAt: string, chapter: string }> = {};
+
+            for (const chapter of chapters) {
+                const mangaRel = chapter.relationships.find((r: any) => r.type === 'manga');
+                if (!mangaRel || seenMangaIds.has(mangaRel.id)) continue;
+
+                seenMangaIds.add(mangaRel.id);
+                mangaIdToChapterData[mangaRel.id] = {
+                    readableAt: chapter.attributes.readableAt,
+                    chapter: chapter.attributes.chapter
+                };
+                if (seenMangaIds.size >= limit) break;
+            }
+
+            const uniqueIds = Array.from(seenMangaIds);
+            if (uniqueIds.length === 0) return { data: [] };
+
+            // Fetch full manga details with covers for these IDs
+            let mangaUrl = `/manga?limit=${uniqueIds.length}&includes[]=cover_art&includes[]=author`;
+            uniqueIds.forEach(id => mangaUrl += `&ids[]=${id}`);
+            
+            const mangaResp = await apiFetch(mangaUrl);
+            const fullMangas = mangaResp.data || [];
+
+            // Merge the chapter timestamp back into the full manga objects
+            const mergedMangas = fullMangas.map((manga: any) => ({
+                ...manga,
+                attributes: {
+                    ...manga.attributes,
+                    latestChapterReadableAt: mangaIdToChapterData[manga.id]?.readableAt,
+                    latestChapterNumber: mangaIdToChapterData[manga.id]?.chapter
+                }
+            }));
+
+            // Sort them back to the order we found them in chapters (importance of readability)
+            const sortedMangas = uniqueIds.map(id => mergedMangas.find((m: any) => m.id === id)).filter(Boolean);
+
+            return { data: sortedMangas };
+        } catch (err) {
+            console.error('Error fetching latest updated manga:', err);
+            throw err;
+        }
     },
 
     async getLatestChapters(limit = 12, offset = 0, lang: string | null = null) {
-        let url = `/chapter?limit=${limit}&offset=${offset}&contentRating[]=safe&contentRating[]=suggestive&order[readableAt]=desc&includes[]=manga&includes[]=cover_art`;
+        let url = `/chapter?limit=${limit}&offset=${offset}&contentRating[]=safe&contentRating[]=suggestive&order[readableAt]=desc&includes[]=manga`;
         
         if (lang === 'es') {
             // Include both Spain and Latin American Spanish

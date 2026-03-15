@@ -3,6 +3,11 @@
 import legacy from '@vitejs/plugin-legacy'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import dns from 'dns'
+
+// Fix for Node 17+ Vite proxy ENOTFOUND issues (forces IPv4 resolution for mangadex.org)
+dns.setDefaultResultOrder('ipv4first')
+
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -19,11 +24,6 @@ export default defineConfig({
         headers: {
           'User-Agent': 'MiravoyApp/1.0 (Local Dev)',
         }
-      },
-      '/api-consumet': {
-        target: 'https://api.consumet.org',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api-consumet/, ''),
       }
     }
   },

@@ -23,10 +23,9 @@ import {
   IonLabel,
   IonToast
 } from '@ionic/react';
-import { personCircleOutline, notifications, refreshOutline, chevronDownOutline, libraryOutline, sparklesOutline, checkmarkCircle } from 'ionicons/icons';
+import { personCircleOutline, notifications, refreshOutline, chevronDownOutline, libraryOutline, sparklesOutline, checkmarkCircle, chevronBackOutline, chevronForwardOutline } from 'ionicons/icons';
 import MangaCard from '../components/MangaCard';
 import { mangadexService } from '../services/mangadexService';
-import { consumetService } from '../services/consumetService';
 import LoadingScreen from '../components/LoadingScreen';
 import { useLibraryStore } from '../store/useLibraryStore';
 import './HomePage.css';
@@ -42,8 +41,7 @@ const HomePage: React.FC = () => {
   const [showNewBanner, setShowNewBanner] = useState(false);
   const [showSecretToast, setShowSecretToast] = useState(false);
   const [latestLang, setLatestLang] = useState('es');
-  const [trendingFansub, setTrendingFansub] = useState<any[]>([]);
-  const [fansubLoading, setFansubLoading] = useState(false);
+  const [popularManga, setPopularManga] = useState<any[]>([]);
   const { history } = useLibraryStore();
   const router = useIonRouter();
   const heroTimer = useRef<NodeJS.Timeout | null>(null);
@@ -82,6 +80,14 @@ const HomePage: React.FC = () => {
     }, 120000); // 2 minutes
     return () => { if (pollTimer.current) clearInterval(pollTimer.current); };
   }, [latestLang]);
+
+  const scrollCarousel = (id: string, direction: 'left' | 'right') => {
+    const container = document.getElementById(id);
+    if (container) {
+      const scrollAmount = window.innerWidth > 1024 ? 600 : 300;
+      container.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
+    }
+  };
 
   const fetchData = async (force = false) => {
     const fetchKey = `${latestLang}`;
@@ -129,18 +135,16 @@ const HomePage: React.FC = () => {
       if (updatedMangas.length > 0) {
         lastFetchTime.current = updatedMangas[0].attributes.updatedAt;
       }
+
+      // Fetch Popular Manga for Carousel
+      const popularResponse = await mangadexService.getPopularManga('', 'es', 15, 0);
+      setPopularManga(popularResponse.data || []);
+
     } catch (error) {
       console.error('Error fetching home data:', error);
     } finally {
       setLoading(false);
     }
-
-    // Independent Fansub fetch — doesn't block MangaDex content
-    setFansubLoading(true);
-    consumetService.getTrending(15).then(data => {
-      setTrendingFansub(data);
-      setFansubLoading(false);
-    }).catch(() => setFansubLoading(false));
   };
 
   const loadMoreLatest = async (e: any) => {
@@ -295,37 +299,45 @@ const HomePage: React.FC = () => {
           )}
         </div>
 
-        {/* --- CARRUSEL FANSUB: Tendencias Populares (carga independiente) --- */}
-        {(trendingFansub.length > 0 || fansubLoading) && (
+        {/* --- MAIN CAROUSEL: Tendencias (MangaDex) --- */}
+        {(popularManga.length > 0 || loading) && (
           <div className="animate-fade-in" style={{ marginTop: '1rem' }}>
             <div className="section-header" style={{ paddingBottom: '0.5rem' }}>
               <div className="accent-bar" style={{ background: '#ffca28' }}></div>
-              <h2>Tendencias Fansub 🔥</h2>
+              <h2>Tendencias 🔥</h2>
             </div>
-            <div className="manga-carousel">
-              {fansubLoading ? (
-                [1,2,3,4,5].map(i => (
-                  <div key={`skel-${i}`} className="carousel-card">
-                    <IonSkeletonText animated style={{ width: '130px', height: '190px', borderRadius: '8px' }} />
-                  </div>
-                ))
-              ) : (
-                trendingFansub.map((manga: any) => (
-                  <div 
-                    key={manga.id} 
-                    className="carousel-card"
-                    onClick={() => router.push(`/manga/${manga.id}`)}
-                  >
-                    <img 
-                      src={consumetService.getCoverUrl(manga)} 
-                      className="carousel-cover" 
-                      alt={manga.attributes.title.en} 
-                      loading="lazy"
-                    />
-                    <div className="carousel-title">{manga.attributes.title.en}</div>
-                  </div>
-                ))
-              )}
+            <div className="carousel-wrapper">
+              <IonButton fill="clear" className="carousel-scroll-btn left" onClick={(e) => { e.stopPropagation(); scrollCarousel('popular-carousel', 'left'); }}>
+                <IonIcon icon={chevronBackOutline} />
+              </IonButton>
+              <div className="manga-carousel" id="popular-carousel">
+                {loading ? (
+                  [1,2,3,4,5].map(i => (
+                    <div key={`skel-${i}`} className="carousel-card">
+                      <IonSkeletonText animated style={{ width: '130px', height: '190px', borderRadius: '8px' }} />
+                    </div>
+                  ))
+                ) : (
+                  popularManga.map((manga: any) => (
+                    <div 
+                      key={manga.id} 
+                      className="carousel-card"
+                      onClick={() => router.push(`/manga/${manga.id}`)}
+                    >
+                      <img 
+                        src={mangadexService.getCoverUrl(manga)} 
+                        className="carousel-cover" 
+                        alt={mangadexService.getLocalizedTitle(manga) as string} 
+                        loading="lazy"
+                      />
+                      <div className="carousel-title">{mangadexService.getLocalizedTitle(manga)}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <IonButton fill="clear" className="carousel-scroll-btn right" onClick={(e) => { e.stopPropagation(); scrollCarousel('popular-carousel', 'right'); }}>
+                <IonIcon icon={chevronForwardOutline} />
+              </IonButton>
             </div>
           </div>
         )}
@@ -363,40 +375,77 @@ const HomePage: React.FC = () => {
               ))}
             </div>
 
-            {latest.length > 0 ? (
-              <IonGrid className="ion-no-padding">
-                <IonRow className="manga-grid">
-                {latest.map((manga: any) => {
-                  const mangaTitle = mangadexService.getLocalizedTitle(manga);
-                  const coverUrl = mangadexService.getCoverUrl(manga);
-                  const format = manga?.attributes?.originalLanguage;
-                  const lastChapter = manga?.attributes?.lastChapter;
-                  const tags = manga?.attributes?.tags
-                    ?.filter((t: any) => t.attributes?.group === 'genre')
-                    .slice(0, 1)
-                    .map((t: any) => t.attributes?.name?.en || t.attributes?.name?.es || '');
-                  
-                  return (
-                    <IonCol size="4" sizeSm="4" sizeMd="3" key={manga.id} className="ion-no-padding">
-                      <MangaCard 
-                        title={mangaTitle}
-                        coverUrl={coverUrl}
-                        format={format}
-                        progressLabel={lastChapter ? `Cap. ${lastChapter}` : 'Nuevo'}
+            {/* Deduplicate Latest Updates against Popular */}
+            {(() => {
+              const filteredLatest = latest.filter((m: any) => 
+                !popularManga.some(p => p.id === m.id)
+              );
+
+              return filteredLatest.length > 0 ? (
+                <div className="manga-list-container">
+                  {filteredLatest.map((manga: any) => {
+                    const mangaTitle = mangadexService.getLocalizedTitle(manga);
+                    const coverUrl = mangadexService.getCoverUrl(manga);
+                    const format = manga?.attributes?.originalLanguage;
+                    const isManhwa = format === 'ko';
+                    const isManhua = format === 'zh';
+                    const formatLabel = isManhwa ? 'Manhwa' : isManhua ? 'Manhua' : 'Manga';
+                    
+                    // Use injected precise data from mangadexService.getLatestUpdatedManga
+                    const lastChapter = manga?.attributes?.latestChapterNumber || manga?.attributes?.lastChapter;
+                    const readableAt = manga?.attributes?.latestChapterReadableAt || manga?.attributes?.updatedAt;
+                    const timeAgo = readableAt ? getTimeAgo(readableAt) : '';
+                    const tags = manga?.attributes?.tags
+                      ?.filter((t: any) => t.attributes?.group === 'genre')
+                      .slice(0, 2) // Take up to 2 genres for the list view
+                      .map((t: any) => t.attributes?.name?.en || t.attributes?.name?.es || '');
+                    
+                    return (
+                      <div 
+                        key={manga.id} 
+                        className="manga-list-item animate-fade-in"
                         onClick={() => handleLatestClick(manga)}
-                        tags={tags}
-                      />
-                    </IonCol>
-                  );
-                })}
-                </IonRow>
-              </IonGrid>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.7 }}>
-                <p>No se encontraron capítulos recientes en español.</p>
-                <IonButton fill="clear" onClick={() => fetchData()}>Reintentar</IonButton>
-              </div>
-            )}
+                      >
+                        <div className="list-item-cover-wrapper">
+                          <img src={coverUrl} alt={mangaTitle as string} className="list-item-cover" loading="lazy" />
+                          <div className="list-item-format-badge">{formatLabel}</div>
+                        </div>
+                        <div className="list-item-details">
+                          <h3 className="list-item-title">{mangaTitle}</h3>
+                          
+                          <div className="list-item-meta">
+                            {tags && tags.length > 0 && (
+                              <div className="list-item-tags">
+                                {tags.map((tag: string, idx: number) => (
+                                  <span key={idx} className="list-item-tag">{tag}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="list-item-footer">
+                            <div className="list-item-chapter">
+                              <span className="chapter-label">
+                                {lastChapter ? `Cap. ${lastChapter}` : 'Nuevo'}
+                              </span>
+                            </div>
+                            <div className="list-item-time">
+                              <IonIcon icon={refreshOutline} className="time-icon" />
+                              <span>{timeAgo}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.7 }}>
+                  <p>No se encontraron capítulos recientes (o ya están todos en Tendencias).</p>
+                  <IonButton fill="clear" onClick={() => fetchData()}>Reintentar</IonButton>
+                </div>
+              );
+            })()}
           </div>
         )}
 

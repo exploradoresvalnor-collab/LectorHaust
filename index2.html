@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Lado Gris - Consumet API</title>
+    <style>
+        /* CSS Básico y Oscuro */
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+        h1 { text-align: center; color: #ff5252; }
+        .grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        .card {
+            background-color: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 20px;
+            width: 300px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .card img {
+            width: 100%;
+            height: 400px;
+            object-fit: cover;
+            border-radius: 6px;
+        }
+        .badge {
+            background: #ff5252;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .error { color: #ff5252; font-weight: bold; }
+        .loading { color: #888; font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <h1>Prueba de Scrapers sin Backend</h1>
+    <p style="text-align: center;">Usando AllOrigins (Proxy) + Consumet API</p>
+
+    <div class="grid">
+        <div id="proveedor-1" class="card">
+            <p class="loading">⏳ Conectando con MangaKakalot...</p>
+        </div>
+
+        <div id="proveedor-2" class="card">
+            <p class="loading">⏳ Conectando con Bato.to...</p>
+        </div>
+    </div>
+
+    <script>
+        // JS Lógica Core
+        const proxyUrl = "https://api.allorigins.win/get?url=";
+        const consumetBase = "https://api.consumet.org/manga/";
+
+        // Función principal para llamar a cualquier proveedor
+        async function probarServidor(proveedor, queryManga, elementId) {
+            const container = document.getElementById(elementId);
+            const targetUrl = `${consumetBase}${proveedor}/${queryManga}`;
+            const finalUrl = `${proxyUrl}${encodeURIComponent(targetUrl)}`;
+
+            try {
+                // Hacemos el fetch pasando por el proxy
+                const response = await fetch(finalUrl);
+                
+                if (!response.ok) throw new Error("Error de red");
+
+                // AllOrigins devuelve la info dentro de "contents" como un string, hay que parsearlo
+                const proxyData = await response.json();
+                const mangaData = JSON.parse(proxyData.contents);
+
+                // Si la API de Consumet devuelve un error interno
+                if(mangaData.message) throw new Error(mangaData.message);
+
+                // Asumimos que toma el primer resultado de la búsqueda
+                const resultado = mangaData.results ? mangaData.results[0] : mangaData;
+
+                // Renderizamos la tarjeta si todo salió bien
+                container.innerHTML = `
+                    <span class="badge">${proveedor.toUpperCase()}</span>
+                    <h2>${resultado.title}</h2>
+                    <img src="${resultado.image}" alt="Portada de ${resultado.title}">
+                    <p><strong>Tipo:</strong> Lado Gris Activo ✅</p>
+                    <button style="width:100%; padding: 10px; margin-top: 10px; cursor: pointer;">
+                        Ver Capítulos (Click simulado)
+                    </button>
+                `;
+            } catch (error) {
+                console.error(`Error en ${proveedor}:`, error);
+                container.innerHTML = `
+                    <span class="badge" style="background: grey;">${proveedor.toUpperCase()}</span>
+                    <p class="error">❌ Falló la conexión.</p>
+                    <p style="font-size: 0.9em; color: #aaa;">Motivo común: El proxy falló, la API pública está saturada o el sitio cambió su HTML.</p>
+                `;
+            }
+        }
+
+        // Ejecutamos las pruebas en paralelo al cargar la página
+        // Parámetros: (Nombre del provider, Nombre del manga, ID del div en HTML)
+        probarServidor('mangakakalot', 'one-punch-man', 'proveedor-1');
+        probarServidor('batoto', 'solo-leveling', 'proveedor-2');
+    </script>
+
+</body>
+</html>

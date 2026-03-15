@@ -28,7 +28,6 @@ import {
 import { heart, heartOutline, chevronBackOutline, chevronForwardOutline, playSkipBackOutline, playSkipForwardOutline, alertCircleOutline, informationCircleOutline } from 'ionicons/icons';
 import { useParams, useLocation } from 'react-router-dom';
 import { mangadexService } from '../services/mangadexService';
-import { consumetService } from '../services/consumetService';
 import { anilistService } from '../services/anilistService';
 import { useLibraryStore } from '../store/useLibraryStore';
 import ChapterItem from '../components/ChapterItem';
@@ -74,51 +73,6 @@ const MangaDetailsPage: React.FC = () => {
       if (!id) return;
       setLoading(true);
 
-      // --- CONSUMET PATH ---
-      if (consumetService.isConsumetId(id)) {
-        try {
-          const chaptersResult = await consumetService.getChapters(id);
-          const info = chaptersResult.mangaInfo;
-          if (!info) throw new Error('Consumet manga not found');
-
-          // Build a manga-like object from Consumet info
-          const mangaObj = {
-            id,
-            attributes: {
-              title: { en: info.title?.english || info.title?.romaji || info.title?.native || 'Manga' },
-              description: { en: info.description || '' },
-              status: info.status || 'unknown',
-              originalLanguage: (info.countryOfOrigin || 'JP').toLowerCase() === 'jp' ? 'ja' : (info.countryOfOrigin || 'ja').toLowerCase(),
-              tags: (info.genres || []).map((g: string, i: number) => ({
-                id: `genre-${i}`,
-                attributes: { name: { en: g }, group: 'genre' }
-              })),
-            },
-            relationships: [],
-            _consumet: {
-              image: info.image,
-              cover: info.cover || info.image,
-              rating: info.rating,
-            }
-          };
-
-          if (isMounted.current) {
-            setManga(mangaObj);
-            setTotalChapters(chaptersResult.total);
-            setTotalPages(Math.ceil(chaptersResult.total / 20));
-            setChapters(deduplicateChapters(chaptersResult.data));
-            setHasMoreChapters(false);
-            setAvailableLangs(['en']);
-          }
-        } catch (error: any) {
-          console.error('Error fetching Consumet manga:', error);
-          if (isMounted.current) setManga(null);
-        } finally {
-          if (isMounted.current) { setLoading(false); setLoadingChapters(false); }
-        }
-        return; // Skip MangaDex flow
-      }
-
       // --- MANGADEX PATH ---
       try {
         const data = await mangadexService.getMangaDetails(id);
@@ -161,36 +115,12 @@ const MangaDetailsPage: React.FC = () => {
         
         if (isMounted.current) {
           const newChapters = deduplicateChapters(chaptersData.data || []);
-
-          // 🧠 SMART FALLBACK: Si MangaDex no tiene capítulos legibles, buscar en Consumet silenciosamente
-          if (newChapters.length === 0 && title) {
-            console.warn(`⚠️ MangaDex vacío para "${title}". Activando Smart Fallback (Consumet)...`);
-            try {
-              const consumetSearchResults = await consumetService.searchManga(title as string);
-              if (consumetSearchResults && consumetSearchResults.length > 0) {
-                const consumetId = consumetSearchResults[0].id; // ya tiene prefijo consumet-
-                const consumetChaptersResult = await consumetService.getChapters(consumetId);
-                
-                if (isMounted.current && consumetChaptersResult.data.length > 0) {
-                  console.log(`🕵️ ${consumetChaptersResult.data.length} capítulos rescatados de la Zona Gris`);
-                  setChapters(consumetChaptersResult.data);
-                  setTotalChapters(consumetChaptersResult.total);
-                  setTotalPages(1); // Consumet trae todos de golpe, sin paginación
-                  setHasMoreChapters(false);
-                  setAvailableLangs(['en']); // Consumet generalmente trae inglés
-                }
-              }
-            } catch (consumetErr) {
-              console.warn('Smart Fallback (Consumet) falló:', consumetErr);
-            }
-          } else {
-            // MangaDex tenía capítulos, usarlos normalmente
-            setTotalChapters(chaptersData.total || 0);
-            setTotalPages(Math.ceil((chaptersData.total || 0) / 20));
-            setChapters(newChapters);
-            if ((chaptersData.data || []).length < 20) setHasMoreChapters(false);
-            else setHasMoreChapters(true);
-          }
+          
+          setTotalChapters(chaptersData.total || 0);
+          setTotalPages(Math.ceil((chaptersData.total || 0) / 20));
+          setChapters(newChapters);
+          if ((chaptersData.data || []).length < 20) setHasMoreChapters(false);
+          else setHasMoreChapters(true);
         }
 
         // Fetch all available languages for this manga - searching more pages
@@ -285,14 +215,11 @@ const MangaDetailsPage: React.FC = () => {
       </IonPage>
     );
   }
-
   const title = mangadexService.getLocalizedTitle(manga);
-  const coverUrl = manga?._consumet ? consumetService.getCoverUrl(manga) : mangadexService.getCoverUrl(manga);
-  const bestDescription = manga?._consumet 
-    ? (manga.attributes.description?.en || 'Sin descripción.').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '')
-    : mangadexService.getLocalizedDescription(manga);
+  const coverUrl = mangadexService.getCoverUrl(manga);
+  const bestDescription = mangadexService.getLocalizedDescription(manga);
 
-  // Extract Formats and Tags for saving to favorites
+
   const mangaFormat = manga?.attributes?.originalLanguage;
   const mangaTags = (manga?.attributes?.tags || [])
     .filter((t: any) => t.attributes?.group === 'genre')

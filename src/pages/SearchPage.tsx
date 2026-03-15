@@ -23,11 +23,10 @@ import {
   useIonRouter,
   useIonViewWillEnter
 } from '@ionic/react';
-import { trendingUpOutline, sparklesOutline, searchOutline, heartOutline, filterOutline, swapHorizontalOutline } from 'ionicons/icons';
+import { trendingUpOutline, sparklesOutline, searchOutline, heartOutline, filterOutline } from 'ionicons/icons';
 import MangaCard from '../components/MangaCard';
 import LoadingScreen from '../components/LoadingScreen';
 import { mangadexService } from '../services/mangadexService';
-import { consumetService } from '../services/consumetService';
 import { useLibraryStore } from '../store/useLibraryStore';
 import './SearchPage.css';
 
@@ -41,6 +40,14 @@ const SearchPage: React.FC = () => {
   const [offset, setOffset] = useState(0);
   const [isDone, setIsDone] = useState(false);
   
+  // Completed Mangas State (Migrated from Library)
+  const [completedManga, setCompletedManga] = useState<any[]>([]);
+  const [completedLoading, setCompletedLoading] = useState(false);
+  const [completedOffset, setCompletedOffset] = useState(0);
+  const [completedGenre, setCompletedGenre] = useState<string>('');
+  const [completedLang, setCompletedLang] = useState<string>('es');
+  const [isCompletedDone, setIsCompletedDone] = useState(false);
+  
   // Modern Filters
   const [activeFormat, setActiveFormat] = useState<string | null>(null);
   const [activeGenre, setActiveGenre] = useState<string | null>(null);
@@ -48,7 +55,6 @@ const SearchPage: React.FC = () => {
   const [activeDemographic, setActiveDemographic] = useState<string | null>(null);
   const [activeOrder, setActiveOrder] = useState<string>('relevance');
   const [showFilters, setShowFilters] = useState(true);
-  const [useConsumet, setUseConsumet] = useState(false); // Toggle: MangaDex vs Consumet
 
   const FORMATS = [
     { label: 'Todos', value: null },
@@ -133,6 +139,52 @@ const SearchPage: React.FC = () => {
     if (trending.length === 0) loadDiscoveryData();
   });
 
+  const fetchCompleted = async (isLoadMore = false, genre = completedGenre, lang = completedLang) => {
+    if (!isLoadMore) {
+        setCompletedLoading(true);
+        setCompletedOffset(0);
+        setIsCompletedDone(false);
+    }
+    
+    try {
+        const offsetToUse = isLoadMore ? completedOffset : 0;
+        const resp = await mangadexService.getFullyTranslatedMasterpieces(null, lang, 15, offsetToUse, genre || null);
+        
+        let newData = resp.data || [];
+        
+        if (!newData.length) {
+            setIsCompletedDone(true);
+        } else {
+            setCompletedOffset(resp.rawOffsetNext !== undefined ? resp.rawOffsetNext : offsetToUse + 45); 
+        }
+
+        if (isLoadMore) {
+            setCompletedManga(prev => {
+                const existing = new Set(prev.map(m => m.id));
+                const unique = newData.filter((m: any) => !existing.has(m.id));
+                return [...prev, ...unique];
+            });
+        } else {
+            setCompletedManga(newData);
+        }
+    } catch (err) {
+        console.error("Error fetching completed", err);
+    } finally {
+        if (!isLoadMore) setCompletedLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeSegment === 'completed' && completedManga.length === 0) {
+        fetchCompleted();
+    }
+  }, [activeSegment]);
+
+  const loadMoreCompleted = async (e: any) => {
+      await fetchCompleted(true);
+      e.target.complete();
+  };
+
   const handleSearch = async (val: string, isMore = false, newFormat?: string | null, newGenre?: string | null, newStatus?: string | null, newDemographic?: string | null) => {
     const searchVal = val !== undefined ? val : query;
     const format = newFormat !== undefined ? newFormat : activeFormat;
@@ -154,19 +206,9 @@ const SearchPage: React.FC = () => {
     }
 
     try {
-      // --- CONSUMET MODE ---
-      if (useConsumet) {
-        if (!searchVal || searchVal.length < 2) { setResults([]); setLoading(false); return; }
-        const consumetResults = await consumetService.searchManga(searchVal);
-        setResults(consumetResults);
-        setIsDone(true); // Consumet doesn't paginate in searches
-        setLoading(false);
-        return;
-      }
-
-      // --- MANGADEX MODE ---
       const currentOffset = isMore ? offset + 20 : 0;
-      
+
+      // Construimos los filtros visuales (Esto aplica para ambas APIs)
       const filters: any = {};
       if (format) filters.origin = format;
       if (genre && genre !== 'Todos' && genreMapping[genre]) filters.tags = [genreMapping[genre]];
@@ -176,6 +218,7 @@ const SearchPage: React.FC = () => {
       const orderParam: any = {};
       orderParam[activeOrder] = 'desc';
 
+      // --- MANGADEX MODE (Servidor Oficial) ---
       const data = await mangadexService.searchManga(searchVal, filters, 20, currentOffset, orderParam);
       
       if (isMore) {
@@ -239,6 +282,10 @@ const SearchPage: React.FC = () => {
               <IonIcon icon={trendingUpOutline} />
               <IonLabel>Tendencias</IonLabel>
             </IonSegmentButton>
+            <IonSegmentButton value="completed">
+              <IonIcon icon={sparklesOutline} />
+              <IonLabel>Terminados 🏆</IonLabel>
+            </IonSegmentButton>
             <IonSegmentButton value="suggestions">
               <IonIcon icon={sparklesOutline} />
               <IonLabel>Sugerencias</IonLabel>
@@ -255,28 +302,14 @@ const SearchPage: React.FC = () => {
         {activeSegment === 'search' && (
           <div className="search-section animate-fade-in">
             <div className="search-header-container">
-              {/* Selector de Fuente de Búsqueda */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 4px 10px', justifyContent: 'center' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: !useConsumet ? 'var(--ion-color-primary)' : 'gray' }}>Original</span>
-                <IonButton 
-                  fill="clear" 
-                  size="small" 
-                  onClick={() => { setUseConsumet(!useConsumet); setResults([]); }}
-                  style={{ '--padding-start': '6px', '--padding-end': '6px' }}
-                >
-                  <IonIcon icon={swapHorizontalOutline} style={{ fontSize: '1.3rem', color: useConsumet ? '#ffca28' : 'var(--ion-color-primary)' }} />
-                </IonButton>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: useConsumet ? '#ffca28' : 'gray' }}>Fansub</span>
-              </div>
-
               <div className="search-bar-row">
                 <IonSearchbar 
-                  placeholder={useConsumet ? 'Buscar en Servidor Fansub...' : '¿Qué quieres leer hoy?'}
+                  placeholder={'¿Qué quieres leer hoy?'}
                   onIonInput={(e) => handleSearch(e.detail.value!)}
                   debounce={500}
                   className="custom-searchbar floating-search"
                 />
-                {!useConsumet && (
+                
                   <IonButton 
                     fill="clear" 
                     className={`filter-toggle-btn ${showFilters ? 'active' : ''}`}
@@ -284,10 +317,10 @@ const SearchPage: React.FC = () => {
                   >
                     <IonIcon icon={filterOutline} slot="icon-only" />
                   </IonButton>
-                )}
+                
               </div>
               
-              {!useConsumet && (
+              
               <div className={`filters-container-pro ${showFilters ? 'expanded' : 'collapsed'}`}>
                 <div className="filter-grid-pro">
                   <div className="filter-item-pro">
@@ -370,7 +403,6 @@ const SearchPage: React.FC = () => {
                   </div>
                 </div>
               </div>
-              )}
             </div>
             {loading && offset === 0 ? (
               <LoadingScreen />
@@ -388,7 +420,7 @@ const SearchPage: React.FC = () => {
                       <IonCol size="4" sizeMd="3" key={manga.id} className="ion-no-padding">
                         <MangaCard 
                           title={manga.attributes.title.en || Object.values(manga.attributes.title)[0]}
-                          coverUrl={manga._consumet ? consumetService.getCoverUrl(manga) : mangadexService.getCoverUrl(manga)}
+                          coverUrl={mangadexService.getCoverUrl(manga)}
                           format={format}
                           tags={tags}
                           onClick={() => router.push(`/manga/${manga.id}`)}
@@ -476,6 +508,91 @@ const SearchPage: React.FC = () => {
                   })}
                 </IonRow>
               </IonGrid>
+            )}
+          </div>
+        )}
+
+        {activeSegment === 'completed' && (
+          <div className="completed-section animate-fade-in">
+            <div className="discovery-header" style={{ marginBottom: '20px' }}>
+              <div className="section-header">
+                <div className="accent-bar" style={{ background: '#4caf50' }}></div>
+                <h2 className="discovery-title">Obras Maestras Finalizadas</h2>
+              </div>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '5px' }}>
+                Series terminadas con traducción completa verificada.
+              </p>
+            </div>
+
+            {/* Language Selection */}
+            <div className="lang-filters" style={{ overflowX: 'auto', whiteSpace: 'nowrap', paddingBottom: '12px', display: 'flex', gap: '8px' }}>
+              {[
+                { code: 'es', label: '🇪🇸 Español' },
+                { code: 'en', label: '🇺🇸 English' }
+              ].map(lang => (
+                <IonChip 
+                  key={lang.code}
+                  color={completedLang === lang.code ? 'secondary' : 'medium'}
+                  outline={completedLang !== lang.code}
+                  onClick={() => {
+                    setCompletedLang(lang.code);
+                    fetchCompleted(false, completedGenre, lang.code);
+                  }}
+                >
+                  <IonLabel>{lang.label}</IonLabel>
+                </IonChip>
+              ))}
+            </div>
+            
+            {/* Genre Selection */}
+            <div className="genre-filters" style={{ overflowX: 'auto', whiteSpace: 'nowrap', paddingBottom: '15px', marginBottom: '10px', display: 'flex', gap: '8px' }}>
+              {[
+                { val: '', label: '🌟 Todos' },
+                { val: '391b0423-d847-456f-aff0-8b0cfc03066b', label: '⚔️ Acción' },
+                { val: '423e2eae-a7a2-4a8b-ac03-a8351462d71d', label: '❤️ Romance' },
+                { val: 'cdc58593-87dd-415e-bbc0-2ec27bf404cc', label: '🪄 Fantasía' },
+                { val: '4d32cc48-9f00-4cca-9b5a-a839f0764984', label: '🤣 Comedia' },
+                { val: 'eabc5b4c-6aff-42f3-b657-3e90cbd00b75', label: '👻 Sobrenatural' }
+              ].map(g => (
+                <IonChip 
+                  key={g.val}
+                  color={completedGenre === g.val ? 'primary' : 'medium'}
+                  outline={completedGenre !== g.val}
+                  onClick={() => {
+                    setCompletedGenre(g.val);
+                    fetchCompleted(false, g.val);
+                  }}
+                >
+                  <IonLabel>{g.label}</IonLabel>
+                </IonChip>
+              ))}
+            </div>
+
+            {completedLoading ? (
+              <div style={{ textAlign: 'center', padding: '3rem' }}>
+                <IonSpinner name="dots" color="primary" />
+                <p style={{ marginTop: '10px', opacity: 0.8 }}>Validando traducción completa...</p>
+              </div>
+            ) : (
+              <>
+                <IonGrid className="ion-no-padding">
+                  <IonRow>
+                    {completedManga.map((manga: any) => (
+                      <IonCol size="4" sizeMd="3" key={manga.id} className="ion-no-padding">
+                        <MangaCard 
+                          title={mangadexService.getLocalizedTitle(manga) as string}
+                          coverUrl={mangadexService.getCoverUrl(manga)}
+                          format={manga.attributes.originalLanguage}
+                          onClick={() => router.push(`/manga/${manga.id}`)}
+                        />
+                      </IonCol>
+                    ))}
+                  </IonRow>
+                </IonGrid>
+                <IonInfiniteScroll disabled={isCompletedDone} onIonInfinite={loadMoreCompleted} threshold="100px">
+                  <IonInfiniteScrollContent loadingSpinner="bubbles" loadingText="Buscando más joyas..." />
+                </IonInfiniteScroll>
+              </>
             )}
           </div>
         )}

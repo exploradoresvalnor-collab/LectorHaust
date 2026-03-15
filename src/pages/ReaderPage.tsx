@@ -17,7 +17,6 @@ import {
 import { chevronBackOutline, chevronForwardOutline } from 'ionicons/icons';
 import { useParams } from 'react-router-dom';
 import { mangadexService } from '../services/mangadexService';
-import { consumetService } from '../services/consumetService';
 import { useLibraryStore } from '../store/useLibraryStore';
 import './ReaderPage.css';
 
@@ -93,20 +92,6 @@ const ReaderPage: React.FC = () => {
       setFailedPages(new Set());
       try {
         lastLoadedId.current = chapterId as string;
-
-        // --- CONSUMET CHAPTER PATH ---
-        if (consumetService.isConsumetChapterId(chapterId)) {
-          const data = await consumetService.getChapterPages(chapterId);
-          if (data && data.pages && data.pages.length > 0) {
-            setPages(data.pages);
-            markAsRead(chapterId);
-            setChapterNum('?');
-          } else {
-            throw new Error('No se encontraron páginas en el proveedor.');
-          }
-          setLoading(false);
-          return; // Skip MangaDex flow
-        }
 
         // --- MANGADEX CHAPTER PATH ---
         const data = await mangadexService.getChapterPages(chapterId, dataSaverMode ? 'data-saver' : 'data');
