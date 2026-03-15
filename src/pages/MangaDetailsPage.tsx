@@ -22,9 +22,10 @@ import {
   IonSelectOption,
   IonInfiniteScroll,
   IonInfiniteScrollContent,
-  IonPopover
+  IonPopover,
+  IonNote
 } from '@ionic/react';
-import { heart, heartOutline, chevronBackOutline, chevronForwardOutline, playSkipBackOutline, playSkipForwardOutline, alertCircleOutline } from 'ionicons/icons';
+import { heart, heartOutline, chevronBackOutline, chevronForwardOutline, playSkipBackOutline, playSkipForwardOutline, alertCircleOutline, informationCircleOutline } from 'ionicons/icons';
 import { useParams, useLocation } from 'react-router-dom';
 import { mangadexService } from '../services/mangadexService';
 import { anilistService } from '../services/anilistService';
@@ -380,8 +381,24 @@ const MangaDetailsPage: React.FC = () => {
               style={{ marginLeft: '10px' }}
             >
               <IonIcon icon={chapterOrder === 'asc' ? chevronForwardOutline : chevronBackOutline} slot="start" style={{ transform: 'rotate(90deg)' }} />
-              {chapterOrder === 'asc' ? 'Ascendente' : 'Descendente'}
+            {chapterOrder === 'asc' ? 'Ascendente' : 'Descendente'}
             </IonButton>
+          </div>
+
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '8px', 
+            padding: '10px 15px', 
+            background: 'rgba(255, 196, 9, 0.1)', 
+            borderLeft: '4px solid #ffc409',
+            margin: '10px 0 20px',
+            borderRadius: '4px'
+          }}>
+            <IonIcon icon={informationCircleOutline} style={{ color: '#ffc409', fontSize: '24px' }} />
+            <IonNote style={{ color: '#ddd', fontSize: '0.8rem', lineHeight: '1.2' }}>
+              Algunos capítulos pueden faltar o estar incompletos debido a licencias oficiales o eliminación por derechos de autor.
+            </IonNote>
           </div>
 
           <div className="chapters-container">

@@ -219,23 +219,64 @@ export const mangadexService = {
     },
 
     /**
-     * Get chapters for a specific manga
+     * Get chapters for a specific manga (GOD TIER exhaustive fetching)
      */
-    async getMangaChapters(mangaId: string, lang: string | string[] = 'es', limit = 500, offset = 0, orderDir: 'asc' | 'desc' = 'desc') {
-        let url = `/manga/${mangaId}/feed?limit=${limit}&offset=${offset}&order[volume]=${orderDir}&order[chapter]=${orderDir}&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&includes[]=scanlation_group`;
-        
-        if (lang) {
-            let langsArray = Array.isArray(lang) ? lang : [lang];
+    async getMangaChapters(mangaId: string, lang: string | string[] | null = 'es', limit = 500, offsetInitial = 0, orderDir: 'asc' | 'desc' = 'desc') {
+        let allChapters: any[] = [];
+        let offset = offsetInitial;
+        let hasMore = true;
+        let total = 0;
+
+        // Bucle para descargar TODOS los capítulos (paginado de 500 en 500)
+        while (hasMore) {
+            let url = `/manga/${mangaId}/feed?limit=${limit}&offset=${offset}&order[volume]=${orderDir}&order[chapter]=${orderDir}&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&includes[]=scanlation_group`;
             
-            // If they asked for 'es', proactively include 'es-la' so we don't miss LATAM chapters
-            if (langsArray.includes('es') && !langsArray.includes('es-la')) {
-                langsArray.push('es-la');
+            if (lang) {
+                let langsArray = Array.isArray(lang) ? lang : [lang];
+                // Si piden español, incluir latam
+                if (langsArray.includes('es') && !langsArray.includes('es-la')) {
+                    langsArray.push('es-la');
+                }
+                langsArray.forEach(l => url += `&translatedLanguage[]=${l}`);
+            } else {
+                // Fallback de idiomas si no se especifica para asegurar contenido
+                url += `&translatedLanguage[]=es&translatedLanguage[]=es-la&translatedLanguage[]=en`;
             }
 
-            langsArray.forEach(l => url += `&translatedLanguage[]=${l}`);
+            const data = await apiFetch(url);
+            
+            if (!data.data || data.data.length === 0) {
+                hasMore = false;
+                break;
+            }
+
+            total = data.total || total;
+
+            // FILTRO ANTI-FALLOS: externalUrl === null y pages > 0
+            const validChapters = data.data.filter((ch: any) => 
+                ch.attributes.externalUrl === null && ch.attributes.pages > 0
+            );
+
+            allChapters = [...allChapters, ...validChapters];
+
+            // Si MangaDex nos dio menos del límite, llegamos al final de la BD
+            if (data.data.length < limit) {
+                hasMore = false;
+            } else {
+                offset += limit;
+                // Si solo queríamos un pedazo pequeño (ej: página de 20), rompemos aquí
+                if (limit < 500) {
+                    hasMore = false;
+                }
+            }
         }
 
-        return apiFetch(url);
+        // Deduplicación por número de capítulo
+        const uniqueChapters = allChapters.filter((chapter, index, self) =>
+            index === self.findIndex((c) => c.attributes.chapter === chapter.attributes.chapter)
+        );
+
+        return { data: uniqueChapters, total: total };
     },
 
     /**
