@@ -21,7 +21,8 @@ import {
   IonSelect,
   IonSelectOption,
   IonInfiniteScroll,
-  IonInfiniteScrollContent
+  IonInfiniteScrollContent,
+  IonPopover
 } from '@ionic/react';
 import { heart, heartOutline, chevronBackOutline, chevronForwardOutline, playSkipBackOutline, playSkipForwardOutline } from 'ionicons/icons';
 import { useParams, useLocation } from 'react-router-dom';
@@ -452,13 +453,13 @@ const MangaDetailsPage: React.FC = () => {
                     <IonIcon icon={chevronBackOutline} />
                   </IonButton>
                   
-                  <div className="pro-page-indicator">
+                  <div className="pro-page-indicator" id="jump-page-trigger" style={{ cursor: 'pointer' }}>
                     <span className="pro-page-info">PÁGINA</span>
                     <span className="pro-page-current">{currentPage}</span>
                     <span className="pro-page-separator">/</span>
                     <span className="pro-page-total">{totalPages}</span>
                   </div>
-                  
+
                   <IonButton 
                     fill="clear" 
                     className="pro-page-btn"
@@ -482,6 +483,41 @@ const MangaDetailsPage: React.FC = () => {
                 <div className="total-info-badge">
                   {totalChapters} Capítulos encontrados
                 </div>
+
+                <IonPopover trigger="jump-page-trigger" triggerAction="click" className="jump-page-popover">
+                  <div className="popover-content">
+                    <p>Saltar a página</p>
+                    <div className="jump-input-container">
+                      <input 
+                        type="number" 
+                        min="1" 
+                        max={totalPages} 
+                        defaultValue={currentPage}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const val = parseInt((e.target as HTMLInputElement).value);
+                            if (val >= 1 && val <= totalPages) {
+                              loadPage(val);
+                              // Dismiss the popover after selection
+                              const popover = document.querySelector('ion-popover.jump-page-popover') as any;
+                              if (popover) popover.dismiss();
+                            }
+                          }
+                        }}
+                        className="jump-page-input"
+                      />
+                      <IonButton fill="clear" onClick={(e) => {
+                        const input = (e.target as any).previousSibling as HTMLInputElement;
+                        const val = parseInt(input.value);
+                        if (val >= 1 && val <= totalPages) {
+                          loadPage(val);
+                          const popover = document.querySelector('ion-popover.jump-page-popover') as any;
+                          if (popover) popover.dismiss();
+                        }
+                      }}>IR</IonButton>
+                    </div>
+                  </div>
+                </IonPopover>
               </div>
             )}
           </div>

@@ -168,6 +168,14 @@ const HomePage: React.FC = () => {
     event.detail.complete();
   };
 
+  if (loading) {
+    return (
+      <IonPage>
+        <LoadingScreen />
+      </IonPage>
+    );
+  }
+
   const currentHero = heroMangas[heroIndex];
 
   // Helper: get cover from chapter's manga relationship
