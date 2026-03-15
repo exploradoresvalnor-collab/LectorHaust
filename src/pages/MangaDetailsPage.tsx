@@ -160,12 +160,37 @@ const MangaDetailsPage: React.FC = () => {
         const chaptersData = await mangadexService.getMangaChapters(id, chapterLang, 20, 0, chapterOrder);
         
         if (isMounted.current) {
-          setTotalChapters(chaptersData.total || 0);
-          setTotalPages(Math.ceil((chaptersData.total || 0) / 20));
           const newChapters = deduplicateChapters(chaptersData.data || []);
-          setChapters(newChapters);
-          if ((chaptersData.data || []).length < 20) setHasMoreChapters(false);
-          else setHasMoreChapters(true);
+
+          // 🧠 SMART FALLBACK: Si MangaDex no tiene capítulos legibles, buscar en Consumet silenciosamente
+          if (newChapters.length === 0 && title) {
+            console.warn(`⚠️ MangaDex vacío para "${title}". Activando Smart Fallback (Consumet)...`);
+            try {
+              const consumetSearchResults = await consumetService.searchManga(title as string);
+              if (consumetSearchResults && consumetSearchResults.length > 0) {
+                const consumetId = consumetSearchResults[0].id; // ya tiene prefijo consumet-
+                const consumetChaptersResult = await consumetService.getChapters(consumetId);
+                
+                if (isMounted.current && consumetChaptersResult.data.length > 0) {
+                  console.log(`🕵️ ${consumetChaptersResult.data.length} capítulos rescatados de la Zona Gris`);
+                  setChapters(consumetChaptersResult.data);
+                  setTotalChapters(consumetChaptersResult.total);
+                  setTotalPages(1); // Consumet trae todos de golpe, sin paginación
+                  setHasMoreChapters(false);
+                  setAvailableLangs(['en']); // Consumet generalmente trae inglés
+                }
+              }
+            } catch (consumetErr) {
+              console.warn('Smart Fallback (Consumet) falló:', consumetErr);
+            }
+          } else {
+            // MangaDex tenía capítulos, usarlos normalmente
+            setTotalChapters(chaptersData.total || 0);
+            setTotalPages(Math.ceil((chaptersData.total || 0) / 20));
+            setChapters(newChapters);
+            if ((chaptersData.data || []).length < 20) setHasMoreChapters(false);
+            else setHasMoreChapters(true);
+          }
         }
 
         // Fetch all available languages for this manga - searching more pages
@@ -173,7 +198,7 @@ const MangaDetailsPage: React.FC = () => {
           const allChaptersData = await mangadexService.getMangaChapters(id, null as any, 500);
           if (isMounted.current && allChaptersData.data) {
             const langs = [...new Set(allChaptersData.data.map((c: any) => c.attributes?.translatedLanguage))] as string[];
-            setAvailableLangs(langs.filter(l => !!l));
+            setAvailableLangs(prev => prev.length > 0 ? prev : langs.filter(l => !!l));
           }
         } catch (langErr) {
           console.warn('Failed to detect available languages:', langErr);
