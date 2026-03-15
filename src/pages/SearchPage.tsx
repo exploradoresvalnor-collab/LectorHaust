@@ -43,6 +43,7 @@ const SearchPage: React.FC = () => {
   const [activeGenre, setActiveGenre] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState<string | null>(null);
   const [activeDemographic, setActiveDemographic] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(true); // Control visibility on mobile
 
   const FORMATS = [
     { label: 'Todos', value: null },
@@ -218,14 +219,23 @@ const SearchPage: React.FC = () => {
         {activeSegment === 'search' && (
           <div className="search-section animate-fade-in">
             <div className="search-header-container">
-              <IonSearchbar 
-                placeholder="¿Qué quieres leer hoy?" 
-                onIonInput={(e) => handleSearch(e.detail.value!)}
-                debounce={500}
-                className="custom-searchbar floating-search"
-              />
+              <div className="search-bar-row">
+                <IonSearchbar 
+                  placeholder="¿Qué quieres leer hoy?" 
+                  onIonInput={(e) => handleSearch(e.detail.value!)}
+                  debounce={500}
+                  className="custom-searchbar floating-search"
+                />
+                <IonButton 
+                  fill="clear" 
+                  className={`filter-toggle-btn ${showFilters ? 'active' : ''}`}
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  <IonIcon icon={filterOutline} slot="icon-only" />
+                </IonButton>
+              </div>
               
-              <div className="filters-container-pro">
+              <div className={`filters-container-pro ${showFilters ? 'expanded' : 'collapsed'}`}>
                 <div className="filter-group">
                   <span className="filter-label">Formato</span>
                   <div className="filter-row">
@@ -297,7 +307,7 @@ const SearchPage: React.FC = () => {
             {loading && offset === 0 ? (
               <LoadingScreen />
             ) : (
-              <IonGrid>
+              <IonGrid className="search-results-grid">
                 <IonRow>
                   {results.map((manga: any) => {
                     const format = manga.attributes.originalLanguage;
