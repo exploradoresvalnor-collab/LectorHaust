@@ -17,6 +17,7 @@ import {
   IonChip,
   IonInfiniteScroll,
   IonInfiniteScrollContent,
+  IonButton,
   useIonRouter,
   useIonViewWillEnter
 } from '@ionic/react';
@@ -39,6 +40,8 @@ const SearchPage: React.FC = () => {
   // Modern Filters
   const [activeFormat, setActiveFormat] = useState<string | null>(null);
   const [activeGenre, setActiveGenre] = useState<string | null>(null);
+  const [activeStatus, setActiveStatus] = useState<string | null>(null);
+  const [activeDemographic, setActiveDemographic] = useState<string | null>(null);
 
   const FORMATS = [
     { label: 'Todos', value: null },
@@ -47,7 +50,21 @@ const SearchPage: React.FC = () => {
     { label: 'Manhua', value: 'zh' }
   ];
 
-  const GENRES = ['Acción', 'Romance', 'Fantasía', 'Comedia', 'Drama', 'Sci-Fi', 'Misterio'];
+  const STATUSES = [
+    { label: 'Publicando', value: 'ongoing' },
+    { label: 'Finalizado', value: 'completed' },
+    { label: 'Pausa', value: 'hiatus' },
+    { label: 'Cancelado', value: 'cancelled' }
+  ];
+
+  const DEMOGRAPHICS = [
+    { label: 'Shounen', value: 'shounen' },
+    { label: 'Shoujo', value: 'shoujo' },
+    { label: 'Seinen', value: 'seinen' },
+    { label: 'Josei', value: 'josei' }
+  ];
+
+  const GENRES = ['Acción', 'Romance', 'Fantasía', 'Comedia', 'Drama', 'Sci-Fi', 'Misterio', 'Terror', 'Aventura'];
 
   // Map Spanish names to English names for the API
   const genreMapping: Record<string, string> = {
@@ -57,7 +74,9 @@ const SearchPage: React.FC = () => {
     'Comedia': 'comedy',
     'Drama': 'drama',
     'Sci-Fi': 'sci-fi',
-    'Misterio': 'mystery'
+    'Misterio': 'mystery',
+    'Terror': 'horror',
+    'Aventura': 'adventure'
   };
   
   const router = useIonRouter();
@@ -88,16 +107,18 @@ const SearchPage: React.FC = () => {
     if (trending.length === 0) loadDiscoveryData();
   });
 
-  const handleSearch = async (val: string, isMore = false, newFormat?: string | null, newGenre?: string | null) => {
+  const handleSearch = async (val: string, isMore = false, newFormat?: string | null, newGenre?: string | null, newStatus?: string | null, newDemographic?: string | null) => {
     // Determine the current values based on arguments or existing state
     const searchVal = val !== undefined ? val : query;
     const format = newFormat !== undefined ? newFormat : activeFormat;
     const genre = newGenre !== undefined ? newGenre : activeGenre;
+    const status = newStatus !== undefined ? newStatus : activeStatus;
+    const demographic = newDemographic !== undefined ? newDemographic : activeDemographic;
     
     setQuery(searchVal);
     
     // We can search if there's text OR if a filter is active
-    if ((!searchVal || searchVal.length < 2) && !format && !genre) {
+    if ((!searchVal || searchVal.length < 2) && !format && !genre && !status && !demographic) {
       setResults([]);
       return;
     }
@@ -114,6 +135,8 @@ const SearchPage: React.FC = () => {
       const filters: any = {};
       if (format) filters.origin = format;
       if (genre && genreMapping[genre]) filters.tags = [genreMapping[genre]];
+      if (status) filters.status = status;
+      if (demographic) filters.demographic = demographic;
 
       const data = await mangadexService.searchManga(searchVal, filters, 20, currentOffset);
       
@@ -134,14 +157,34 @@ const SearchPage: React.FC = () => {
 
   const setFormatFilter = (format: string | null) => {
     setActiveFormat(format);
-    handleSearch(query, false, format, activeGenre);
+    handleSearch(query, false, format, activeGenre, activeStatus, activeDemographic);
   };
 
   const setGenreFilter = (genre: string | null) => {
-    // Toggle off if clicking the same genre
     const newGenre = genre === activeGenre ? null : genre;
     setActiveGenre(newGenre);
-    handleSearch(query, false, activeFormat, newGenre);
+    handleSearch(query, false, activeFormat, newGenre, activeStatus, activeDemographic);
+  };
+
+  const setStatusFilter = (status: string | null) => {
+    const newStatus = status === activeStatus ? null : status;
+    setActiveStatus(newStatus);
+    handleSearch(query, false, activeFormat, activeGenre, newStatus, activeDemographic);
+  };
+
+  const setDemographicFilter = (demographic: string | null) => {
+    const newDemographic = demographic === activeDemographic ? null : demographic;
+    setActiveDemographic(newDemographic);
+    handleSearch(query, false, activeFormat, activeGenre, activeStatus, newDemographic);
+  };
+
+  const clearFilters = () => {
+    setActiveFormat(null);
+    setActiveGenre(null);
+    setActiveStatus(null);
+    setActiveDemographic(null);
+    setResults([]);
+    // We don't clear the query unless really needed, or we clear it too
   };
 
   const loadMore = async (e: any) => {
@@ -181,34 +224,72 @@ const SearchPage: React.FC = () => {
                 className="custom-searchbar floating-search"
               />
               
-              <div className="filters-container">
-                <div className="filter-row formats-row">
-                  {FORMATS.map(fmt => (
-                    <IonChip 
-                      key={fmt.label} 
-                      color={activeFormat === fmt.value ? "primary" : "medium"}
-                      outline={activeFormat !== fmt.value}
-                      onClick={() => setFormatFilter(fmt.value)}
-                      className={activeFormat === fmt.value ? 'chip-active' : ''}
-                    >
-                      {activeFormat === fmt.value && <IonIcon icon={filterOutline} />}
-                      <IonLabel>{fmt.label}</IonLabel>
-                    </IonChip>
-                  ))}
+              <div className="filters-container-pro">
+                <div className="filter-group">
+                  <span className="filter-label">Formato</span>
+                  <div className="filter-row">
+                    {FORMATS.map(fmt => (
+                      <IonChip 
+                        key={fmt.label || 'all'} 
+                        className={activeFormat === fmt.value ? 'chip-active' : 'chip-pro'}
+                        onClick={() => setFormatFilter(fmt.value)}
+                      >
+                        <IonLabel>{fmt.label}</IonLabel>
+                      </IonChip>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="filter-group">
+                  <span className="filter-label">Demografía</span>
+                  <div className="filter-row">
+                    {DEMOGRAPHICS.map(d => (
+                      <IonChip 
+                        key={d.value} 
+                        className={activeDemographic === d.value ? 'chip-active' : 'chip-pro'}
+                        onClick={() => setDemographicFilter(d.value)}
+                      >
+                        <IonLabel>{d.label}</IonLabel>
+                      </IonChip>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="filter-group">
+                  <span className="filter-label">Estado</span>
+                  <div className="filter-row">
+                    {STATUSES.map(s => (
+                      <IonChip 
+                        key={s.value} 
+                        className={activeStatus === s.value ? 'chip-active-status' : 'chip-pro'}
+                        onClick={() => setStatusFilter(s.value)}
+                      >
+                        <IonLabel>{s.label}</IonLabel>
+                      </IonChip>
+                    ))}
+                  </div>
                 </div>
                 
-                <div className="filter-row genres-row">
-                  {GENRES.map(g => (
-                    <IonChip 
-                      key={g} 
-                      color={activeGenre === g ? "secondary" : "medium"}
-                      outline={activeGenre !== g}
-                      onClick={() => setGenreFilter(g)}
-                      className={activeGenre === g ? 'chip-active' : 'chip-tag'}
-                    >
-                      <IonLabel>{g}</IonLabel>
-                    </IonChip>
-                  ))}
+                <div className="filter-group">
+                  <div className="group-header">
+                    <span className="filter-label">Géneros</span>
+                    {(activeFormat || activeGenre || activeStatus || activeDemographic) && (
+                      <IonButton fill="clear" size="small" className="clear-btn" onClick={clearFilters}>
+                        Limpiar todo
+                      </IonButton>
+                    )}
+                  </div>
+                  <div className="filter-row genres-row">
+                    {GENRES.map(g => (
+                      <IonChip 
+                        key={g} 
+                        className={activeGenre === g ? 'chip-active-genre' : 'chip-pro'}
+                        onClick={() => setGenreFilter(g)}
+                      >
+                        <IonLabel>{g}</IonLabel>
+                      </IonChip>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

@@ -26,35 +26,99 @@ ion-segment-button {
     padding-bottom: 10px;
 }
 
-.filters-container {
+/* Professional Filters Grid */
+.filters-container-pro {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 10px;
+}
+
+@media (min-width: 1024px) {
+    .filters-container-pro {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+}
+
+.filter-group {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    margin-top: 5px;
+}
+
+.filter-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 1px;
+    padding-left: 10px;
+}
+
+.group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.clear-btn {
+    --color: var(--ion-color-danger);
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin: 0;
+    height: 24px;
 }
 
 .filter-row {
     display: flex;
     overflow-x: auto;
     gap: 8px;
-    padding-bottom: 5px;
-    padding-left: 10px;
-    padding-right: 10px;
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE/Edge */
+    padding-bottom: 4px;
+    padding-left: 4px;
+    scrollbar-width: none;
 }
 
 .filter-row::-webkit-scrollbar {
-    display: none; /* Chrome/Safari */
+    display: none;
 }
 
-.chip-tag {
-    font-weight: 500;
+/* Premium Filter Chips */
+.chip-pro {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0;
+    transition: all 0.2s ease;
+    --border-radius: 12px;
 }
 
 .chip-active {
+    background: linear-gradient(135deg, var(--ion-color-primary) 0%, #a78bfa 100%);
+    color: white;
     font-weight: 700;
-    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+    border: none;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.chip-active-genre {
+    background: linear-gradient(135deg, var(--ion-color-secondary) 0%, #2dd4bf 100%);
+    color: white;
+    font-weight: 700;
+    border: none;
+    box-shadow: 0 4px 12px rgba(45, 212, 191, 0.3);
+}
+
+.chip-active-status {
+    background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+    color: white;
+    font-weight: 700;
+    border: none;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.chip-pro:active {
+    transform: scale(0.95);
 }
 
 /* Discovery Layouts - Vertically focused */
