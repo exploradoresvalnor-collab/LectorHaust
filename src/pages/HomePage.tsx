@@ -25,6 +25,7 @@ import {
 } from '@ionic/react';
 import { personCircleOutline, notifications, refreshOutline, chevronDownOutline, libraryOutline, sparklesOutline, checkmarkCircle } from 'ionicons/icons';
 import { mangadexService } from '../services/mangadexService';
+import LoadingScreen from '../components/LoadingScreen';
 import { useLibraryStore } from '../store/useLibraryStore';
 import './HomePage.css';
 

@@ -281,3 +281,84 @@
 .skip-btn:not([disabled]):hover {
     --color: var(--ion-color-primary);
 }
+
+/* Pro Pagination Bar */
+.pro-pagination-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    margin-top: 30px;
+    padding-bottom: 20px;
+}
+
+.pro-pagination-bar {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 5px 15px;
+    gap: 5px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.pro-page-btn {
+    --color: rgba(255, 255, 255, 0.7);
+    margin: 0;
+    --padding-start: 8px;
+    --padding-end: 8px;
+    font-size: 1.2rem;
+}
+
+.pro-page-btn[disabled] {
+    opacity: 0.2;
+}
+
+.pro-page-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 15px;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pro-page-info {
+    font-size: 0.6rem;
+    font-weight: 900;
+    letter-spacing: 1px;
+    color: var(--ion-color-primary);
+}
+
+.pro-page-current {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #fff;
+}
+
+.pro-page-separator {
+    color: rgba(255, 255, 255, 0.3);
+    font-weight: 300;
+}
+
+.pro-page-total {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.total-info-badge {
+    background: rgba(var(--ion-color-primary-rgb), 0.1);
+    color: var(--ion-color-primary);
+    padding: 4px 12px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border: 1px solid rgba(var(--ion-color-primary-rgb), 0.2);
+}
+
+@media (max-width: 480px) {
+    .pro-page-info { display: none; }
+    .pro-pagination-bar { padding: 5px 8px; }
+}

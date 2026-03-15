@@ -23,6 +23,7 @@ import {
 } from '@ionic/react';
 import { trendingUpOutline, sparklesOutline, searchOutline, heartOutline, filterOutline } from 'ionicons/icons';
 import MangaCard from '../components/MangaCard';
+import LoadingScreen from '../components/LoadingScreen';
 import { mangadexService } from '../services/mangadexService';
 import { useLibraryStore } from '../store/useLibraryStore';
 import './SearchPage.css';
@@ -294,9 +295,7 @@ const SearchPage: React.FC = () => {
               </div>
             </div>
             {loading && offset === 0 ? (
-              <div className="discovery-loader">
-                <IonSpinner name="crescent" color="primary" />
-              </div>
+              <LoadingScreen />
             ) : (
               <IonGrid>
                 <IonRow>

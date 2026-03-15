@@ -29,6 +29,7 @@ import { mangadexService } from '../services/mangadexService';
 import { anilistService } from '../services/anilistService';
 import { useLibraryStore } from '../store/useLibraryStore';
 import ChapterItem from '../components/ChapterItem';
+import LoadingScreen from '../components/LoadingScreen';
 import './MangaDetailsPage.css';
 
 const MangaDetailsPage: React.FC = () => {
@@ -40,6 +41,8 @@ const MangaDetailsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadingChapters, setLoadingChapters] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalChapters, setTotalChapters] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [hasMoreChapters, setHasMoreChapters] = useState(true);
   const [chapterLang, setChapterLang] = useState('es');
   const [availableLangs, setAvailableLangs] = useState<string[]>([]);
@@ -103,13 +106,16 @@ const MangaDetailsPage: React.FC = () => {
           setHasMoreChapters(true);
         }
         
-        // Use the current direction
-        const chaptersData = await mangadexService.getMangaChapters(id, chapterLang, 100, 0, chapterOrder);
+        // Use the current direction - limit 20 per page for Pro feel
+        const chaptersData = await mangadexService.getMangaChapters(id, chapterLang, 20, 0, chapterOrder);
         
         if (isMounted.current) {
+          setTotalChapters(chaptersData.total || 0);
+          setTotalPages(Math.ceil((chaptersData.total || 0) / 20));
           const newChapters = deduplicateChapters(chaptersData.data || []);
           setChapters(newChapters);
-          if ((chaptersData.data || []).length < 100) setHasMoreChapters(false);
+          if ((chaptersData.data || []).length < 20) setHasMoreChapters(false);
+          else setHasMoreChapters(true);
         }
 
         // Fetch all available languages for this manga - searching more pages
@@ -150,18 +156,16 @@ const MangaDetailsPage: React.FC = () => {
   };
 
   const loadPage = async (pageIndex: number) => {
+    if (pageIndex < 1 || (totalPages > 0 && pageIndex > totalPages)) return;
+    
     setLoadingChapters(true);
     try {
-      const offset = (pageIndex - 1) * 100;
-      const data = await mangadexService.getMangaChapters(id, chapterLang, 100, offset, chapterOrder);
+      const offset = (pageIndex - 1) * 20;
+      const data = await mangadexService.getMangaChapters(id, chapterLang, 20, offset, chapterOrder);
       if (!isMounted.current) return;
 
       const rawNewChapters = data.data || [];
-      if (rawNewChapters.length < 100) {
-        setHasMoreChapters(false);
-      } else {
-        setHasMoreChapters(true);
-      }
+      setHasMoreChapters(pageIndex < totalPages);
       setChapters(deduplicateChapters(rawNewChapters));
       setCurrentPage(pageIndex);
       
@@ -177,12 +181,7 @@ const MangaDetailsPage: React.FC = () => {
   if (loading) {
     return (
       <IonPage>
-        <IonContent className="ion-padding ion-text-center">
-          <div style={{ marginTop: '40vh' }}>
-            <IonSpinner name="crescent" color="primary" />
-            <p>Cargando detalles...</p>
-          </div>
-        </IonContent>
+        <LoadingScreen />
       </IonPage>
     );
   }
@@ -430,50 +429,58 @@ const MangaDetailsPage: React.FC = () => {
               </p>
             )}
             
-            {/* Advanced Pagination Controls */}
-            {!loadingChapters && (currentPage > 1 || hasMoreChapters) && (
-              <div className="pagination-controls-container">
-                <div className="pagination-controls">
+            {/* Advanced Pro Pagination Controls */}
+            {!loadingChapters && totalPages > 1 && (
+              <div className="pro-pagination-container animate-fade-in">
+                <div className="pro-pagination-bar">
                   <IonButton 
                     fill="clear" 
-                    className="skip-btn"
-                    disabled={currentPage <= 10}
-                    onClick={() => loadPage(Math.max(1, currentPage - 10))}
+                    className="pro-page-btn"
+                    disabled={currentPage === 1}
+                    onClick={() => loadPage(1)}
+                    title="Primera página"
                   >
                     <IonIcon icon={playSkipBackOutline} />
                   </IonButton>
 
                   <IonButton 
-                    fill="outline" 
+                    fill="clear" 
+                    className="pro-page-btn"
                     disabled={currentPage === 1}
                     onClick={() => loadPage(currentPage - 1)}
-                    className="nav-arrow-btn"
                   >
                     <IonIcon icon={chevronBackOutline} />
                   </IonButton>
                   
-                  <div className="current-page-indicator">
-                    <span className="page-label">PÁGINA</span>
-                    <span className="page-number">{currentPage}</span>
+                  <div className="pro-page-indicator">
+                    <span className="pro-page-info">PÁGINA</span>
+                    <span className="pro-page-current">{currentPage}</span>
+                    <span className="pro-page-separator">/</span>
+                    <span className="pro-page-total">{totalPages}</span>
                   </div>
                   
                   <IonButton 
-                    fill="outline" 
-                    disabled={!hasMoreChapters}
+                    fill="clear" 
+                    className="pro-page-btn"
+                    disabled={currentPage === totalPages}
                     onClick={() => loadPage(currentPage + 1)}
-                    className="nav-arrow-btn"
                   >
                     <IonIcon icon={chevronForwardOutline} />
                   </IonButton>
 
                   <IonButton 
                     fill="clear" 
-                    className="skip-btn"
-                    disabled={!hasMoreChapters} // This is a bit naive since we might have exactly 1-9 more pages, but it's a good safety.
-                    onClick={() => loadPage(currentPage + 10)}
+                    className="pro-page-btn"
+                    disabled={currentPage === totalPages}
+                    onClick={() => loadPage(totalPages)}
+                    title="Última página"
                   >
                     <IonIcon icon={playSkipForwardOutline} />
                   </IonButton>
+                </div>
+                
+                <div className="total-info-badge">
+                  {totalChapters} Capítulos encontrados
                 </div>
               </div>
             )}
