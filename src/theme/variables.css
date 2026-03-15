@@ -1,2 +1,117 @@
-/* For information on how to create your own theme, please refer to:
-http://ionicframework.com/docs/theming/ */
+/**
+ * KamiReader - Midnight Premium Theme
+ */
+:root {
+  /**
+   * Colors
+   */
+  --ion-color-primary: #8b5cf6;
+  --ion-color-primary-rgb: 139, 92, 246;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #7c3aed;
+  --ion-color-primary-tint: #a78bfa;
+
+  --ion-color-secondary: #f97316;
+  --ion-color-secondary-rgb: 249, 115, 22;
+  --ion-color-secondary-contrast: #ffffff;
+  --ion-color-secondary-contrast-rgb: 255, 255, 255;
+  --ion-color-secondary-shade: #ea580c;
+  --ion-color-secondary-tint: #fb923c;
+
+  --ion-color-tertiary: #a1a1aa;
+  --ion-color-tertiary-rgb: 161, 161, 170;
+  --ion-color-tertiary-contrast: #000000;
+  --ion-color-tertiary-contrast-rgb: 0, 0, 0;
+  --ion-color-tertiary-shade: #8e8e96;
+  --ion-color-tertiary-tint: #ababb3;
+
+  /**
+   * App Backgrounds & Surface
+   */
+  --bg-base: #000000;
+  --bg-surface: #0a0a0a;
+  --bg-elevated: #1a1a1a;
+  
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+
+  /**
+   * Ionic Background Overrides (Force Dark Midnight)
+   */
+  --ion-background-color: var(--bg-base);
+  --ion-background-color-rgb: 0, 0, 0;
+
+  --ion-text-color: var(--text-primary);
+  --ion-text-color-rgb: 244, 244, 245;
+
+  --ion-item-background: var(--bg-surface);
+  --ion-toolbar-background: rgba(0, 0, 0, 0.8);
+  --ion-tab-bar-background: rgba(10, 10, 10, 0.9);
+  
+  --ion-card-background: var(--bg-surface);
+
+  /**
+   * Border & Radius
+   */
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}
+
+/* Glassmorphism utility */
+.glass-effect {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(10, 10, 10, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Premium TabBar - Phase 22 Minimalist */
+ion-tab-bar {
+  --background: rgba(10, 10, 10, 0.45) !important; /* Higher transparency */
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border-radius: 30px;
+  margin: 0 20px 24px; /* More air around */
+  height: 58px; /* Slimmer */
+  position: absolute;
+  bottom: 0;
+  width: calc(100% - 40px);
+  box-shadow: 0 4px 30px rgba(0,0,0,0.3);
+  overflow: visible; /* Allow glows */
+}
+
+ion-tab-button {
+  --color-selected: var(--ion-color-primary);
+  --color: rgba(255, 255, 255, 0.5);
+  font-size: 0.7rem; /* Smaller labels */
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+ion-tab-button ion-icon {
+  font-size: 1.3rem !important; /* Slimmer icons */
+  margin-bottom: 2px;
+}
+
+ion-tab-button.tab-selected {
+  transform: scale(1.05);
+}
+
+ion-tab-button.tab-selected ion-label {
+  font-weight: 800;
+}
+
+ion-tab-button.tab-selected ion-icon {
+  filter: drop-shadow(0 0 12px rgba(var(--ion-color-primary-rgb), 0.6));
+}
+
+@media (min-width: 1024px) {
+  ion-tab-bar {
+    max-width: 400px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}

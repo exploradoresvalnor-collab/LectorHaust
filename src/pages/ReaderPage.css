@@ -1,0 +1,256 @@
+.reader-content {
+    --background: #000;
+}
+
+.reader-header-minimal {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+}
+
+.reader-toolbar-transparent {
+    --background: transparent;
+    --border-style: none;
+    /* User wants TOTAL transparency, removing gradient and blur if needed */
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+.reader-back-btn {
+    --color: #fff;
+    --background: rgba(0, 0, 0, 0.4);
+    --border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    margin-left: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+}
+
+.reader-title-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-right: 54px; /* Balance for the back button */
+}
+
+/* End of Chapter Section */
+.reader-end-section {
+    padding: 60px 20px 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    background: linear-gradient(to bottom, #000 0%, #0a0a0a 100%);
+    width: 100%;
+}
+
+.end-divider {
+    width: 60px;
+    height: 4px;
+    background: var(--ion-color-primary);
+    border-radius: 2px;
+    margin-bottom: 20px;
+    opacity: 0.6;
+}
+
+.end-status {
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 30px;
+    opacity: 0.9;
+}
+
+.end-actions {
+    display: flex;
+    gap: 15px;
+    width: 100%;
+    max-width: 400px;
+    margin-bottom: 20px;
+}
+
+.end-nav-btn {
+    flex: 1;
+    --border-radius: 12px;
+    font-weight: 700;
+    height: 54px;
+    font-size: 0.9rem;
+}
+
+.next-btn {
+    --box-shadow: 0 8px 25px rgba(var(--ion-color-primary-rgb), 0.4);
+}
+
+.end-back-home {
+    font-weight: 600;
+    --color: #71717a;
+}
+
+
+.reader-chapter-badge {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 4px 12px;
+    border-radius: 20px;
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 700;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    margin: 0 5px;
+}
+
+.header-nav-btn {
+    --color: #fff;
+    --padding-start: 4px;
+    --padding-end: 4px;
+    margin: 0;
+    height: 32px;
+}
+
+.header-nav-btn[disabled] {
+    opacity: 0.3;
+}
+
+.pages-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #000;
+    gap: 0;
+    min-height: 100vh;
+    /* Optimización de renderizado para scroll largo */
+    contain: content; 
+}
+
+/* Skeleton loading animation */
+@keyframes skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.page-wrapper {
+    width: 100%;
+    max-width: 100vw; /* Edge-to-edge on mobile */
+    margin: 0;
+    padding: 0;
+    line-height: 0;
+    background: linear-gradient(90deg, #121212 25%, #1e1e1e 50%, #121212 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 2s infinite linear;
+    position: relative;
+    min-height: 50vh; /* Better for scroll feel */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (min-width: 1024px) {
+    .page-wrapper {
+        max-width: 900px;
+    }
+}
+
+.manga-page {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: contain;
+    /* Suaviza la carga en móviles */
+    image-rendering: -webkit-optimize-contrast;
+    transition: opacity 0.4s ease-in-out;
+}
+
+.reader-loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 80vh;
+}
+
+.reader-end-padding {
+    padding: 4rem 1rem;
+    background: #000;
+    width: 100%;
+}
+
+.page-error {
+    width: 100%;
+    height: 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--ion-color-medium);
+    border: 1px dashed #333;
+    border-radius: 8px;
+}
+
+.page-error p { margin-bottom: 5px; }
+
+/* Chapter Navigation - New Minimalist Floating Pill */
+.reader-footer-nav-container {
+    position: fixed;
+    bottom: 30px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    pointer-events: none; /* Allows scrolling underneath when not clicking pill */
+}
+
+.reader-floating-nav {
+    pointer-events: auto; /* Re-enable for buttons */
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: rgba(18, 18, 18, 0.6);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    padding: 6px 12px;
+    border-radius: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+
+.nav-btn-minimal {
+    --padding-start: 8px;
+    --padding-end: 8px;
+    --color: #fff;
+    margin: 0;
+    height: 40px;
+    width: 40px;
+    --background-hover: rgba(255, 255, 255, 0.1);
+}
+
+.nav-btn-minimal[disabled] {
+    opacity: 0.3;
+}
+
+.nav-center-info {
+    padding: 0 5px;
+}
+
+.nav-chapter-text {
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    opacity: 0.8;
+}
+
+.reader-end-padding {
+    padding: 100px 1rem 120px; /* More bottom padding for floating pill */
+    background: #000;
+    width: 100%;
+}

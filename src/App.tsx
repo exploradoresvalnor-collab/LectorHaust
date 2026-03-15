@@ -1,3 +1,4 @@
+import React from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import {
   IonApp,
@@ -7,13 +8,22 @@ import {
   IonTabBar,
   IonTabButton,
   IonTabs,
-  setupIonicReact
+  setupIonicReact,
+  useIonRouter,
+  IonToast,
+  useIonViewWillEnter
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
-import { ellipse, square, triangle } from 'ionicons/icons';
-import Tab1 from './pages/Tab1';
-import Tab2 from './pages/Tab2';
-import Tab3 from './pages/Tab3';
+import { useLocation } from 'react-router-dom';
+import { home, search, library } from 'ionicons/icons';
+import HomePage from './pages/HomePage';
+import SearchPage from './pages/SearchPage';
+import LibraryPage from './pages/LibraryPage';
+import MangaDetailsPage from './pages/MangaDetailsPage';
+import ReaderPage from './pages/ReaderPage';
+import { useState, useEffect } from 'react';
+import { useLibraryStore } from './store/useLibraryStore';
+import { checkUpdatesForLibrary, MangaUpdate } from './services/updateService';
 
 /* Core CSS required for Ionic components to work properly */
 import '@ionic/react/css/core.css';
@@ -44,42 +54,95 @@ import '@ionic/react/css/palettes/dark.system.css';
 
 /* Theme variables */
 import './theme/variables.css';
+import './theme/global.css';
 
 setupIonicReact();
+
+const AppContent: React.FC = () => {
+  const { favorites } = useLibraryStore();
+  const [showToast, setShowToast] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<MangaUpdate | null>(null);
+  const router = useIonRouter();
+  const location = useLocation();
+
+  // Paths where we want to HIDE the bottom tab bar
+  const hiddenTabsPaths = ['/reader/', '/manga/'];
+  const shouldHideTabs = hiddenTabsPaths.some(path => location.pathname.includes(path));
+
+  useEffect(() => {
+    // Check for updates every 5 minutes
+    const interval = setInterval(async () => {
+      const updates = await checkUpdatesForLibrary(favorites);
+      if (updates.length > 0) {
+        setUpdateInfo(updates[0]);
+        setShowToast(true);
+      }
+    }, 300000);
+
+    return () => clearInterval(interval);
+  }, [favorites]);
+
+  return (
+    <>
+      <IonTabs>
+        <IonRouterOutlet>
+          <Route exact path="/home" component={HomePage} />
+          <Route exact path="/manga/:id" component={MangaDetailsPage} />
+          <Route exact path="/reader/:chapterId" component={ReaderPage} />
+          <Route exact path="/search" component={SearchPage} />
+          <Route path="/library" component={LibraryPage} />
+          <Route exact path="/">
+            <Redirect to="/home" />
+          </Route>
+        </IonRouterOutlet>
+        {!shouldHideTabs && (
+          <IonTabBar slot="bottom">
+            <IonTabButton tab="home" href="/home">
+              <IonIcon aria-hidden="true" icon={home} />
+              <IonLabel>Inicio</IonLabel>
+            </IonTabButton>
+            <IonTabButton tab="search" href="/search">
+              <IonIcon aria-hidden="true" icon={search} />
+              <IonLabel>Explorar</IonLabel>
+            </IonTabButton>
+            <IonTabButton tab="library" href="/library">
+              <IonIcon aria-hidden="true" icon={library} />
+              <IonLabel>Biblioteca</IonLabel>
+            </IonTabButton>
+          </IonTabBar>
+        )}
+      </IonTabs>
+
+      <IonToast
+        isOpen={showToast}
+        onDidDismiss={() => setShowToast(false)}
+        message={`¡Nuevo capítulo de ${updateInfo?.mangaTitle}! (Cap. ${updateInfo?.chapterTitle})`}
+        duration={5000}
+        position="top"
+        color="primary"
+        cssClass="custom-toast"
+        buttons={[
+          {
+            text: 'VER',
+            role: 'info',
+            handler: () => {
+              if (updateInfo) router.push(`/manga/${updateInfo.mangaId}`);
+            }
+          },
+          {
+            text: 'Cerrar',
+            role: 'cancel'
+          }
+        ]}
+      />
+    </>
+  );
+};
 
 const App: React.FC = () => (
   <IonApp>
     <IonReactRouter>
-      <IonTabs>
-        <IonRouterOutlet>
-          <Route exact path="/tab1">
-            <Tab1 />
-          </Route>
-          <Route exact path="/tab2">
-            <Tab2 />
-          </Route>
-          <Route path="/tab3">
-            <Tab3 />
-          </Route>
-          <Route exact path="/">
-            <Redirect to="/tab1" />
-          </Route>
-        </IonRouterOutlet>
-        <IonTabBar slot="bottom">
-          <IonTabButton tab="tab1" href="/tab1">
-            <IonIcon aria-hidden="true" icon={triangle} />
-            <IonLabel>Tab 1</IonLabel>
-          </IonTabButton>
-          <IonTabButton tab="tab2" href="/tab2">
-            <IonIcon aria-hidden="true" icon={ellipse} />
-            <IonLabel>Tab 2</IonLabel>
-          </IonTabButton>
-          <IonTabButton tab="tab3" href="/tab3">
-            <IonIcon aria-hidden="true" icon={square} />
-            <IonLabel>Tab 3</IonLabel>
-          </IonTabButton>
-        </IonTabBar>
-      </IonTabs>
+      <AppContent />
     </IonReactRouter>
   </IonApp>
 );

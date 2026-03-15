@@ -1,0 +1,134 @@
+.custom-segment {
+    --background: transparent;
+    padding: 0 10px;
+}
+
+ion-segment-button {
+    --color: #a1a1aa;
+    --color-checked: var(--ion-color-primary);
+    --indicator-color: var(--ion-color-primary);
+    font-size: 0.85rem;
+    font-weight: 700;
+    min-height: 45px;
+}
+
+/* Modern Search Bar & Filters */
+.search-header-container {
+    margin-bottom: 20px;
+}
+
+.floating-search {
+    --background: rgba(var(--ion-background-color-rgb), 0.6);
+    --border-radius: 20px;
+    --box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding-bottom: 10px;
+}
+
+.filters-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 5px;
+}
+
+.filter-row {
+    display: flex;
+    overflow-x: auto;
+    gap: 8px;
+    padding-bottom: 5px;
+    padding-left: 10px;
+    padding-right: 10px;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+}
+
+.filter-row::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+}
+
+.chip-tag {
+    font-weight: 500;
+}
+
+.chip-active {
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+}
+
+/* Discovery Layouts - Vertically focused */
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.accent-bar {
+    width: 4px;
+    height: 24px;
+    background: var(--ion-color-primary);
+    border-radius: 4px;
+    box-shadow: 0 0 10px rgba(var(--ion-color-primary-rgb), 0.5);
+}
+
+.discovery-title {
+    font-size: 1.2rem;
+    font-weight: 800;
+    margin: 0;
+    color: #fff;
+    letter-spacing: -0.5px;
+}
+
+/* We removed horizontal-scroll-container in favor of IonGrid */
+
+.suggestions-hero {
+    background: linear-gradient(135deg, var(--ion-color-primary) 0%, #6366f1 100%);
+    padding: 30px 20px;
+    border-radius: 20px;
+    margin-bottom: 25px;
+    box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
+}
+
+.suggestions-hero h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 900;
+}
+
+.suggestions-hero p {
+    margin: 5px 0 0;
+    opacity: 0.9;
+    font-size: 0.9rem;
+}
+
+.empty-discovery {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 40vh;
+    text-align: center;
+    opacity: 0.5;
+}
+
+.empty-discovery ion-icon {
+    font-size: 4rem;
+    margin-bottom: 15px;
+}
+
+.discovery-loader {
+    display: flex;
+    justify-content: center;
+    padding: 50px;
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
