@@ -1,5 +1,16 @@
-.reader-content {
-    --background: #000;
+/* Modes */
+.webtoon-mode img {
+    width: 100%;
+    margin-bottom: -1px; /* Avoid white lines */
+    display: block;
+    border-radius: 0;
+}
+
+.manga-mode img {
+    width: 100%;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
 }
 
 .reader-header-minimal {

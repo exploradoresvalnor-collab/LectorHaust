@@ -1,4 +1,22 @@
 /* Header Background with Blur - Mobile First */
+.empty-adventure {
+    padding: 40px 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+    margin: 20px 0;
+}
+
+.empty-adventure h2 {
+    font-weight: 800;
+    margin-bottom: 8px;
+}
+
+.empty-adventure p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
 .manga-header-bg {
     height: 320px;
     background-size: cover;

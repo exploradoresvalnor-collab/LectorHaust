@@ -10,6 +10,18 @@ export default defineConfig({
     react(),
     legacy()
   ],
+  server: {
+    proxy: {
+      '/api-md': {
+        target: 'https://api.mangadex.org',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api-md/, ''),
+        headers: {
+          'User-Agent': 'MiravoyApp/1.0 (Local Dev)',
+        }
+      }
+    }
+  },
   test: {
     globals: true,
     environment: 'jsdom',

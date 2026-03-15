@@ -24,7 +24,7 @@ import {
   IonInfiniteScrollContent,
   IonPopover
 } from '@ionic/react';
-import { heart, heartOutline, chevronBackOutline, chevronForwardOutline, playSkipBackOutline, playSkipForwardOutline } from 'ionicons/icons';
+import { heart, heartOutline, chevronBackOutline, chevronForwardOutline, playSkipBackOutline, playSkipForwardOutline, alertCircleOutline } from 'ionicons/icons';
 import { useParams, useLocation } from 'react-router-dom';
 import { mangadexService } from '../services/mangadexService';
 import { anilistService } from '../services/anilistService';
@@ -425,9 +425,14 @@ const MangaDetailsPage: React.FC = () => {
                 );
               })
             ) : (
-              <p className="ion-text-center" style={{ color: 'var(--text-secondary)', padding: '20px' }}>
-                No se encontraron capítulos en este idioma.
-              </p>
+              <div className="empty-adventure animate-fade-in ion-text-center">
+                <IonIcon icon={alertCircleOutline} color="medium" style={{ fontSize: '64px', marginBottom: '10px' }} />
+                <h2>Historia no disponible</h2>
+                <p>Esta aventura aún no ha sido traducida a tu idioma. ¡Busca otra leyenda!</p>
+                <IonButton fill="clear" onClick={() => router.back()}>
+                  Volver atrás
+                </IonButton>
+              </div>
             )}
             
             {/* Advanced Pro Pagination Controls */}

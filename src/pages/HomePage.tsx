@@ -24,6 +24,7 @@ import {
   IonToast
 } from '@ionic/react';
 import { personCircleOutline, notifications, refreshOutline, chevronDownOutline, libraryOutline, sparklesOutline, checkmarkCircle } from 'ionicons/icons';
+import MangaCard from '../components/MangaCard';
 import { mangadexService } from '../services/mangadexService';
 import LoadingScreen from '../components/LoadingScreen';
 import { useLibraryStore } from '../store/useLibraryStore';
@@ -113,15 +114,15 @@ const HomePage: React.FC = () => {
       setHeroMangas(shuffledHero);
       setHeroIndex(0);
       
-      // Fetch latest chapters based on selected language
-      const latestData = await mangadexService.getLatestChapters(12, 0, latestLang);
-      const chapters = latestData.data || [];
-      setLatest(chapters);
+      // Fetch latest updated mangas (AnimeFLV style - guaranteed covers)
+      const latestData = await mangadexService.getLatestUpdatedManga(12, 0, latestLang);
+      const updatedMangas = latestData.data || [];
+      setLatest(updatedMangas);
       setLatestOffset(12);
 
-      // Track last fetch time for polling comparison
-      if (chapters.length > 0) {
-        lastFetchTime.current = chapters[0].attributes.readableAt;
+      // Track last update for polling
+      if (updatedMangas.length > 0) {
+        lastFetchTime.current = updatedMangas[0].attributes.updatedAt;
       }
     } catch (error) {
       console.error('Error fetching home data:', error);
@@ -132,13 +133,13 @@ const HomePage: React.FC = () => {
 
   const loadMoreLatest = async (e: any) => {
     try {
-      const latestData = await mangadexService.getLatestChapters(12, latestOffset, latestLang);
+      const latestData = await mangadexService.getLatestUpdatedManga(12, latestOffset, latestLang);
       const data = latestData.data || [];
       if (data.length < 12) setIsDone(true);
       setLatest(prev => [...prev, ...data]);
       setLatestOffset(prev => prev + 12);
     } catch (err) {
-      console.error('Error loading more chapters:', err);
+      console.error('Error loading more mangas:', err);
     }
     e.target.complete();
   };
@@ -156,11 +157,8 @@ const HomePage: React.FC = () => {
     router.push(`/manga/${manga.id}`);
   };
 
-  const handleLatestClick = (chapter: any) => {
-    const mangaRel = chapter.relationships.find((r: any) => r.type === 'manga');
-    if (mangaRel) {
-      router.push(`/manga/${mangaRel.id}`);
-    }
+  const handleLatestClick = (manga: any) => {
+    router.push(`/manga/${manga.id}`);
   };
 
   const handleRefresh = async (event: any) => {
@@ -178,17 +176,6 @@ const HomePage: React.FC = () => {
 
   const currentHero = heroMangas[heroIndex];
 
-  // Helper: get cover from chapter's manga relationship
-  const getChapterCover = (chapter: any) => {
-    const manga = chapter.relationships?.find((r: any) => r.type === 'manga');
-    const cover = chapter.relationships?.find((r: any) => r.type === 'cover_art') || 
-                  manga?.relationships?.find((r: any) => r.type === 'cover_art');
-    if (cover?.attributes?.fileName && manga) {
-      const rawUrl = `https://uploads.mangadex.org/covers/${manga.id}/${cover.attributes.fileName}.256.jpg`;
-      return mangadexService.getOptimizedUrl(rawUrl);
-    }
-    return null;
-  };
 
   return (
     <IonPage className="home-page-container">
@@ -326,49 +313,33 @@ const HomePage: React.FC = () => {
             </div>
 
             {latest.length > 0 ? (
-              <div className="latest-list">
-                {latest.map((chapter: any) => {
-                  const manga = chapter.relationships.find((r: any) => r.type === 'manga');
-                  const mangaTitle = manga?.attributes?.title?.en || 
-                                    manga?.attributes?.title?.ja || 
-                                    (manga?.attributes?.title ? Object.values(manga.attributes.title)[0] : 'Manga');
-                  const coverUrl = getChapterCover(chapter);
-                  const lang = chapter.attributes.translatedLanguage;
-                  const timeAgo = getTimeAgo(chapter.attributes.readableAt);
+              <IonGrid className="ion-no-padding">
+                <IonRow className="manga-grid">
+                {latest.map((manga: any) => {
+                  const mangaTitle = mangadexService.getLocalizedTitle(manga);
+                  const coverUrl = mangadexService.getCoverUrl(manga, 256);
                   const format = manga?.attributes?.originalLanguage;
+                  const lastChapter = manga?.attributes?.lastChapter;
                   const tags = manga?.attributes?.tags
                     ?.filter((t: any) => t.attributes?.group === 'genre')
-                    .slice(0, 1) // Only 1 genre for space on Home
+                    .slice(0, 1)
                     .map((t: any) => t.attributes?.name?.en || t.attributes?.name?.es || '');
                   
                   return (
-                    <div className="latest-card" key={chapter.id} onClick={() => handleLatestClick(chapter)}>
-                      {coverUrl && (
-                        <img src={coverUrl} alt="" className="latest-cover" loading="lazy" />
-                      )}
-                      <div className="latest-info">
-                        <p className="latest-manga-title">{mangaTitle}</p>
-                        <div className="latest-meta">
-                          {format === 'ko' && <span className="home-format-badge manhwa">MHW</span>}
-                          {format === 'zh' && <span className="home-format-badge manhua">MHA</span>}
-                          {format === 'ja' && <span className="home-format-badge manga">MGA</span>}
-                          <IonBadge color="secondary" mode="ios" className="latest-chapter-badge">
-                            Cap. {chapter.attributes.chapter || '?'}
-                          </IonBadge>
-                          {history[manga?.id] && (
-                            <IonBadge color="success" mode="ios" className="latest-read-badge">
-                              <IonIcon icon={checkmarkCircle} style={{ fontSize: '0.8rem', marginRight: '2px' }} />
-                              Leyendo {history[manga.id].chapterNumber}
-                            </IonBadge>
-                          )}
-                          {tags && tags.length > 0 && <span className="home-genre-tag">{tags[0]}</span>}
-                          <span className="latest-time" style={{ marginLeft: 'auto' }}>{timeAgo}</span>
-                        </div>
-                      </div>
-                    </div>
+                    <IonCol size="4" sizeSm="4" sizeMd="3" key={manga.id} className="ion-no-padding">
+                      <MangaCard 
+                        title={mangaTitle}
+                        coverUrl={coverUrl}
+                        format={format}
+                        progressLabel={lastChapter ? `Cap. ${lastChapter}` : 'Nuevo'}
+                        onClick={() => handleLatestClick(manga)}
+                        tags={tags}
+                      />
+                    </IonCol>
                   );
                 })}
-              </div>
+                </IonRow>
+              </IonGrid>
             ) : (
               <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.7 }}>
                 <p>No se encontraron capítulos recientes en español.</p>

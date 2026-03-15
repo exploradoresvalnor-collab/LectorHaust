@@ -50,9 +50,9 @@ const SearchPage: React.FC = () => {
 
   const FORMATS = [
     { label: 'Todos', value: null },
-    { label: 'Manga', value: 'ja' },
-    { label: 'Manhwa', value: 'ko' },
-    { label: 'Manhua', value: 'zh' }
+    { label: 'Manga 🇯🇵', value: 'ja' },
+    { label: 'Manhwa 🇰🇷', value: 'ko' },
+    { label: 'Manhua 🇨🇳', value: 'zh' }
   ];
 
   const STATUSES = [
@@ -77,7 +77,7 @@ const SearchPage: React.FC = () => {
     { label: 'Mejor Calificados', value: 'rating' }
   ];
 
-  const GENRES = ['Todos', 'Acción', 'Romance', 'Fantasía', 'Comedia', 'Drama', 'Sci-Fi', 'Misterio', 'Terror', 'Aventura'];
+  const GENRES = ['Todos', 'Acción', 'Romance', 'Fantasía', 'Comedia', 'Drama', 'Sci-Fi', 'Misterio', 'Terror', 'Aventura', 'Deportes', 'Sobrenatural', 'Psicológico', 'Histórico', 'Cocina', 'Música', 'Mecha', 'Vida Escolar', 'Gore', 'Crimen', 'Magical Girls'];
 
   // Map Spanish names to English names for the API
   const genreMapping: Record<string, string> = {
@@ -89,7 +89,18 @@ const SearchPage: React.FC = () => {
     'Sci-Fi': 'sci-fi',
     'Misterio': 'mystery',
     'Terror': 'horror',
-    'Aventura': 'adventure'
+    'Aventura': 'adventure',
+    'Deportes': 'sports',
+    'Sobrenatural': 'supernatural',
+    'Psicológico': 'psychological',
+    'Histórico': 'historical',
+    'Cocina': 'cooking',
+    'Música': 'music',
+    'Mecha': 'mecha',
+    'Vida Escolar': 'school life',
+    'Gore': 'gore',
+    'Crimen': 'crime',
+    'Magical Girls': 'magical girls'
   };
   
   const router = useIonRouter();
@@ -346,7 +357,7 @@ const SearchPage: React.FC = () => {
                       .map((t: any) => t.attributes?.name?.en || t.attributes?.name?.es || '');
                       
                     return (
-                      <IonCol size="6" sizeMd="3" key={manga.id}>
+                      <IonCol size="4" sizeMd="3" key={manga.id} className="ion-no-padding">
                         <MangaCard 
                           title={manga.attributes.title.en || Object.values(manga.attributes.title)[0]}
                           coverUrl={mangadexService.getCoverUrl(manga, 512)}
@@ -385,7 +396,7 @@ const SearchPage: React.FC = () => {
                       .map((t: any) => t.attributes?.name?.en || t.attributes?.name?.es || '');
                       
                     return (
-                      <IonCol size="6" sizeSm="4" sizeMd="3" key={m.id}>
+                      <IonCol size="4" sizeSm="4" sizeMd="3" key={m.id} className="ion-no-padding">
                         <MangaCard 
                           title={m.attributes.title.en || Object.values(m.attributes.title)[0]}
                           coverUrl={mangadexService.getCoverUrl(m, 512)}
@@ -424,7 +435,7 @@ const SearchPage: React.FC = () => {
                       .map((t: any) => t.attributes?.name?.en || t.attributes?.name?.es || '');
                       
                     return (
-                      <IonCol size="6" sizeSm="4" sizeMd="3" key={m.id}>
+                      <IonCol size="4" sizeSm="4" sizeMd="3" key={m.id} className="ion-no-padding">
                         <MangaCard 
                           title={m.attributes.title.en || Object.values(m.attributes.title)[0]}
                           coverUrl={mangadexService.getCoverUrl(m, 512)}

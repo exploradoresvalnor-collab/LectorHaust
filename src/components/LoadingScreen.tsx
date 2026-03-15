@@ -32,18 +32,18 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ message }) => {
 
   return (
     <div className="pro-loading-container animate-fade-in">
-      <div className="glass-loading-card">
-        <div className="logo-spinner-container">
-          <div className="loading-orbit"></div>
-          <img src="/logolh.webp" alt="Lector Haus" className="loading-logo-img" />
+      <div className="modern-loading-content">
+        <div className="spinner-wrapper">
+          <div className="modern-spinner"></div>
+          <img src="/logolh.webp" alt="Logo" className="spinner-center-logo" />
         </div>
         
-        <div className="loading-text-container">
+        <div className="loading-info">
           <h2 className="loading-phrase">{currentPhrase}</h2>
-          <div className="mini-progress-bar">
-            <div className="progress-glow"></div>
+          <div className="loading-bar-container">
+            <div className="loading-bar-progress"></div>
           </div>
-          <span className="brand-subtext">LECTOR HAUS</span>
+          <p className="brand-tagline">LECTOR HAUS</p>
         </div>
       </div>
     </div>

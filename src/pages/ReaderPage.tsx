@@ -37,6 +37,7 @@ const ReaderPage: React.FC = () => {
   const [prevChapterId, setPrevChapterId] = useState<string | null>(null);
   const [nextChapterId, setNextChapterId] = useState<string | null>(null);
   const dataSaverMode = useLibraryStore(state => state.dataSaverMode);
+  const [isWebtoon, setIsWebtoon] = useState(false);
   const router = useIonRouter();
 
   // Safety cleanup: save progress on unmount
@@ -105,6 +106,9 @@ const ReaderPage: React.FC = () => {
             if (mangaRel) {
               setMangaId(mangaRel.id);
               
+              const format = mangaRel.attributes?.originalLanguage;
+              setIsWebtoon(format === 'ko' || format === 'zh');
+
               // Fetch chapter list to find prev/next
               try {
                 const chaptersData = await mangadexService.getMangaChapters(
@@ -176,7 +180,7 @@ const ReaderPage: React.FC = () => {
             </IonButton>
           </div>
         ) : (
-          <div className="pages-container manhwa-container">
+          <div className={`pages-container ${isWebtoon ? 'webtoon-mode' : 'manga-mode'}`}>
             {pages.length > 0 ? (
               pages.map((page, index) => (
                 <div key={index} className="page-wrapper" data-index={index}>
@@ -194,7 +198,7 @@ const ReaderPage: React.FC = () => {
                   ) : (
                     <img 
                       src={mangadexService.getProxiedUrl(page)} 
-                      className="manga-page manhwa-img" 
+                      className={`manga-page ${isWebtoon ? 'webtoon-img' : ''}`} 
                       alt={`Página ${index + 1}`}
                       onLoad={(e) => {
                         const target = e.currentTarget;

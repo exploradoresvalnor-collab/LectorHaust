@@ -1,3 +1,15 @@
+.manga-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px !important;
+    padding: 10px 6px !important;
+    justify-content: center;
+}
+
+.ion-no-padding {
+    padding: 0 !important;
+}
+
 /* Filter Chips */
 .home-filters-container {
     display: flex;
@@ -158,10 +170,9 @@
     }
 }
 
-/* Notification Pill */
 .notification-pill-container {
-    position: absolute;
-    top: 90px;
+    position: fixed;
+    bottom: 30px;
     left: 0;
     right: 0;
     z-index: 1000;
@@ -172,18 +183,18 @@
 
 .notification-pill {
     pointer-events: auto;
-    background: rgba(30, 30, 30, 0.8);
+    background: rgba(20, 20, 20, 0.9);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 8px 16px;
-    border-radius: 40px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 6px 14px;
+    border-radius: 30px;
     display: flex;
     align-items: center;
-    gap: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(139, 92, 246, 0.2);
+    gap: 10px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .notification-pill:hover {
@@ -193,15 +204,15 @@
 }
 
 .pill-pulse-icon {
-    width: 32px;
-    height: 32px;
+    width: 24px;
+    height: 24px;
     background: var(--ion-color-secondary);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 1.2rem;
+    font-size: 0.9rem;
     animation: pulse-glow 2s infinite;
 }
 
@@ -222,9 +233,8 @@
 }
 
 .pill-refresh {
-    font-size: 1.2rem;
+    font-size: 1rem;
     color: var(--ion-color-primary);
-    margin-left: 4px;
 }
 
 @keyframes pulse-glow {
@@ -553,94 +563,4 @@
     scrollbar-width: none;  /* Firefox */
 }
 
-/* Latest Chapter Cards — New Design */
-.latest-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.latest-card {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 14px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 14px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.latest-card:active {
-    background: rgba(255,255,255,0.1);
-    transform: scale(0.98);
-}
-
-.latest-cover {
-    width: 44px;
-    height: 62px;
-    border-radius: 8px;
-    object-fit: cover;
-    flex-shrink: 0;
-}
-
-.latest-info {
-    flex: 1;
-    min-width: 0;
-}
-
-.latest-manga-title {
-    margin: 0;
-    font-size: 0.92rem;
-    font-weight: 700;
-    line-height: 1.2;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.latest-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 5px;
-    flex-wrap: wrap;
-}
-
-.home-format-badge, .home-genre-tag {
-    font-size: 0.55rem;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 800;
-    text-transform: uppercase;
-    color: white;
-}
-
-.home-format-badge.manga { background: #eb445a; }
-.home-format-badge.manhwa { background: #3880ff; }
-.home-format-badge.manhua { background: #ffc409; color: #000; }
-
-.home-genre-tag {
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    font-weight: 600;
-}
-
-.latest-chapter-badge {
-    font-size: 0.72rem;
-    padding: 2px 7px;
-    border-radius: 6px;
-    font-weight: 800;
-}
-
-.latest-lang {
-    font-size: 0.85rem;
-}
-
-.latest-time {
-    font-size: 0.72rem;
-    opacity: 0.5;
-    margin-left: auto;
-}
 

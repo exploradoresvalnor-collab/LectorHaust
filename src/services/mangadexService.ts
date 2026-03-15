@@ -2,8 +2,11 @@
  * MangaDex API Service
  */
 
-const BASE_URL = 'https://api.mangadex.org';
-const CORS_PROXY = 'https://api.allorigins.win/raw?url='; 
+const IS_PROD = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+// In local dev, we use Vite proxy '/api-md' configured in vite.config.ts
+// In production (Vercel), we use our internal serverless proxy
+const API_BASE = IS_PROD ? 'https://api.mangadex.org' : '/api-md';
+const PROXY_PREFIX = IS_PROD ? '/api/proxy?url=' : '';
 const CLOUDINARY_CLOUD_NAME = 'djzak5yb2';
 
 /**
@@ -24,9 +27,14 @@ async function rateLimitedFetch(url: string): Promise<Response> {
  * Helper to construct proxied URLs for MangaDex
  */
 function getProxyUrl(endpoint: string) {
-    const fullUrl = endpoint.startsWith('http') ? endpoint : `${BASE_URL}${endpoint}`;
-    // We wrap the MangaDex URL in the CORS proxy to bypass browser restrictions on Vercel
-    return `${CORS_PROXY}${encodeURIComponent(fullUrl)}`;
+    const fullUrl = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
+    
+    if (IS_PROD) {
+        return `${PROXY_PREFIX}${encodeURIComponent(fullUrl)}`;
+    }
+    
+    // In local dev, Vite proxy handles '/api-md' automatically without needing an external proxy prefix
+    return fullUrl;
 }
 
 /**
@@ -70,6 +78,12 @@ export const mangadexService = {
             url += `&title=${encodeURIComponent(query)}`;
         }
 
+        // BLIND SEARCH: Only show manga with available chapters in user's languages
+        url += '&hasAvailableChapters=true';
+        if (!filters.lang) {
+            url += '&availableTranslatedLanguage[]=es&availableTranslatedLanguage[]=es-la&availableTranslatedLanguage[]=en';
+        }
+
         if (order) {
             Object.keys(order).forEach(key => {
                 url += `&order[${key}]=${order[key]}`;
@@ -97,7 +111,19 @@ export const mangadexService = {
                 'mystery': 'ee968100-4191-4968-93d3-f82d72be7e46',
                 'horror': 'cdad7e68-1419-41dd-bdce-27753074a640',
                 'thriller': '07251805-a27e-4d59-b469-f980d8e14f56',
-                'isekai': 'ace04997-f6bd-436e-b261-779182193d3d'
+                'isekai': 'ace04997-f6bd-436e-b261-779182193d3d',
+                'adventure': '87db829e-ada1-4581-bb9d-90977d5d7425',
+                'sports': '69960289-ad1e-45e4-bf72-74574e57e330',
+                'supernatural': 'e1215448-a0fd-44f3-9529-16a2d9c464c0',
+                'psychological': '3b60b75c-a2d7-4860-8d7a-b76e002da81f',
+                'historical': '33721053-bc4a-4c22-92f5-23e59508bc5c',
+                'cooking': 'ea5863d0-31cd-496d-896c-1372337cca54',
+                'music': 'ac728339-231b-427d-83b1-06158a0a575a',
+                'mecha': '5088fe6a-1c07-4de4-82b3-ef37d6e6abb9',
+                'school life': 'caaa44ca-6df5-428a-9a36-71eeab971ec3',
+                'gore': 'b29d6a3d-1514-4da3-b0e6-3482d708ca6d',
+                'crime': '5ca48418-4447-49f3-96b6-aae782fc492d',
+                'magical girls': '81c83e12-bb9d-4344-93d3-78430f78994a'
             };
             
             filters.tags.forEach(tag => {
@@ -114,7 +140,7 @@ export const mangadexService = {
     /**
      * Get popular manga filtered by language and origin
      */
-    async getPopularManga(origin: string | null = null, lang = 'es', limit = 12, offset = 0, genre: string | null = null) {
+    async getPopularManga(origin: string | null = null, lang: string | null = 'es', limit = 12, offset = 0, genre: string | null = null): Promise<any> {
         let url = `/manga?limit=${limit}&offset=${offset}&hasAvailableChapters=true&contentRating[]=safe&contentRating[]=suggestive&order[followedCount]=desc&includes[]=cover_art`;
         
         if (lang) {
@@ -145,10 +171,7 @@ export const mangadexService = {
             // but log a warning.
             if ((!data.data || data.data.length === 0) && lang) {
                 console.warn(`[MangaDex] No ${origin || ''} manga found in ${lang}. Retrying without language filter...`);
-                const retryUrl = url
-                    .replace(`&availableTranslatedLanguage[]=${lang}`, '')
-                    .replace(`&availableTranslatedLanguage[]=es-la`, '');
-                return await apiFetch(retryUrl);
+                return await this.getPopularManga(origin, null as any, limit, offset, genre);
             }
             return data;
         } catch (err) {
@@ -158,10 +181,23 @@ export const mangadexService = {
     },
 
     /**
-     * Get latest chapters
+     * Get mangas ordered by latest chapter update (AnimeFLV style)
      */
+    async getLatestUpdatedManga(limit = 12, offset = 0, lang = 'es') {
+        let url = `/manga?limit=${limit}&offset=${offset}&hasAvailableChapters=true&contentRating[]=safe&contentRating[]=suggestive&order[latestUploadedChapter]=desc&includes[]=cover_art`;
+        
+        if (lang) {
+            url += `&availableTranslatedLanguage[]=${lang}`;
+            if (lang === 'es') {
+                url += `&availableTranslatedLanguage[]=es-la`;
+            }
+        }
+
+        return apiFetch(url);
+    },
+
     async getLatestChapters(limit = 12, offset = 0, lang: string | null = null) {
-        let url = `/chapter?limit=${limit}&offset=${offset}&contentRating[]=safe&contentRating[]=suggestive&order[readableAt]=desc&includes[]=manga`;
+        let url = `/chapter?limit=${limit}&offset=${offset}&contentRating[]=safe&contentRating[]=suggestive&order[readableAt]=desc&includes[]=manga&includes[]=cover_art`;
         
         if (lang === 'es') {
             // Include both Spain and Latin American Spanish
@@ -209,6 +245,9 @@ export const mangadexService = {
         const resp = await apiFetch(`/at-home/server/${chapterId}`);
         const { baseUrl, chapter } = resp;
         const files = quality === 'data-saver' ? chapter.dataSaver : chapter.data;
+        
+        // MangaDex does not block images by CORS if requested correctly from the browser.
+        // Skipping the proxy here makes loading near-instant.
         const pageUrls = files.map((file: string) => {
             const rawUrl = `${baseUrl}/${quality}/${chapter.hash}/${file}`;
             return mangadexService.getOptimizedUrl(rawUrl);
@@ -228,7 +267,7 @@ export const mangadexService = {
      */
     getCoverUrl(manga: any, size?: 256 | 512) {
         try {
-            if (!manga || !manga.relationships) return 'https://via.placeholder.com/256x384.png?text=Sin+Portada';
+            if (!manga || !manga.relationships) return 'https://placehold.co/256x384/222222/cccccc?text=Sin+Portada';
             
             const coverRel = manga.relationships.find((r: any) => r.type === 'cover_art');
             const fileName = coverRel?.attributes?.fileName;
@@ -241,7 +280,7 @@ export const mangadexService = {
         } catch (err) {
             console.warn('[MangaDex] Error generating cover URL:', err);
         }
-        return 'https://via.placeholder.com/256x384.png?text=Sin+Portada';
+        return 'https://placehold.co/256x384/222222/cccccc?text=Sin+Portada';
     },
 
     /**
