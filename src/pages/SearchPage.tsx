@@ -360,7 +360,7 @@ const SearchPage: React.FC = () => {
                       <IonCol size="4" sizeMd="3" key={manga.id} className="ion-no-padding">
                         <MangaCard 
                           title={manga.attributes.title.en || Object.values(manga.attributes.title)[0]}
-                          coverUrl={mangadexService.getCoverUrl(manga, 512)}
+                          coverUrl={mangadexService.getCoverUrl(manga)}
                           format={format}
                           tags={tags}
                           onClick={() => router.push(`/manga/${manga.id}`)}
@@ -399,7 +399,7 @@ const SearchPage: React.FC = () => {
                       <IonCol size="4" sizeSm="4" sizeMd="3" key={m.id} className="ion-no-padding">
                         <MangaCard 
                           title={m.attributes.title.en || Object.values(m.attributes.title)[0]}
-                          coverUrl={mangadexService.getCoverUrl(m, 512)}
+                          coverUrl={mangadexService.getCoverUrl(m)}
                           format={format}
                           tags={tags}
                           onClick={() => router.push(`/manga/${m.id}`)}
@@ -438,7 +438,7 @@ const SearchPage: React.FC = () => {
                       <IonCol size="4" sizeSm="4" sizeMd="3" key={m.id} className="ion-no-padding">
                         <MangaCard 
                           title={m.attributes.title.en || Object.values(m.attributes.title)[0]}
-                          coverUrl={mangadexService.getCoverUrl(m, 512)}
+                          coverUrl={mangadexService.getCoverUrl(m)}
                           format={format}
                           tags={tags}
                           onClick={() => router.push(`/manga/${m.id}`)}

@@ -180,50 +180,57 @@ const ReaderPage: React.FC = () => {
             </IonButton>
           </div>
         ) : (
-          <div className={`pages-container ${isWebtoon ? 'webtoon-mode' : 'manga-mode'}`}>
+          <div className={`pages-container ${isWebtoon ? 'manhwa-container' : 'manga-container'}`}>
             {pages.length > 0 ? (
-              pages.map((page, index) => (
-                <div key={index} className="page-wrapper" data-index={index}>
-                  {failedPages.has(index) ? (
-                    <div className="page-error">
-                      <p>Error al cargar página {index + 1}</p>
-                      <IonButton fill="clear" size="small" onClick={() => {
-                        const newFailed = new Set(failedPages);
-                        newFailed.delete(index);
-                        setFailedPages(newFailed);
-                      }}>
-                        Reintentar
-                      </IonButton>
-                    </div>
-                  ) : (
-                    <img 
-                      src={mangadexService.getProxiedUrl(page)} 
-                      className={`manga-page ${isWebtoon ? 'webtoon-img' : ''}`} 
-                      alt={`Página ${index + 1}`}
-                      onLoad={(e) => {
-                        const target = e.currentTarget;
-                        target.style.opacity = '1';
-                        // Keep track of successful loads if needed
-                      }}
-                      onError={(e) => {
-                        const target = e.currentTarget;
-                        // If it failed and it was a proxied URL, try original
-                        if (target.src.includes('res.cloudinary.com')) {
-                          console.warn(`[Reader] Cloudinary failed for page ${index + 1}, falling back to original URL.`);
-                          // The original URL is the part after the last /
-                          const originalUrl = decodeURIComponent(target.src.split('fetch/f_auto,q_auto,c_limit/')[1]);
-                          if (originalUrl) {
-                            target.src = originalUrl;
-                            return;
+              pages.map((page, index) => {
+                // Las primeras 2 páginas cargan de golpe. El resto espera a que hagas scroll.
+                const isEager = index < 2;
+
+                return (
+                  <div key={index} className="page-wrapper" data-index={index}>
+                    {failedPages.has(index) ? (
+                      <div className="page-error" style={{ height: '300px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <IonButton fill="clear" onClick={() => {
+                          const newFailed = new Set(failedPages);
+                          newFailed.delete(index);
+                          setFailedPages(newFailed);
+                        }}>Reintentar Pág. {index + 1}</IonButton>
+                      </div>
+                    ) : (
+                      <img 
+                        src={mangadexService.getProxiedUrl(page)} 
+                        className="manga-page" 
+                        alt={`Página ${index + 1}`}
+                        loading={isEager ? "eager" : "lazy"}
+                        onLoad={(e) => {
+                          e.currentTarget.classList.add('loaded');
+                          
+                          // LA MAGIA: Precargar silenciosamente las siguientes 2 páginas
+                          if (index + 1 < pages.length) {
+                             const img1 = new Image();
+                             img1.src = mangadexService.getProxiedUrl(pages[index + 1]);
                           }
-                        }
-                        setFailedPages(prev => new Set(prev).add(index));
-                      }}
-                      style={{ opacity: 1 }}
-                    />
-                  )}
-                </div>
-              ))
+                          if (index + 2 < pages.length) {
+                             const img2 = new Image();
+                             img2.src = mangadexService.getProxiedUrl(pages[index + 2]);
+                          }
+                        }}
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          if (target.src.includes('res.cloudinary.com')) {
+                            const originalUrl = decodeURIComponent(target.src.split('fetch/f_auto,q_auto,c_limit/')[1]);
+                            if (originalUrl) {
+                              target.src = originalUrl;
+                              return;
+                            }
+                          }
+                          setFailedPages(prev => new Set(prev).add(index));
+                        }}
+                      />
+                    )}
+                  </div>
+                );
+              })
             ) : (
               <div className="ion-padding ion-text-center">
                 <p>Este capítulo no contiene páginas legibles en los servidores de MangaDex.</p>

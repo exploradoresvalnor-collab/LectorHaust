@@ -244,12 +244,14 @@ export const mangadexService = {
     async getChapterPages(chapterId: string, quality: 'data' | 'data-saver' = 'data') {
         const resp = await apiFetch(`/at-home/server/${chapterId}`);
         const { baseUrl, chapter } = resp;
-        const files = quality === 'data-saver' ? chapter.dataSaver : chapter.data;
         
-        // MangaDex does not block images by CORS if requested correctly from the browser.
-        // Skipping the proxy here makes loading near-instant.
+        // Detectamos si está en móvil para usar el modo rápido
+        const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
+        const folder = isMobile ? 'data-saver' : quality;
+        const files = folder === 'data-saver' ? chapter.dataSaver : chapter.data;
+        
         const pageUrls = files.map((file: string) => {
-            const rawUrl = `${baseUrl}/${quality}/${chapter.hash}/${file}`;
+            const rawUrl = `${baseUrl}/${folder}/${chapter.hash}/${file}`;
             return mangadexService.getOptimizedUrl(rawUrl);
         });
         return { pages: pageUrls, hash: chapter.hash, baseUrl };
@@ -263,24 +265,26 @@ export const mangadexService = {
     },
 
     /**
-     * Helper to get cover URL (with optional thumbnail size: 256 or 512)
+     * Helper to get cover URL (HD para PC y Móvil gracias a Cloudinary)
      */
-    getCoverUrl(manga: any, size?: 256 | 512) {
+    getCoverUrl(manga: any) {
         try {
-            if (!manga || !manga.relationships) return 'https://placehold.co/256x384/222222/cccccc?text=Sin+Portada';
+            if (!manga || !manga.relationships) return 'https://placehold.co/512x768/222222/cccccc?text=Sin+Portada';
             
             const coverRel = manga.relationships.find((r: any) => r.type === 'cover_art');
             const fileName = coverRel?.attributes?.fileName;
             
             if (fileName) {
-                const base = `https://uploads.mangadex.org/covers/${manga.id}/${fileName}`;
-                const rawUrl = size ? `${base}.${size}.jpg` : base;
+                // Pedimos SIEMPRE la versión original (sin .256.jpg ni .512.jpg)
+                const rawUrl = `https://uploads.mangadex.org/covers/${manga.id}/${fileName}`;
+                
+                // Cloudinary se encarga de optimizar el peso sin dañar la calidad visual
                 return mangadexService.getOptimizedUrl(rawUrl);
             }
         } catch (err) {
             console.warn('[MangaDex] Error generating cover URL:', err);
         }
-        return 'https://placehold.co/256x384/222222/cccccc?text=Sin+Portada';
+        return 'https://placehold.co/512x768/222222/cccccc?text=Sin+Portada';
     },
 
     /**

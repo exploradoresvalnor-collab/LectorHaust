@@ -317,7 +317,7 @@ const HomePage: React.FC = () => {
                 <IonRow className="manga-grid">
                 {latest.map((manga: any) => {
                   const mangaTitle = mangadexService.getLocalizedTitle(manga);
-                  const coverUrl = mangadexService.getCoverUrl(manga, 256);
+                  const coverUrl = mangadexService.getCoverUrl(manga);
                   const format = manga?.attributes?.originalLanguage;
                   const lastChapter = manga?.attributes?.lastChapter;
                   const tags = manga?.attributes?.tags
