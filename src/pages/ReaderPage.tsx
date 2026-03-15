@@ -17,6 +17,7 @@ import {
 import { chevronBackOutline, chevronForwardOutline } from 'ionicons/icons';
 import { useParams } from 'react-router-dom';
 import { mangadexService } from '../services/mangadexService';
+import { consumetService } from '../services/consumetService';
 import { useLibraryStore } from '../store/useLibraryStore';
 import './ReaderPage.css';
 
@@ -92,6 +93,22 @@ const ReaderPage: React.FC = () => {
       setFailedPages(new Set());
       try {
         lastLoadedId.current = chapterId as string;
+
+        // --- CONSUMET CHAPTER PATH ---
+        if (consumetService.isConsumetChapterId(chapterId)) {
+          const data = await consumetService.getChapterPages(chapterId);
+          if (data && data.pages && data.pages.length > 0) {
+            setPages(data.pages);
+            markAsRead(chapterId);
+            setChapterNum('?');
+          } else {
+            throw new Error('No se encontraron páginas en el proveedor.');
+          }
+          setLoading(false);
+          return; // Skip MangaDex flow
+        }
+
+        // --- MANGADEX CHAPTER PATH ---
         const data = await mangadexService.getChapterPages(chapterId, dataSaverMode ? 'data-saver' : 'data');
         
         if (data && data.pages) {
@@ -168,7 +185,7 @@ const ReaderPage: React.FC = () => {
         {loading ? (
           <div className="reader-loader">
             <IonSpinner name="crescent" color="primary" />
-            <p>Conectando a MangaDex At-Home...</p>
+            <p>Conectando con el servidor...</p>
           </div>
         ) : error ? (
           <div className="reader-error-container ion-padding ion-text-center">
@@ -198,7 +215,7 @@ const ReaderPage: React.FC = () => {
                       </div>
                     ) : (
                       <img 
-                        src={mangadexService.getProxiedUrl(page)} 
+                        src={page.includes('mangadex') ? mangadexService.getProxiedUrl(page) : page} 
                         className="manga-page" 
                         alt={`Página ${index + 1}`}
                         loading={isEager ? "eager" : "lazy"}
@@ -207,12 +224,14 @@ const ReaderPage: React.FC = () => {
                           
                           // LA MAGIA: Precargar silenciosamente las siguientes 2 páginas
                           if (index + 1 < pages.length) {
+                             const nextUrl1 = pages[index + 1].includes('mangadex') ? mangadexService.getProxiedUrl(pages[index + 1]) : pages[index + 1];
                              const img1 = new Image();
-                             img1.src = mangadexService.getProxiedUrl(pages[index + 1]);
+                             img1.src = nextUrl1;
                           }
                           if (index + 2 < pages.length) {
+                             const nextUrl2 = pages[index + 2].includes('mangadex') ? mangadexService.getProxiedUrl(pages[index + 2]) : pages[index + 2];
                              const img2 = new Image();
-                             img2.src = mangadexService.getProxiedUrl(pages[index + 2]);
+                             img2.src = nextUrl2;
                           }
                         }}
                         onError={(e) => {

@@ -162,7 +162,7 @@ const HomePage: React.FC = () => {
   };
 
   const handleRefresh = async (event: any) => {
-    await fetchData();
+    await fetchData(true);
     event.detail.complete();
   };
 

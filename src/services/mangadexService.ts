@@ -271,9 +271,11 @@ export const mangadexService = {
             }
         }
 
-        // Deduplicación por número de capítulo
+        // Deduplicación por número de capítulo (preserva capítulos sin número como one-shots)
         const uniqueChapters = allChapters.filter((chapter, index, self) =>
-            index === self.findIndex((c) => c.attributes.chapter === chapter.attributes.chapter)
+            chapter.attributes.chapter === null || chapter.attributes.chapter === undefined
+              ? true
+              : index === self.findIndex((c) => c.attributes.chapter === chapter.attributes.chapter)
         );
 
         return { data: uniqueChapters, total: total };

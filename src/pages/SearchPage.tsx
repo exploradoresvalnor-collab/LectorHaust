@@ -23,10 +23,11 @@ import {
   useIonRouter,
   useIonViewWillEnter
 } from '@ionic/react';
-import { trendingUpOutline, sparklesOutline, searchOutline, heartOutline, filterOutline } from 'ionicons/icons';
+import { trendingUpOutline, sparklesOutline, searchOutline, heartOutline, filterOutline, swapHorizontalOutline } from 'ionicons/icons';
 import MangaCard from '../components/MangaCard';
 import LoadingScreen from '../components/LoadingScreen';
 import { mangadexService } from '../services/mangadexService';
+import { consumetService } from '../services/consumetService';
 import { useLibraryStore } from '../store/useLibraryStore';
 import './SearchPage.css';
 
@@ -46,7 +47,8 @@ const SearchPage: React.FC = () => {
   const [activeStatus, setActiveStatus] = useState<string | null>(null);
   const [activeDemographic, setActiveDemographic] = useState<string | null>(null);
   const [activeOrder, setActiveOrder] = useState<string>('relevance');
-  const [showFilters, setShowFilters] = useState(true); // Control visibility on mobile
+  const [showFilters, setShowFilters] = useState(true);
+  const [useConsumet, setUseConsumet] = useState(false); // Toggle: MangaDex vs Consumet
 
   const FORMATS = [
     { label: 'Todos', value: null },
@@ -132,7 +134,6 @@ const SearchPage: React.FC = () => {
   });
 
   const handleSearch = async (val: string, isMore = false, newFormat?: string | null, newGenre?: string | null, newStatus?: string | null, newDemographic?: string | null) => {
-    // Determine the current values based on arguments or existing state
     const searchVal = val !== undefined ? val : query;
     const format = newFormat !== undefined ? newFormat : activeFormat;
     const genre = newGenre !== undefined ? newGenre : activeGenre;
@@ -141,7 +142,6 @@ const SearchPage: React.FC = () => {
     
     setQuery(searchVal);
     
-    // We can search if there's text OR if a filter is active
     if ((!searchVal || searchVal.length < 2) && !format && !genre && !status && !demographic) {
       setResults([]);
       return;
@@ -154,6 +154,17 @@ const SearchPage: React.FC = () => {
     }
 
     try {
+      // --- CONSUMET MODE ---
+      if (useConsumet) {
+        if (!searchVal || searchVal.length < 2) { setResults([]); setLoading(false); return; }
+        const consumetResults = await consumetService.searchManga(searchVal);
+        setResults(consumetResults);
+        setIsDone(true); // Consumet doesn't paginate in searches
+        setLoading(false);
+        return;
+      }
+
+      // --- MANGADEX MODE ---
       const currentOffset = isMore ? offset + 20 : 0;
       
       const filters: any = {};
@@ -162,7 +173,6 @@ const SearchPage: React.FC = () => {
       if (status) filters.status = status;
       if (demographic) filters.demographic = demographic;
       
-      // Add ordering logic
       const orderParam: any = {};
       orderParam[activeOrder] = 'desc';
 
@@ -245,22 +255,39 @@ const SearchPage: React.FC = () => {
         {activeSegment === 'search' && (
           <div className="search-section animate-fade-in">
             <div className="search-header-container">
+              {/* Consumet / MangaDex Toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 4px 10px', justifyContent: 'center' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: !useConsumet ? 'var(--ion-color-primary)' : 'gray' }}>MangaDex</span>
+                <IonButton 
+                  fill="clear" 
+                  size="small" 
+                  onClick={() => { setUseConsumet(!useConsumet); setResults([]); }}
+                  style={{ '--padding-start': '6px', '--padding-end': '6px' }}
+                >
+                  <IonIcon icon={swapHorizontalOutline} style={{ fontSize: '1.3rem', color: useConsumet ? '#ffca28' : 'var(--ion-color-primary)' }} />
+                </IonButton>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: useConsumet ? '#ffca28' : 'gray' }}>Zona Gris</span>
+              </div>
+
               <div className="search-bar-row">
                 <IonSearchbar 
-                  placeholder="¿Qué quieres leer hoy?" 
+                  placeholder={useConsumet ? 'Buscar en Zona Gris...' : '¿Qué quieres leer hoy?'}
                   onIonInput={(e) => handleSearch(e.detail.value!)}
                   debounce={500}
                   className="custom-searchbar floating-search"
                 />
-                <IonButton 
-                  fill="clear" 
-                  className={`filter-toggle-btn ${showFilters ? 'active' : ''}`}
-                  onClick={() => setShowFilters(!showFilters)}
-                >
-                  <IonIcon icon={filterOutline} slot="icon-only" />
-                </IonButton>
+                {!useConsumet && (
+                  <IonButton 
+                    fill="clear" 
+                    className={`filter-toggle-btn ${showFilters ? 'active' : ''}`}
+                    onClick={() => setShowFilters(!showFilters)}
+                  >
+                    <IonIcon icon={filterOutline} slot="icon-only" />
+                  </IonButton>
+                )}
               </div>
               
+              {!useConsumet && (
               <div className={`filters-container-pro ${showFilters ? 'expanded' : 'collapsed'}`}>
                 <div className="filter-grid-pro">
                   <div className="filter-item-pro">
@@ -343,6 +370,7 @@ const SearchPage: React.FC = () => {
                   </div>
                 </div>
               </div>
+              )}
             </div>
             {loading && offset === 0 ? (
               <LoadingScreen />
@@ -360,7 +388,7 @@ const SearchPage: React.FC = () => {
                       <IonCol size="4" sizeMd="3" key={manga.id} className="ion-no-padding">
                         <MangaCard 
                           title={manga.attributes.title.en || Object.values(manga.attributes.title)[0]}
-                          coverUrl={mangadexService.getCoverUrl(manga)}
+                          coverUrl={manga._consumet ? consumetService.getCoverUrl(manga) : mangadexService.getCoverUrl(manga)}
                           format={format}
                           tags={tags}
                           onClick={() => router.push(`/manga/${manga.id}`)}
