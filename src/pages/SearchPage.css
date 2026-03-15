@@ -79,84 +79,84 @@ ion-segment-button {
     }
 }
 
-.filter-group {
+/* Professional Filters Grid v2 */
+.filter-grid-pro {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: 10px;
+}
+
+.filter-item-pro {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 5px;
 }
 
-.filter-label {
-    font-size: 0.75rem;
-    text-transform: uppercase;
+.filter-label-v2 {
+    font-size: 0.65rem;
     font-weight: 800;
-    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.4);
     letter-spacing: 1px;
-    padding-left: 10px;
+    padding-left: 5px;
 }
 
-.group-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.clear-btn {
-    --color: var(--ion-color-danger);
-    font-size: 0.7rem;
-    font-weight: 700;
-    margin: 0;
-    height: 24px;
-}
-
-.filter-row {
-    display: flex;
-    overflow-x: auto;
-    gap: 8px;
-    padding-bottom: 4px;
-    padding-left: 4px;
-    scrollbar-width: none;
-}
-
-.filter-row::-webkit-scrollbar {
-    display: none;
-}
-
-/* Premium Filter Chips */
-.chip-pro {
+.custom-select-pro {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.7);
-    margin: 0;
-    transition: all 0.2s ease;
+    border-radius: 12px;
+    padding: 2px 12px;
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.85rem;
+    height: 48px;
+    transition: all 0.3s ease;
+}
+
+.custom-select-pro::part(container) {
+    width: 100%;
+}
+
+.custom-select-pro::part(icon) {
+    color: var(--ion-color-primary);
+    opacity: 0.7;
+}
+
+.filter-action-item {
+    grid-column: span 2;
+    margin-top: 5px;
+}
+
+.brand-filter-btn {
+    --background: linear-gradient(135deg, var(--ion-color-primary) 0%, #a78bfa 100%);
+    --background-hover: linear-gradient(135deg, #a78bfa 0%, var(--ion-color-primary) 100%);
     --border-radius: 12px;
+    --box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+    font-weight: 800;
+    font-size: 0.9rem;
+    height: 50px;
+    margin: 0;
 }
 
-.chip-active {
-    background: linear-gradient(135deg, var(--ion-color-primary) 0%, #a78bfa 100%);
-    color: white;
-    font-weight: 700;
-    border: none;
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+@media (min-width: 768px) {
+    .filter-grid-pro {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+    }
+    .filter-action-item {
+        grid-column: span 3;
+    }
 }
 
-.chip-active-genre {
-    background: linear-gradient(135deg, var(--ion-color-secondary) 0%, #2dd4bf 100%);
-    color: white;
-    font-weight: 700;
-    border: none;
-    box-shadow: 0 4px 12px rgba(45, 212, 191, 0.3);
-}
-
-.chip-active-status {
-    background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
-    color: white;
-    font-weight: 700;
-    border: none;
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-}
-
-.chip-pro:active {
-    transform: scale(0.95);
+@media (min-width: 1024px) {
+    .filter-grid-pro {
+        grid-template-columns: repeat(6, 1fr);
+        align-items: flex-end;
+    }
+    .filter-action-item {
+        grid-column: span 1;
+    }
 }
 
 /* Discovery Layouts - Vertically focused */

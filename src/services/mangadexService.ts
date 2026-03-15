@@ -63,11 +63,17 @@ export const mangadexService = {
     /**
      * Search for manga with various filters
      */
-    async searchManga(query: string, filters: { origin?: string, lang?: string, tags?: string[] } = {}, limit = 20, offset = 0) {
+    async searchManga(query: string, filters: { origin?: string, lang?: string, tags?: string[], status?: string, demographic?: string } = {}, limit = 20, offset = 0, order?: any) {
         let url = `/manga?limit=${limit}&offset=${offset}&includes[]=cover_art&includes[]=author&contentRating[]=safe&contentRating[]=suggestive`;
         
         if (query) {
             url += `&title=${encodeURIComponent(query)}`;
+        }
+
+        if (order) {
+            Object.keys(order).forEach(key => {
+                url += `&order[${key}]=${order[key]}`;
+            });
         }
 
         if (filters.origin) {

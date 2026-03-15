@@ -15,6 +15,8 @@ import {
   IonLabel,
   IonIcon,
   IonChip,
+  IonSelect,
+  IonSelectOption,
   IonInfiniteScroll,
   IonInfiniteScrollContent,
   IonButton,
@@ -43,6 +45,7 @@ const SearchPage: React.FC = () => {
   const [activeGenre, setActiveGenre] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState<string | null>(null);
   const [activeDemographic, setActiveDemographic] = useState<string | null>(null);
+  const [activeOrder, setActiveOrder] = useState<string>('relevance');
   const [showFilters, setShowFilters] = useState(true); // Control visibility on mobile
 
   const FORMATS = [
@@ -60,13 +63,21 @@ const SearchPage: React.FC = () => {
   ];
 
   const DEMOGRAPHICS = [
+    { label: 'Todos', value: null },
     { label: 'Shounen', value: 'shounen' },
     { label: 'Shoujo', value: 'shoujo' },
     { label: 'Seinen', value: 'seinen' },
     { label: 'Josei', value: 'josei' }
   ];
 
-  const GENRES = ['Acción', 'Romance', 'Fantasía', 'Comedia', 'Drama', 'Sci-Fi', 'Misterio', 'Terror', 'Aventura'];
+  const ORDERS = [
+    { label: 'Relevancia', value: 'relevance' },
+    { label: 'Más Vistos', value: 'followedCount' },
+    { label: 'Más Recientes', value: 'latestUploadedChapter' },
+    { label: 'Mejor Calificados', value: 'rating' }
+  ];
+
+  const GENRES = ['Todos', 'Acción', 'Romance', 'Fantasía', 'Comedia', 'Drama', 'Sci-Fi', 'Misterio', 'Terror', 'Aventura'];
 
   // Map Spanish names to English names for the API
   const genreMapping: Record<string, string> = {
@@ -136,11 +147,15 @@ const SearchPage: React.FC = () => {
       
       const filters: any = {};
       if (format) filters.origin = format;
-      if (genre && genreMapping[genre]) filters.tags = [genreMapping[genre]];
+      if (genre && genre !== 'Todos' && genreMapping[genre]) filters.tags = [genreMapping[genre]];
       if (status) filters.status = status;
       if (demographic) filters.demographic = demographic;
+      
+      // Add ordering logic
+      const orderParam: any = {};
+      orderParam[activeOrder] = 'desc';
 
-      const data = await mangadexService.searchManga(searchVal, filters, 20, currentOffset);
+      const data = await mangadexService.searchManga(searchVal, filters, 20, currentOffset, orderParam);
       
       if (isMore) {
         setResults(prev => [...prev, ...(data.data || [])]);
@@ -198,7 +213,7 @@ const SearchPage: React.FC = () => {
     <IonPage>
       <IonHeader className="ion-no-border">
         <IonToolbar className="glass-effect" style={{ padding: '10px 0' }}>
-          <IonSegment value={activeSegment} onIonChange={e => setActiveSegment(e.detail.value as string)} mode="md" className="custom-segment">
+          <IonSegment value={activeSegment} onIonChange={(e: any) => setActiveSegment(e.detail.value as string)} mode="md" className="custom-segment">
             <IonSegmentButton value="trending">
               <IonIcon icon={trendingUpOutline} />
               <IonLabel>Tendencias</IonLabel>
@@ -236,70 +251,84 @@ const SearchPage: React.FC = () => {
               </div>
               
               <div className={`filters-container-pro ${showFilters ? 'expanded' : 'collapsed'}`}>
-                <div className="filter-group">
-                  <span className="filter-label">Formato</span>
-                  <div className="filter-row">
-                    {FORMATS.map(fmt => (
-                      <IonChip 
-                        key={fmt.label || 'all'} 
-                        className={activeFormat === fmt.value ? 'chip-active' : 'chip-pro'}
-                        onClick={() => setFormatFilter(fmt.value)}
-                      >
-                        <IonLabel>{fmt.label}</IonLabel>
-                      </IonChip>
-                    ))}
+                <div className="filter-grid-pro">
+                  <div className="filter-item-pro">
+                    <span className="filter-label-v2">Tipo</span>
+                    <IonSelect 
+                      value={activeFormat} 
+                      placeholder="Todos"
+                      interface="popover"
+                      className="custom-select-pro"
+                      onIonChange={(e: any) => setFormatFilter(e.detail.value)}
+                    >
+                      {FORMATS.map(f => <IonSelectOption key={f.label} value={f.value}>{f.label}</IonSelectOption>)}
+                    </IonSelect>
                   </div>
-                </div>
 
-                <div className="filter-group">
-                  <span className="filter-label">Demografía</span>
-                  <div className="filter-row">
-                    {DEMOGRAPHICS.map(d => (
-                      <IonChip 
-                        key={d.value} 
-                        className={activeDemographic === d.value ? 'chip-active' : 'chip-pro'}
-                        onClick={() => setDemographicFilter(d.value)}
-                      >
-                        <IonLabel>{d.label}</IonLabel>
-                      </IonChip>
-                    ))}
+                  <div className="filter-item-pro">
+                    <span className="filter-label-v2">Estado</span>
+                    <IonSelect 
+                      value={activeStatus} 
+                      placeholder="Todos"
+                      interface="popover"
+                      className="custom-select-pro"
+                      onIonChange={(e: any) => setStatusFilter(e.detail.value)}
+                    >
+                      <IonSelectOption value={null}>Todos</IonSelectOption>
+                      {STATUSES.map(s => <IonSelectOption key={s.value} value={s.value}>{s.label}</IonSelectOption>)}
+                    </IonSelect>
                   </div>
-                </div>
 
-                <div className="filter-group">
-                  <span className="filter-label">Estado</span>
-                  <div className="filter-row">
-                    {STATUSES.map(s => (
-                      <IonChip 
-                        key={s.value} 
-                        className={activeStatus === s.value ? 'chip-active-status' : 'chip-pro'}
-                        onClick={() => setStatusFilter(s.value)}
-                      >
-                        <IonLabel>{s.label}</IonLabel>
-                      </IonChip>
-                    ))}
+                  <div className="filter-item-pro">
+                    <span className="filter-label-v2">Demografía</span>
+                    <IonSelect 
+                      value={activeDemographic} 
+                      placeholder="Todos"
+                      interface="popover"
+                      className="custom-select-pro"
+                      onIonChange={(e: any) => setDemographicFilter(e.detail.value)}
+                    >
+                      {DEMOGRAPHICS.map(d => <IonSelectOption key={d.label} value={d.value}>{d.label}</IonSelectOption>)}
+                    </IonSelect>
                   </div>
-                </div>
-                
-                <div className="filter-group">
-                  <div className="group-header">
-                    <span className="filter-label">Géneros</span>
-                    {(activeFormat || activeGenre || activeStatus || activeDemographic) && (
-                      <IonButton fill="clear" size="small" className="clear-btn" onClick={clearFilters}>
-                        Limpiar todo
-                      </IonButton>
-                    )}
+
+                  <div className="filter-item-pro">
+                    <span className="filter-label-v2">Género</span>
+                    <IonSelect 
+                      value={activeGenre || 'Todos'} 
+                      placeholder="Todos"
+                      interface="popover"
+                      className="custom-select-pro"
+                      onIonChange={(e: any) => setGenreFilter(e.detail.value === 'Todos' ? null : e.detail.value)}
+                    >
+                      {GENRES.map(g => <IonSelectOption key={g} value={g}>{g}</IonSelectOption>)}
+                    </IonSelect>
                   </div>
-                  <div className="filter-row genres-row">
-                    {GENRES.map(g => (
-                      <IonChip 
-                        key={g} 
-                        className={activeGenre === g ? 'chip-active-genre' : 'chip-pro'}
-                        onClick={() => setGenreFilter(g)}
-                      >
-                        <IonLabel>{g}</IonLabel>
-                      </IonChip>
-                    ))}
+
+                  <div className="filter-item-pro">
+                    <span className="filter-label-v2">Orden</span>
+                    <IonSelect 
+                      value={activeOrder} 
+                      interface="popover"
+                      className="custom-select-pro"
+                      onIonChange={(e: any) => {
+                        setActiveOrder(e.detail.value);
+                        handleSearch(query, false, activeFormat, activeGenre, activeStatus, activeDemographic);
+                      }}
+                    >
+                      {ORDERS.map(o => <IonSelectOption key={o.value} value={o.value}>{o.label}</IonSelectOption>)}
+                    </IonSelect>
+                  </div>
+
+                  <div className="filter-action-item">
+                    <IonButton 
+                      expand="block" 
+                      className="brand-filter-btn"
+                      onClick={() => handleSearch(query)}
+                    >
+                      <IonIcon icon={searchOutline} slot="start" />
+                      FILTRAR
+                    </IonButton>
                   </div>
                 </div>
               </div>
