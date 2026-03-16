@@ -11,7 +11,7 @@ import {
   IonSpinner,
   IonNote
 } from '@ionic/react';
-import { sendOutline, personCircleOutline, trashOutline } from 'ionicons/icons';
+import { sendOutline, personCircleOutline, trashOutline, closeOutline } from 'ionicons/icons';
 import { 
   collection, 
   addDoc, 
@@ -35,6 +35,8 @@ interface Comment {
   userAvatar: string | null;
   text: string;
   createdAt: any;
+  parentId?: string | null; // For replies
+  replyToName?: string | null;
 }
 
 interface CommentSectionProps {
@@ -48,6 +50,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ mangaId, chapterId, tit
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
   const currentUser = auth.currentUser;
 
   useEffect(() => {
@@ -80,16 +83,38 @@ const CommentSection: React.FC<CommentSectionProps> = ({ mangaId, chapterId, tit
 
     setSending(true);
     try {
-      await addDoc(collection(db, 'comments'), {
+      const commentData: any = {
         mangaId,
         chapterId: chapterId || null,
         userId: currentUser.uid,
-        userName: currentUser.displayName || 'Lector Haus',
+        userName: currentUser.displayName || (currentUser.isAnonymous ? 'Lector Fantasma' : 'Lector Haus'),
         userAvatar: currentUser.photoURL || null,
         text: newComment.trim(),
         createdAt: Timestamp.now()
-      });
+      };
+
+      if (replyingTo) {
+        commentData.parentId = replyingTo.id;
+        commentData.replyToName = replyingTo.userName;
+      }
+
+      await addDoc(collection(db, 'comments'), commentData);
+      
+      // Notification Logic
+      if (replyingTo && replyingTo.userId !== currentUser.uid) {
+        await addDoc(collection(db, 'notifications'), {
+          userId: replyingTo.userId,
+          title: "¡Te han respondido!",
+          body: `${currentUser.displayName || (currentUser.isAnonymous ? 'Lector Fantasma' : 'Usuario')} respondió: "${newComment.substring(0, 40)}${newComment.length > 40 ? '...' : ''}"`,
+          mangaId,
+          chapterId: chapterId || null,
+          read: false,
+          createdAt: Timestamp.now()
+        });
+      }
+
       setNewComment('');
+      setReplyingTo(null);
     } catch (error) {
       console.error("Error adding comment:", error);
     } finally {
@@ -118,17 +143,27 @@ const CommentSection: React.FC<CommentSectionProps> = ({ mangaId, chapterId, tit
       </div>
 
       {currentUser ? (
-        <div className="comment-input-wrapper glass-input">
-          <IonInput
-            placeholder="Escribe algo épico..."
-            value={newComment}
-            onIonChange={e => setNewComment(e.detail.value!)}
-            onKeyUp={e => e.key === 'Enter' && handleSendComment()}
-          />
-          <IonButton fill="clear" onClick={handleSendComment} disabled={!newComment.trim() || sending}>
-            {sending ? <IonSpinner name="crescent" /> : <IonIcon icon={sendOutline} />}
-          </IonButton>
-        </div>
+        <>
+          {replyingTo && (
+            <div className="reply-indicator animate-slide-up">
+              <span>Respondiendo a <b>{replyingTo.userName}</b></span>
+              <IonButton fill="clear" size="small" color="medium" onClick={() => setReplyingTo(null)}>
+                <IonIcon icon={closeOutline} />
+              </IonButton>
+            </div>
+          )}
+          <div className="comment-input-wrapper glass-input">
+            <IonInput
+              placeholder={replyingTo ? "Escribe tu respuesta..." : "Escribe algo épico..."}
+              value={newComment}
+              onIonChange={e => setNewComment(e.detail.value!)}
+              onKeyUp={e => e.key === 'Enter' && handleSendComment()}
+            />
+            <IonButton fill="clear" onClick={handleSendComment} disabled={!newComment.trim() || sending}>
+              {sending ? <IonSpinner name="crescent" /> : <IonIcon icon={sendOutline} />}
+            </IonButton>
+          </div>
+        </>
       ) : (
         <div className="login-prompt-comment">
           <p>Inicia sesión para dejar tu huella en El Muro Haus 🚀</p>
@@ -158,8 +193,20 @@ const CommentSection: React.FC<CommentSectionProps> = ({ mangaId, chapterId, tit
                   <IonNote className="comment-date">{formatTime(comment.createdAt)}</IonNote>
                 </div>
                 <IonText className="comment-text-body">
-                  <p>{comment.text}</p>
+                  <p>
+                    {comment.replyToName && <span className="reply-mention">@{comment.replyToName} </span>}
+                    {comment.text}
+                  </p>
                 </IonText>
+                <div className="comment-actions-row">
+                  <IonButton fill="clear" size="small" className="reply-btn" onClick={() => {
+                    setReplyingTo(comment);
+                    const input = document.querySelector('.comment-input-wrapper input') as HTMLInputElement;
+                    input?.focus();
+                  }}>
+                    Responder
+                  </IonButton>
+                </div>
               </IonLabel>
               {currentUser?.uid === comment.userId && (
                 <IonButton slot="end" fill="clear" color="danger" onClick={() => handleDeleteComment(comment.id)}>

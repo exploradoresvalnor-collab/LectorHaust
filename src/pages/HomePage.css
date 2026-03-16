@@ -113,9 +113,15 @@
 
 .profile-btn {
     --color: var(--text-secondary);
-    font-size: 1.8rem;
-    opacity: 0.2; /* Very faint as requested */
-    transition: opacity 0.3s ease;
+    font-size: 2.2rem; /* Larger */
+    opacity: 0.6; /* More visible base opacity */
+    transition: all 0.3s ease;
+    margin-right: 15px; /* Better spacing from edge */
+}
+
+.profile-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
 }
 
 .profile-btn:active {
@@ -977,11 +983,27 @@
     color: white;
 }
 
+.dock-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
 .dock-login-btn {
     --color: var(--ion-color-primary);
     font-weight: 800;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+}
+
+.dock-anon-btn {
+    --color: rgba(255, 255, 255, 0.6);
+    font-weight: 700;
     font-size: 0.75rem;
-    margin: 0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    --padding-start: 12px;
+    --padding-end: 12px;
 }
 
 .dock-close-btn {

@@ -53,6 +53,52 @@
     font-size: 0.9rem;
 }
 
+/* Reply UI */
+.reply-indicator {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 6px 14px;
+    border-radius: 12px 12px 0 0;
+    border-left: 3px solid var(--ion-color-secondary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: -1px;
+}
+
+.reply-mention {
+    color: var(--ion-color-secondary);
+    font-weight: 700;
+    margin-right: 4px;
+}
+
+.reply-btn {
+    --padding-start: 0;
+    --color: rgba(255, 255, 255, 0.5);
+    font-size: 0.75rem;
+    height: 1.5rem;
+    margin-top: 4px;
+}
+
+.reply-btn:hover {
+    --color: var(--ion-color-secondary);
+}
+
+.comment-actions-row {
+    display: flex;
+    gap: 12px;
+}
+
+.animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from { transform: translateY(10px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
 /* List Area */
 .comment-list {
     background: transparent !important;

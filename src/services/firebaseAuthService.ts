@@ -3,7 +3,8 @@ import {
   GoogleAuthProvider, 
   signOut, 
   onAuthStateChanged,
-  User
+  User,
+  signInAnonymously
 } from 'firebase/auth';
 import { auth } from './firebase';
 
@@ -19,6 +20,19 @@ export const firebaseAuthService = {
       return result.user;
     } catch (error) {
       console.error('Error logging in with Google:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Login Anonymously (Lector Fantasma)
+   */
+  async loginAnonymously() {
+    try {
+      const result = await signInAnonymously(auth);
+      return result.user;
+    } catch (error) {
+      console.error('Error logging in anonymously:', error);
       throw error;
     }
   },

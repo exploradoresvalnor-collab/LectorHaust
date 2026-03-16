@@ -23,6 +23,13 @@ import {
   IonLabel,
   IonToast
 } from '@ionic/react';
+import { 
+  collection, 
+  query, 
+  where, 
+  onSnapshot 
+} from 'firebase/firestore';
+import { db } from '../services/firebase';
 import { personCircleOutline, notifications, refreshOutline, chevronDownOutline, libraryOutline, sparklesOutline, checkmarkCircle, chevronBackOutline, chevronForwardOutline, logInOutline, closeOutline } from 'ionicons/icons';
 import MangaCard from '../components/MangaCard';
 import { mangadexService } from '../services/mangadexService';
@@ -46,6 +53,7 @@ const HomePage: React.FC = () => {
   const [latestLang, setLatestLang] = useState('es');
   const [popularManga, setPopularManga] = useState<any[]>([]);
   const [featuredMasterpiece, setFeaturedMasterpiece] = useState<any | null>(null);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const { history } = useLibraryStore();
   const router = useIonRouter();
   const heroTimer = useRef<NodeJS.Timeout | null>(null);
@@ -190,6 +198,19 @@ const HomePage: React.FC = () => {
       setCurrentUser(user);
       if (user) {
         useLibraryStore.getState().syncFromCloud(user.uid);
+        
+        // Subscribe to Notifications
+        const q = query(
+          collection(db, 'notifications'),
+          where('userId', '==', user.uid),
+          where('read', '==', false)
+        );
+        const unsubsNotif = onSnapshot(q, (snapshot) => {
+          setUnreadNotifications(snapshot.size);
+        });
+        return () => { unsubsNotif(); };
+      } else {
+        setUnreadNotifications(0);
       }
     });
 
@@ -220,6 +241,14 @@ const HomePage: React.FC = () => {
   const currentHero = heroMangas[heroIndex];
 
 
+  const handleAnonymousLogin = async () => {
+    try {
+      await firebaseAuthService.loginAnonymously();
+    } catch (err) {
+      console.error('Anonymous login failed:', err);
+    }
+  };
+
   const handleProfileClick = async () => {
     if (currentUser) {
       router.push('/profile');
@@ -245,15 +274,22 @@ const HomePage: React.FC = () => {
           <IonButtons slot="end">
             <IonButton className="profile-btn" onClick={handleProfileClick}>
               {currentUser ? (
-                currentUser.photoURL ? (
-                  <div className="user-avatar-small animate-pop-in">
-                    <img src={currentUser.photoURL} alt="user" />
-                  </div>
-                ) : (
-                  <div className="user-mascot-golden animate-pop-in">
-                    <img src="/mascot.png" alt="pro" />
-                  </div>
-                )
+                <div className="profile-avatar-wrapper">
+                  {currentUser.photoURL ? (
+                    <div className="user-avatar-small animate-pop-in">
+                      <img src={currentUser.photoURL} alt="user" />
+                    </div>
+                  ) : currentUser.isAnonymous ? (
+                    <div className="user-ghost-icon animate-pop-in">👻</div>
+                  ) : (
+                    <div className="user-mascot-golden animate-pop-in">
+                      <img src="/mascot.png" alt="pro" />
+                    </div>
+                  )}
+                  {unreadNotifications > 0 && (
+                    <div className="notification-dot animate-pulse"></div>
+                  )}
+                </div>
               ) : (
                 <div className="user-icon-blank">
                   <IonIcon icon={personCircleOutline} />
@@ -274,17 +310,24 @@ const HomePage: React.FC = () => {
                   <div className="dock-text">
                     <p>¡No pierdas tu progreso!</p>
                   </div>
-                  <IonButton fill="clear" className="dock-login-btn" onClick={handleProfileClick}>
-                    CONECTAR
-                  </IonButton>
+                  <div className="dock-buttons">
+                    <IonButton fill="clear" className="dock-login-btn" onClick={handleProfileClick}>
+                      CONECTAR
+                    </IonButton>
+                    <IonButton fill="clear" className="dock-anon-btn" onClick={handleAnonymousLogin}>
+                      FANTASMA 👻
+                    </IonButton>
+                  </div>
                 </>
               ) : (
                 <>
                   <div className="dock-mini-avatar">
-                   {currentUser.photoURL ? <img src={currentUser.photoURL} alt="Mascota" /> : <div className="mini-mascot-pill"><img src="/mascot.png" alt="pro" /></div>}
+                   {currentUser.photoURL ? <img src={currentUser.photoURL} alt="Mascota" /> : 
+                    currentUser.isAnonymous ? <div className="mini-ghost-pill">👻</div> :
+                    <div className="mini-mascot-pill"><img src="/mascot.png" alt="pro" /></div>}
                   </div>
                   <div className="dock-text">
-                    <p>¡Hola, {currentUser.displayName?.split(' ')[0]}! 🌟</p>
+                    <p>¡Hola, {currentUser.isAnonymous ? 'Lector Fantasma' : currentUser.displayName?.split(' ')[0]}! 🌟</p>
                   </div>
                   <IonButton fill="clear" className="dock-logout-btn" onClick={async () => { await firebaseAuthService.logout(); setShowLoginHint(false); }}>
                     SALIR
