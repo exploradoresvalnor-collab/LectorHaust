@@ -1,6 +1,7 @@
 /**
  * AniList GraphQL Service
  */
+import { postGraphQL } from './apiHelpers';
 
 const BASE_URL = 'https://graphql.anilist.co';
 
@@ -83,49 +84,16 @@ query ($id: Int) {
 `;
 
 export const anilistService = {
-    /**
-     * Fetch trending manga from AniList
-     */
     async getTrendingManga(origin: string | null = null) {
-        const response = await fetch(BASE_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            },
-            body: JSON.stringify({
-                query: TRENDING_QUERY,
-                variables: { origin }
-            })
-        });
-
-        const data = await response.json();
+        const data = await postGraphQL(BASE_URL, TRENDING_QUERY, { origin });
         return data.data.Page.media;
     },
 
-    /**
-     * Fetch detailed manga info by AniList ID
-     */
     async getMangaDetails(id: number) {
-        const response = await fetch(BASE_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            },
-            body: JSON.stringify({
-                query: DETAILS_QUERY,
-                variables: { id }
-            })
-        });
-
-        const data = await response.json();
+        const data = await postGraphQL(BASE_URL, DETAILS_QUERY, { id });
         return data.data.Media;
     },
 
-    /**
-     * Search manga by title
-     */
     async searchManga(search: string) {
         const query = `
         query ($search: String) {
@@ -140,19 +108,7 @@ export const anilistService = {
           }
         }
         `;
-        const response = await fetch(BASE_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            },
-            body: JSON.stringify({
-                query,
-                variables: { search }
-            })
-        });
-
-        const data = await response.json();
+        const data = await postGraphQL(BASE_URL, query, { search });
         return data.data.Page.media;
     }
 };

@@ -193,10 +193,10 @@ const LibraryPage: React.FC = () => {
                       <h3>Tus Favoritos Locales</h3>
                     </div>
                     {viewMode === 'grid' ? (
-                      <IonGrid className="ion-no-padding">
+                      <IonGrid>
                         <IonRow>
                           {filteredFavorites.map((manga: any) => (
-                            <IonCol size="4" sizeMd="3" sizeLg="2" key={manga.id} className="ion-no-padding">
+                            <IonCol size="6" sizeSm="4" sizeMd="3" sizeLg="2" key={manga.id}>
                               <MangaCard 
                                 title={manga.title}
                                 coverUrl={manga.cover}
@@ -232,10 +232,10 @@ const LibraryPage: React.FC = () => {
                       <h3>Suscripciones MangaDex</h3>
                     </div>
                     {viewMode === 'grid' ? (
-                      <IonGrid className="ion-no-padding">
+                      <IonGrid>
                         <IonRow>
                           {filteredFollowed.map((manga: any) => (
-                            <IonCol size="4" sizeMd="3" sizeLg="2" key={manga.id} className="ion-no-padding">
+                            <IonCol size="6" sizeSm="4" sizeMd="3" sizeLg="2" key={manga.id}>
                               <MangaCard 
                                 title={manga.attributes.title.en || Object.values(manga.attributes.title)[0]}
                                 coverUrl={mangadexService.getCoverUrl(manga)}

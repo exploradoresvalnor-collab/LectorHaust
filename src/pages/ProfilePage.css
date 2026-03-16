@@ -7,41 +7,101 @@
   --color: white;
 }
 
-.profile-hero {
+/* --- Cover Banner --- */
+.profile-cover-banner {
+  height: 180px;
+  background-image: url('https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1000&auto=format&fit=crop');
+  background-size: cover;
+  background-position: center 30%;
+  position: relative;
+  z-index: 0;
+  margin: -60px -16px 0; /* Bleed into navbar */
+}
+
+.cover-gradient {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(to bottom, transparent 0%, #0f0f12 95%, #0f0f12 100%);
+}
+
+/* --- Responsive Layout (Mobile vs PC) --- */
+.profile-content {
+  --padding-start: 16px;
+  --padding-end: 16px;
+}
+
+.profile-responsive-layout {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 10;
+  margin-top: -80px; /* Pull up over the banner */
+}
+
+@media (min-width: 1024px) {
+  .profile-cover-banner {
+    height: 280px;
+    margin: -60px -40px 0;
+  }
+  .profile-responsive-layout {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 40px;
+    max-width: 1200px;
+    margin: -100px auto 0;
+    padding: 0 40px;
+  }
+  
+  .profile-sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 20px;
+  }
+
+  .profile-main-content {
+    flex-grow: 1;
+    min-width: 0;
+  }
+}
+
+/* --- Profile Sidebar (Avatar & Identity) --- */
+.profile-sidebar {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 3rem 1rem 2rem;
   text-align: center;
+  margin-bottom: 24px;
 }
 
 .avatar-container {
   position: relative;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .main-avatar {
-  width: 120px;
-  height: 120px;
+  width: 140px;
+  height: 140px;
   border-radius: 50%;
-  border: 4px solid var(--ion-color-primary);
-  box-shadow: 0 0 30px rgba(139, 92, 246, 0.4);
+  border: 4px solid #0f0f12; /* Match background */
+  box-shadow: 0 0 0 3px var(--ion-color-primary), 0 10px 30px rgba(139, 92, 246, 0.4);
   background: #1a1a1a;
+  object-fit: cover;
 }
 
 .status-indicator {
   position: absolute;
-  bottom: 8px;
-  right: 8px;
-  width: 20px;
-  height: 20px;
+  bottom: 12px;
+  right: 12px;
+  width: 22px;
+  height: 22px;
   background: #10dc60;
   border: 4px solid #0f0f12;
   border-radius: 50%;
 }
 
 .user-name {
-  font-size: 2rem;
+  font-size: 2.2rem;
   font-weight: 800;
   margin: 0;
   color: white;
@@ -50,31 +110,97 @@
 
 .user-email {
   color: rgba(255, 255, 255, 0.5);
-  font-size: 1rem;
-  margin: 0.5rem 0 1rem;
+  font-size: 0.95rem;
+  margin: 0.2rem 0 1rem;
 }
 
 .badge-belt {
   display: flex;
   gap: 8px;
   justify-content: center;
+  margin-bottom: 1.5rem;
 }
 
 .profile-badge {
-  padding: 6px 12px;
+  padding: 6px 14px;
   border-radius: 20px;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
+  letter-spacing: 1px;
 }
 
-/* Stats Card */
-.stats-card {
-  margin: 1rem;
-  border-radius: 20px;
+/* Base XP Progress */
+.xp-container {
+    width: 100%;
+    max-width: 300px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 16px;
+    border-radius: 16px;
+    backdrop-filter: blur(10px);
+}
+
+.xp-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: white;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.xp-progress-bg {
+    width: 100%;
+    height: 12px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.xp-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--ion-color-secondary), var(--ion-color-primary));
+    border-radius: 10px;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+/* --- Segments (Tabs) --- */
+.profile-segment {
+  margin-bottom: 24px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px;
+  border-radius: 14px;
+}
+
+ion-segment-button {
+  --color: rgba(255, 255, 255, 0.6);
+  --color-checked: #fff;
+  --indicator-color: var(--ion-color-primary);
+  --background-checked: transparent;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border-radius: 10px;
+  transition: all 0.3s;
+}
+
+/* Glass Effect Theme */
+.glass-card {
+  background: rgba(30, 30, 30, 0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  margin: 0 0 1.5rem 0;
 }
 
+/* Stats Card inside Resumen */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -88,152 +214,131 @@
 }
 
 .stat-value {
-  font-size: 1.4rem;
-  font-weight: 800;
+  font-size: 1.6rem;
+  font-weight: 900;
   color: white;
-}
-
-.xp-container {
-    margin-top: 1.5rem;
-    width: 100%;
-    max-width: 300px;
-}
-
-.xp-info {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: rgba(255, 255, 255, 0.7);
-    margin-bottom: 8px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.xp-progress-bg {
-    width: 100%;
-    height: 10px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 10px;
-    overflow: hidden;
-    position: relative;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.xp-progress-bar {
-    height: 100%;
-    background: linear-gradient(90deg, var(--ion-color-primary), var(--ion-color-secondary));
-    border-radius: 10px;
-    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 0 15px rgba(139, 92, 246, 0.5);
-    position: relative;
-}
-
-.xp-progress-bar::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    right: 0;
-    background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(255, 255, 255, 0.2),
-        transparent
-    );
-    animation: bar-shine 2s infinite;
-}
-
-@keyframes bar-shine {
-    from { transform: translateX(-100%); }
-    to { transform: translateX(100%); }
+  background: linear-gradient(to right, #ffffff, var(--ion-color-secondary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .stat-label {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
   margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Faux Heatmap (Activity) */
+.activity-heatmap {
+  padding: 20px;
+  text-align: center;
+}
+
+.heatmap-placeholder-text {
+  font-size: 0.85rem;
+  color: var(--ion-color-primary);
+  margin: 0 0 16px;
+  font-weight: 600;
+}
+
+.heatmap-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.heatmap-cell {
+  width: 14px;
+  height: 14px;
+  background: var(--ion-color-success);
+  border-radius: 3px;
 }
 
 /* Options List */
 .section-title {
-  margin: 2rem 1.5rem 1rem;
+  margin: 0 0 1rem;
   font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--ion-color-primary);
+  font-weight: 800;
+  color: white;
   text-transform: uppercase;
-  letter-spacing: 2px;
+  letter-spacing: 1.5px;
 }
 
 .glass-list {
   background: transparent !important;
-  margin: 0 1rem;
+  margin: 0;
 }
 
 .option-item {
-  --background: rgba(255, 255, 255, 0.03);
-  --border-radius: 15px;
-  margin-bottom: 8px;
+  --background: rgba(30, 30, 30, 0.4);
+  --border-radius: 16px;
+  margin-bottom: 12px;
   --border-style: none;
   --padding-start: 16px;
-  --padding-top: 10px;
-  --padding-bottom: 10px;
+  --padding-top: 6px;
+  --padding-bottom: 6px;
   backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .option-item h2 {
-  font-weight: 700;
-  font-size: 1.05rem;
+  font-weight: 800;
+  font-size: 1rem;
+  color: white;
 }
 
 .option-item p {
-  font-size: 0.85rem;
-  opacity: 0.6;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 /* Promo Banner */
 .promo-banner {
-  margin: 2rem 1rem;
   padding: 1.5rem;
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(217, 70, 239, 0.2));
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(217, 70, 239, 0.15));
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 1.2rem;
+  margin-bottom: 20px;
 }
 
 .promo-icon {
-  font-size: 2.5rem;
+  font-size: 3rem;
   color: #ffca28;
-  filter: drop-shadow(0 0 10px rgba(255, 202, 40, 0.4));
+  filter: drop-shadow(0 0 15px rgba(255, 202, 40, 0.4));
 }
 
 .promo-text h4 {
   margin: 0;
-  font-weight: 800;
-  font-size: 1.1rem;
+  font-weight: 900;
+  font-size: 1.2rem;
+  color: white;
 }
 
 .promo-text p {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   font-size: 0.9rem;
-  opacity: 0.7;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.4;
 }
 
-/* Glass Effect Card */
-.glass-card {
-  background: rgba(26, 26, 26, 0.6);
-  backdrop-filter: blur(20px);
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  background: rgba(30, 30, 30, 0.4);
+  border-radius: 20px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
 }
 
 .main-avatar-icon {
-    font-size: 100px;
-    color: #FFD700;
-    filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5));
-}
-
-.user-icon-golden {
-    color: #FFD700;
+  font-size: 140px;
+  color: #FFD700;
+  filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5));
 }

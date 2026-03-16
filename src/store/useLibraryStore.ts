@@ -2,21 +2,10 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
+import type { MangaEntry, ReadingProgress } from '../types/user';
 
-interface MangaEntry {
-  id: string;
-  title: string;
-  cover: string;
-  format?: string;
-  tags?: string[];
-}
-
-interface ReadingProgress {
-  chapterId: string;
-  chapterNumber: string;
-  pageIndex: number;
-  lastRead: number; // Timestamp
-}
+// Re-export types for consumers that imported from here
+export type { MangaEntry, ReadingProgress };
 
 interface LibraryState {
   favorites: MangaEntry[];
@@ -29,12 +18,12 @@ interface LibraryState {
   toggleRead: (chapterId: string) => void;
   markAsRead: (chapterId: string) => void;
   isRead: (chapterId: string) => boolean;
-  dataSaverMode: boolean;
-  toggleDataSaver: () => void;
   // Cloud Sync
   syncFromCloud: (userId: string) => Promise<void>;
   pushToCloud: (userId: string) => Promise<void>;
 }
+
+let syncTimeout: NodeJS.Timeout | null = null;
 
 export const useLibraryStore = create<LibraryState>()(
   persist(
@@ -86,8 +75,6 @@ export const useLibraryStore = create<LibraryState>()(
         }
       },
       isRead: (chapterId) => get().readChapters.includes(chapterId),
-      dataSaverMode: false,
-      toggleDataSaver: () => set((state) => ({ dataSaverMode: !state.dataSaverMode })),
       
       syncFromCloud: async (userId) => {
         try {
@@ -108,17 +95,20 @@ export const useLibraryStore = create<LibraryState>()(
       },
 
       pushToCloud: async (userId) => {
-        try {
-          const docRef = doc(db, 'users', userId);
-          await setDoc(docRef, {
-            favorites: get().favorites,
-            history: get().history,
-            readChapters: get().readChapters,
-            updatedAt: Date.now()
-          }, { merge: true });
-        } catch (err) {
-          console.error('Error pushing to cloud:', err);
-        }
+        if (syncTimeout) clearTimeout(syncTimeout);
+        syncTimeout = setTimeout(async () => {
+          try {
+            const docRef = doc(db, 'users', userId);
+            await setDoc(docRef, {
+              favorites: get().favorites,
+              history: get().history,
+              readChapters: get().readChapters,
+              updatedAt: Date.now()
+            }, { merge: true });
+          } catch (err) {
+            console.error('Error pushing to cloud:', err);
+          }
+        }, 1500); // Debounce de 1.5s para no spamear Firebase
       }
     }),
     { 

@@ -2,11 +2,10 @@
  * MangaDex API Service
  */
 
-const IS_PROD = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-// In local dev, we use Vite proxy '/api-md' configured in vite.config.ts
-// In production (Vercel), we use our internal serverless proxy
-const API_BASE = IS_PROD ? 'https://api.mangadex.org' : '/api-md';
-const PROXY_PREFIX = IS_PROD ? '/api/proxy?url=' : '';
+// Eliminamos la validación de isLocalhost. 
+// Ahora TODOS (Local y Vercel) usarán el proxy para evitar bloqueos de operadoras.
+const API_BASE = '/api-md';
+const UPLOADS_URL = 'https://uploads.mangadex.org';
 const CLOUDINARY_CLOUD_NAME = 'djzak5yb2';
 
 /**
@@ -28,12 +27,6 @@ async function rateLimitedFetch(url: string): Promise<Response> {
  */
 function getProxyUrl(endpoint: string) {
     const fullUrl = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
-    
-    if (IS_PROD) {
-        return `${PROXY_PREFIX}${encodeURIComponent(fullUrl)}`;
-    }
-    
-    // In local dev, Vite proxy handles '/api-md' automatically without needing an external proxy prefix
     return fullUrl;
 }
 

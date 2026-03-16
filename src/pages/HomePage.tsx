@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React from 'react';
 import { 
   IonContent, 
   IonHeader, 
@@ -21,79 +21,47 @@ import {
   IonBadge,
   IonChip,
   IonLabel,
-  IonToast
+  IonToast,
+  IonModal
 } from '@ionic/react';
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot 
-} from 'firebase/firestore';
-import { db } from '../services/firebase';
-import { personCircleOutline, notifications, refreshOutline, chevronDownOutline, libraryOutline, sparklesOutline, checkmarkCircle, chevronBackOutline, chevronForwardOutline, logInOutline, closeOutline } from 'ionicons/icons';
+import { personCircleOutline, notifications, refreshOutline, chevronDownOutline, libraryOutline, sparklesOutline, checkmarkCircle, chevronBackOutline, chevronForwardOutline, logInOutline, closeOutline, cloudUploadOutline, chatbubblesOutline, trophyOutline, logoGoogle, personOutline } from 'ionicons/icons';
 import MangaCard from '../components/MangaCard';
 import { mangadexService } from '../services/mangadexService';
 import { firebaseAuthService } from '../services/firebaseAuthService';
-import { User } from 'firebase/auth';
 import LoadingScreen from '../components/LoadingScreen';
-import { useLibraryStore } from '../store/useLibraryStore';
+import { useHomeData } from '../hooks/useHomeData';
 import './HomePage.css';
 
 const HomePage: React.FC = () => {
-  const [heroMangas, setHeroMangas] = useState<any[]>([]);
-  const [heroIndex, setHeroIndex] = useState(0);
-  const [latest, setLatest] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [latestOffset, setLatestOffset] = useState(0);
-  const [isDone, setIsDone] = useState(false);
-  const [newChaptersCount, setNewChaptersCount] = useState(0);
-  const [showNewBanner, setShowNewBanner] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [showLoginHint, setShowLoginHint] = useState(true);
-  const [latestLang, setLatestLang] = useState('es');
-  // New State for Home Completed Jewels Promo
-  const [completedMasterpieces, setCompletedMasterpieces] = useState<any[]>([]);
-  const [popularManga, setPopularManga] = useState<any[]>([]);
-  const [featuredMasterpiece, setFeaturedMasterpiece] = useState<any | null>(null);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
-  const { history } = useLibraryStore();
   const router = useIonRouter();
-  const heroTimer = useRef<NodeJS.Timeout | null>(null);
-  const pollTimer = useRef<NodeJS.Timeout | null>(null);
-  const lastFetchRef = useRef<string | null>(null);
-  const lastFetchTime = useRef<string>('');
+  
+  const {
+    heroMangas,
+    heroIndex,
+    setHeroIndex,
+    latest,
+    loading,
+    isDone,
+    newChaptersCount,
+    showNewBanner,
+    setShowNewBanner,
+    currentUser,
+    showLoginHint,
+    setShowLoginHint,
+    latestLang,
+    setLatestLang,
+    completedMasterpieces,
+    popularManga,
+    featuredMasterpiece,
+    unreadNotifications,
+    fetchData,
+    loadMoreLatest
+  } = useHomeData();
 
-  // Auto-rotate hero every 5 seconds
-  useEffect(() => {
-    if (heroMangas.length <= 1) return;
-    heroTimer.current = setInterval(() => {
-      setHeroIndex(prev => (prev + 1) % heroMangas.length);
-    }, 8000);
-    return () => { if (heroTimer.current) clearInterval(heroTimer.current); };
-  }, [heroMangas]);
-
-  // Poll for new chapters based on selected language
-  useEffect(() => {
-    pollTimer.current = setInterval(async () => {
-      try {
-        const pollData = await mangadexService.getLatestChapters(5, 0, latestLang);
-        const newOnes = pollData.data || [];
-        
-        if (newOnes.length > 0 && lastFetchTime.current) {
-          const latestServerTime = new Date(newOnes[0].attributes.readableAt).getTime();
-          const ourLastTime = new Date(lastFetchTime.current).getTime();
-          
-          if (latestServerTime > ourLastTime) {
-            setNewChaptersCount(newOnes.length);
-            setShowNewBanner(true);
-          }
-        }
-      } catch (err) {
-        // Silent fail — don't break UX on poll error
-      }
-    }, 120000); // 2 minutes
-    return () => { if (pollTimer.current) clearInterval(pollTimer.current); };
-  }, [latestLang]);
+  const handleRefreshFromBanner = () => {
+    setShowNewBanner(false);
+    fetchData(true);
+  };
 
   const scrollCarousel = (id: string, direction: 'left' | 'right') => {
     const container = document.getElementById(id);
@@ -102,122 +70,6 @@ const HomePage: React.FC = () => {
       container.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
     }
   };
-
-  const fetchData = async (force = false) => {
-    const fetchKey = `${latestLang}`;
-    if (!force && lastFetchRef.current === fetchKey) return;
-    lastFetchRef.current = fetchKey;
-
-    setLoading(true);
-    setLatestOffset(0);
-    setIsDone(false);
-    setShowNewBanner(false);
-    setNewChaptersCount(0);
-    
-    try {
-      // Fetch a diverse pool of manga for the Hero (Manga, Manhwa, Manhua)
-      // We fetch more than we need and shuffle to make it feel "alive"
-      const [mangaData, manhwaData, manhuaData] = await Promise.all([
-        mangadexService.getPopularManga('ja', 'es', 5, 0),
-        mangadexService.getPopularManga('ko', 'es', 5, 0),
-        mangadexService.getPopularManga('zh', 'es', 5, 0)
-      ]);
-
-      const pool = [
-        ...(mangaData.data || []),
-        ...(manhwaData.data || []),
-        ...(manhuaData.data || [])
-      ];
-
-      // Shuffle logic to ensure variety on every load
-      const seen = new Set<string>();
-      const shuffledHero = pool
-        .filter(m => { if (seen.has(m.id)) return false; seen.add(m.id); return true; })
-        .sort(() => Math.random() - 0.5)
-        .slice(0, 6); // Take up to 6 for the rotation
-
-      setHeroMangas(shuffledHero);
-      setHeroIndex(0);
-      
-      // Fetch latest updated mangas (AnimeFLV style - guaranteed covers)
-      const latestData = await mangadexService.getLatestUpdatedManga(12, 0, latestLang);
-      const updatedMangas = latestData.data || [];
-      setLatest(updatedMangas);
-      setLatestOffset(12);
-
-      // Track last update for polling
-      if (updatedMangas.length > 0) {
-        lastFetchTime.current = updatedMangas[0].attributes.updatedAt;
-      }
-
-      // Fetch Popular Manga for Carousel
-      const popularResponse = await mangadexService.getPopularManga('', 'es', 15, 0);
-      setPopularManga(popularResponse.data || []);
-
-      // Fetch a pool of diverse Masterpieces for promotion
-      const masterpieces = await mangadexService.getFullyTranslatedMasterpieces(null, 'es', 15, 0);
-      if (masterpieces.data && masterpieces.data.length > 0) {
-        setCompletedMasterpieces(masterpieces.data);
-        // Featured promo is a random one from the 15 results
-        const pool = masterpieces.data;
-        setFeaturedMasterpiece(pool[Math.floor(Math.random() * pool.length)]);
-      }
-
-    } catch (error) {
-      console.error('Error fetching home data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadMoreLatest = async (e: any) => {
-    try {
-      const latestData = await mangadexService.getLatestUpdatedManga(12, latestOffset, latestLang);
-      const data = latestData.data || [];
-      if (data.length < 12) setIsDone(true);
-      setLatest(prev => {
-        const existingIds = new Set(prev.map((m: any) => m.id));
-        const unique = data.filter((m: any) => !existingIds.has(m.id));
-        return [...prev, ...unique];
-      });
-      setLatestOffset(prev => prev + 12);
-    } catch (err) {
-      console.error('Error loading more mangas:', err);
-    }
-    e.target.complete();
-  };
-
-  const handleRefreshFromBanner = () => {
-    setShowNewBanner(false);
-    fetchData(true);
-  };
-
-  useEffect(() => {
-    fetchData();
-    
-    // Subscribe to Firebase Auth
-    const unsubscribe = firebaseAuthService.subscribe((user: User | null) => {
-      setCurrentUser(user);
-      if (user) {
-        useLibraryStore.getState().syncFromCloud(user.uid);
-        
-        // Subscribe to Notifications
-        const q = query(
-          collection(db, 'notifications'),
-          where('userId', '==', user.uid),
-          where('read', '==', false)
-        );
-        const unsubsNotif = onSnapshot(q, (snapshot) => {
-          setUnreadNotifications(snapshot.size);
-        });
-        return () => { unsubsNotif(); };
-      } else {
-        setUnreadNotifications(0);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [latestLang]);
 
   const handleMangaClick = (manga: any) => {
     router.push(`/manga/${manga.id}`);
@@ -294,49 +146,57 @@ const HomePage: React.FC = () => {
         </IonToolbar>
       </IonHeader>
       <IonContent fullscreen className="ion-padding">
-        {/* Minimalist Floating Login/Welcome Hint */}
-        {showLoginHint && (
-          <div className="minimal-login-dock animate-slide-up">
-            <div className="dock-content">
-              {!currentUser ? (
-                <>
-                  <img src="/mascot.png" alt="Mascota" className="dock-mini-mascot" />
-                  <div className="dock-text">
-                    <p>¡No pierdas tu progreso!</p>
-                  </div>
-                  <div className="dock-buttons">
-                    <IonButton fill="clear" className="dock-login-btn" onClick={handleProfileClick}>
-                      CONECTAR
-                    </IonButton>
-                    <IonButton fill="clear" className="dock-anon-btn" onClick={handleAnonymousLogin}>
-                      FANTASMA 👻
-                    </IonButton>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="dock-mini-avatar">
-                   {currentUser.photoURL ? <img src={currentUser.photoURL} alt="Mascota" /> : 
-                    currentUser.isAnonymous ? <div className="mini-ghost-pill">👻</div> :
-                    <div className="mini-mascot-pill"><img src="/mascot.png" alt="pro" /></div>}
-                  </div>
-                  <div className="dock-text">
-                    <p>¡Hola, {currentUser.isAnonymous ? 'Lector Fantasma' : currentUser.displayName?.split(' ')[0]}! 🌟</p>
-                  </div>
-                  <IonButton fill="clear" className="dock-logout-btn" onClick={async () => { await firebaseAuthService.logout(); setShowLoginHint(false); }}>
-                    SALIR
-                  </IonButton>
-                  <IonButton fill="clear" className="dock-login-btn" onClick={() => router.push('/profile')}>
-                    PERFIL
-                  </IonButton>
-                </>
-              )}
-              <IonButton fill="clear" className="dock-close-btn" onClick={() => setShowLoginHint(false)}>
-                <IonIcon icon={closeOutline} />
+        {/* Modern Bottom Sheet Login Promt  */}
+        <IonModal 
+          isOpen={showLoginHint && !currentUser} 
+          initialBreakpoint={0.45} 
+          breakpoints={[0, 0.45, 0.6]} 
+          onDidDismiss={() => setShowLoginHint(false)}
+          className="login-bottom-sheet"
+        >
+          <div className="glass-modal-content animate-fade-in">
+            <div className="login-modal-header">
+              <div className="header-icon-container">
+                <IonIcon icon={sparklesOutline} />
+              </div>
+              <h2>LectorHaus Premium</h2>
+              <p>Sincroniza tu progreso y únete a la comunidad oficial.</p>
+            </div>
+            
+            <div className="login-perks-list">
+              <div className="login-perk-item">
+                <div className="perk-icon-wrapper"><IonIcon icon={cloudUploadOutline} /></div>
+                <p>Nube personal para nunca más perder por dónde ibas.</p>
+              </div>
+              <div className="login-perk-item success">
+                <div className="perk-icon-wrapper"><IonIcon icon={chatbubblesOutline} /></div>
+                <p>Comenta e interactúa con otros lectores de LectorHaus.</p>
+              </div>
+              <div className="login-perk-item warning">
+                <div className="perk-icon-wrapper"><IonIcon icon={trophyOutline} /></div>
+                <p>Gana puntos de experiencia (XP) y sube tu Rango Hunter.</p>
+              </div>
+            </div>
+
+            <div className="login-actions">
+              <IonButton className="google-login-btn" expand="block" onClick={async () => {
+                await firebaseAuthService.loginWithGoogle();
+                setShowLoginHint(false);
+              }}>
+                <IonIcon icon={logoGoogle} slot="start" />
+                Continuar con Google
+              </IonButton>
+              
+              <IonButton fill="clear" className="anon-login-btn" expand="block" onClick={async () => {
+                await handleAnonymousLogin();
+                setShowLoginHint(false);
+              }}>
+                <IonIcon icon={personOutline} slot="start" />
+                Continuar sin cuenta (Fantasma)
               </IonButton>
             </div>
           </div>
-        )}
+        </IonModal>
 
         <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
           <IonRefresherContent 

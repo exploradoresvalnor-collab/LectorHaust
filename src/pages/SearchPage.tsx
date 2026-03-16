@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { 
   IonContent, 
   IonHeader, 
@@ -27,273 +27,41 @@ import { trendingUpOutline, sparklesOutline, searchOutline, heartOutline, filter
 import MangaCard from '../components/MangaCard';
 import LoadingScreen from '../components/LoadingScreen';
 import { mangadexService } from '../services/mangadexService';
-import { useLibraryStore } from '../store/useLibraryStore';
+import { 
+  useSearch, 
+  FORMATS, 
+  STATUSES, 
+  DEMOGRAPHICS, 
+  ORDERS, 
+  GENRES 
+} from '../hooks/useSearch';
 import './SearchPage.css';
 
 const SearchPage: React.FC = () => {
-  const [activeSegment, setActiveSegment] = useState('trending');
-  const [results, setResults] = useState<any[]>([]);
-  const [trending, setTrending] = useState<any[]>([]);
-  const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [query, setQuery] = useState('');
-  const [offset, setOffset] = useState(0);
-  const [isDone, setIsDone] = useState(false);
-  
-  // Completed Mangas State (Migrated from Library)
-  const [completedManga, setCompletedManga] = useState<any[]>([]);
-  const [completedLoading, setCompletedLoading] = useState(false);
-  const [completedOffset, setCompletedOffset] = useState(0);
-  const [completedGenre, setCompletedGenre] = useState<string>('');
-  const [completedLang, setCompletedLang] = useState<string>('es');
-  const [completedDemographic, setCompletedDemographic] = useState<string | null>(null);
-  const [completedStatus, setCompletedStatus] = useState<string>('completed'); // Default is completed for this tab
-  const [isCompletedDone, setIsCompletedDone] = useState(false);
-  
-  // Modern Filters
-  const [activeFormat, setActiveFormat] = useState<string | null>(null);
-  const [activeGenre, setActiveGenre] = useState<string | null>(null);
-  const [activeStatus, setActiveStatus] = useState<string | null>(null);
-  const [activeDemographic, setActiveDemographic] = useState<string | null>(null);
-  const [activeOrder, setActiveOrder] = useState<string>('relevance');
-  const [activeColor, setActiveColor] = useState(false);
-  const [completedColor, setCompletedColor] = useState(false);
-  const [showFilters, setShowFilters] = useState(true);
-
-  const FORMATS = [
-    { label: 'Todos', value: null },
-    { label: 'Manga 🇯🇵', value: 'ja' },
-    { label: 'Manhwa 🇰🇷', value: 'ko' },
-    { label: 'Manhua 🇨🇳', value: 'zh' }
-  ];
-
-  const STATUSES = [
-    { label: 'Publicando', value: 'ongoing' },
-    { label: 'Finalizado', value: 'completed' },
-    { label: 'Pausa', value: 'hiatus' },
-    { label: 'Cancelado', value: 'cancelled' }
-  ];
-
-  const DEMOGRAPHICS = [
-    { label: 'Todos', value: null },
-    { label: 'Shounen', value: 'shounen' },
-    { label: 'Shoujo', value: 'shoujo' },
-    { label: 'Seinen', value: 'seinen' },
-    { label: 'Josei', value: 'josei' }
-  ];
-
-  const ORDERS = [
-    { label: 'Relevancia', value: 'relevance' },
-    { label: 'Más Vistos', value: 'followedCount' },
-    { label: 'Más Recientes', value: 'latestUploadedChapter' },
-    { label: 'Mejor Calificados', value: 'rating' }
-  ];
-
-  const GENRES = [
-    'Todos', 'Acción', 'Romance', 'Fantasía', 'Comedia', 'Drama', 'Sci-Fi', 'Misterio', 'Terror', 
-    'Aventura', 'Deportes', 'Sobrenatural', 'Psicológico', 'Histórico', 'Cocina', 'Música', 
-    'Mecha', 'Vida Escolar', 'Gore', 'Crimen', 'Magical Girls', 'Isekai', 'Recuentos de la vida', 
-    'Thriller', 'Médico', 'Filosofía'
-  ];
-
-  // Map Spanish names to English names for the API
-  const genreMapping: Record<string, string> = {
-    'Acción': 'action',
-    'Romance': 'romance',
-    'Fantasía': 'fantasy',
-    'Comedia': 'comedy',
-    'Drama': 'drama',
-    'Sci-Fi': 'sci-fi',
-    'Misterio': 'mystery',
-    'Terror': 'horror',
-    'Aventura': 'adventure',
-    'Deportes': 'sports',
-    'Sobrenatural': 'supernatural',
-    'Psicológico': 'psychological',
-    'Histórico': 'historical',
-    'Cocina': 'cooking',
-    'Música': 'music',
-    'Mecha': 'mecha',
-    'Vida Escolar': 'school life',
-    'Gore': 'gore',
-    'Crimen': 'crime',
-    'Magical Girls': 'magical girls',
-    'Isekai': 'isekai',
-    'Recuentos de la vida': 'slice of life',
-    'Thriller': 'thriller',
-    'Médico': 'medical',
-    'Filosofía': 'philosophical'
-  };
-  
   const router = useIonRouter();
-  const { favorites } = useLibraryStore();
-
-  const loadDiscoveryData = async () => {
-    setLoading(true);
-    try {
-      // 1. Fetch Trending - Increase limit for grid populating
-      const trendingData = await mangadexService.getPopularManga(null, 'es', 24, 0);
-      setTrending(trendingData.data || []);
-
-      // 2. Fetch Suggestions if favorites exist
-      if (favorites.length > 0) {
-        // Just use first fav's title or random tags for now as MD doesn't have a direct "similar" endpoint
-        // In a real pro app, we'd extract tags, but here we use popularity as backup
-        const suggestedData = await mangadexService.getRecommendations([], 10);
-        setSuggestions(suggestedData);
-      }
-    } catch (err) {
-      console.error('Discovery load error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  
+  const {
+    activeSegment, setActiveSegment,
+    results, trending, suggestions, loading, query, offset, isDone,
+    completedManga, completedLoading, completedGenre, setCompletedGenre,
+    completedLang, setCompletedLang, completedDemographic, setCompletedDemographic,
+    isCompletedDone, activeFormat, activeGenre, activeStatus,
+    activeDemographic, activeOrder, setActiveOrder, activeColor, setActiveColor,
+    completedColor, setCompletedColor, showFilters, setShowFilters,
+    favorites, loadDiscoveryData, fetchCompleted, loadMoreCompleted,
+    handleSearch, setFormatFilter, setGenreFilter, setStatusFilter,
+    setDemographicFilter, loadMore
+  } = useSearch();
 
   useIonViewWillEnter(() => {
     if (trending.length === 0) loadDiscoveryData();
   });
 
-  const fetchCompleted = async (isLoadMore = false, genre = completedGenre, lang = completedLang, demographic = completedDemographic, color = completedColor) => {
-    if (!isLoadMore) {
-        setCompletedLoading(true);
-        setCompletedOffset(0);
-        setIsCompletedDone(false);
-    }
-    
-    try {
-        const offsetToUse = isLoadMore ? completedOffset : 0;
-        const resp = await mangadexService.getFullyTranslatedMasterpieces(null, lang, 15, offsetToUse, genre || null, color);
-        
-        let newData = resp.data || [];
-        
-        // Manual Filtering for Demographics if needed, or we pass it to the service if supported
-        // Mangadex API supports publicationDemographic[]
-        if (demographic) {
-          newData = newData.filter((m: any) => m.attributes.publicationDemographic === demographic);
-        }
-        
-        if (!newData.length) {
-            setIsCompletedDone(true);
-        } else {
-            setCompletedOffset(resp.rawOffsetNext !== undefined ? resp.rawOffsetNext : offsetToUse + 45); 
-        }
-
-        if (isLoadMore) {
-            setCompletedManga(prev => {
-                const existing = new Set(prev.map(m => m.id));
-                const unique = newData.filter((m: any) => !existing.has(m.id));
-                return [...prev, ...unique];
-            });
-        } else {
-            setCompletedManga(newData);
-        }
-    } catch (err) {
-        console.error("Error fetching completed", err);
-    } finally {
-        if (!isLoadMore) setCompletedLoading(false);
-    }
-  };
-
   useEffect(() => {
     if (activeSegment === 'completed' && completedManga.length === 0) {
         fetchCompleted();
     }
-  }, [activeSegment]);
-
-  const loadMoreCompleted = async (e: any) => {
-      await fetchCompleted(true);
-      e.target.complete();
-  };
-
-  const handleSearch = async (val: string, isMore = false, newFormat?: string | null, newGenre?: string | null, newStatus?: string | null, newDemographic?: string | null, order?: string, color = activeColor) => {
-    const searchVal = val !== undefined ? val : query;
-    const format = newFormat !== undefined ? newFormat : activeFormat;
-    const genre = newGenre !== undefined ? newGenre : activeGenre;
-    const status = newStatus !== undefined ? newStatus : activeStatus;
-    const demographic = newDemographic !== undefined ? newDemographic : activeDemographic;
-    
-    setQuery(searchVal);
-    
-    if ((!searchVal || searchVal.length < 2) && !format && !genre && !status && !demographic && !color) {
-      setResults([]);
-      return;
-    }
-    
-    if (!isMore) {
-      setLoading(true);
-      setOffset(0);
-      setIsDone(false);
-    }
-
-    try {
-      const currentOffset = isMore ? offset + 20 : 0;
-
-      // Construimos los filtros visuales (Esto aplica para ambas APIs)
-      const filters: any = {
-        fullColor: color
-      };
-      if (format) filters.origin = format;
-      if (genre && genre !== 'Todos' && genreMapping[genre]) filters.tags = [genreMapping[genre]];
-      if (status) filters.status = status;
-      if (demographic) filters.demographic = demographic;
-      
-      const orderParam: any = {};
-      orderParam[activeOrder] = 'desc';
-
-      // --- MANGADEX MODE (Servidor Oficial) ---
-      const data = await mangadexService.searchManga(searchVal, filters, 20, currentOffset, orderParam);
-      
-      if (isMore) {
-        setResults(prev => [...prev, ...(data.data || [])]);
-      } else {
-        setResults(data.data || []);
-      }
-
-      setOffset(currentOffset);
-      if (data.data.length < 20) setIsDone(true);
-    } catch (error) {
-      console.error('Search error:', error);
-    } finally {
-      if (!isMore) setLoading(false);
-    }
-  };
-
-  const setFormatFilter = (format: string | null) => {
-    setActiveFormat(format);
-    handleSearch(query, false, format, activeGenre, activeStatus, activeDemographic);
-  };
-
-  const setGenreFilter = (genre: string | null) => {
-    const newGenre = genre === activeGenre ? null : genre;
-    setActiveGenre(newGenre);
-    handleSearch(query, false, activeFormat, newGenre, activeStatus, activeDemographic);
-  };
-
-  const setStatusFilter = (status: string | null) => {
-    const newStatus = status === activeStatus ? null : status;
-    setActiveStatus(newStatus);
-    handleSearch(query, false, activeFormat, activeGenre, newStatus, activeDemographic);
-  };
-
-  const setDemographicFilter = (demographic: string | null) => {
-    const newDemographic = demographic === activeDemographic ? null : demographic;
-    setActiveDemographic(newDemographic);
-    handleSearch(query, false, activeFormat, activeGenre, activeStatus, newDemographic);
-  };
-
-  const clearFilters = () => {
-    setActiveFormat(null);
-    setActiveGenre(null);
-    setActiveStatus(null);
-    setActiveDemographic(null);
-    setResults([]);
-    // We don't clear the query unless really needed, or we clear it too
-  };
-
-  const loadMore = async (e: any) => {
-    await handleSearch(query, true);
-    e.target.complete();
-  };
+  }, [activeSegment, completedManga.length, fetchCompleted]);
 
   return (
     <IonPage>
@@ -444,7 +212,7 @@ const SearchPage: React.FC = () => {
                 <IonGrid className="search-results-grid">
                   <IonRow>
                     {results.map((manga: any) => (
-                      <IonCol size="4" sizeMd="3" key={manga.id} className="ion-no-padding">
+                      <IonCol size="6" sizeSm="4" sizeMd="3" key={manga.id}>
                         <MangaCard 
                           title={manga.attributes.title.en || Object.values(manga.attributes.title)[0]}
                           coverUrl={mangadexService.getCoverUrl(manga)}
@@ -476,10 +244,10 @@ const SearchPage: React.FC = () => {
             {loading ? (
               <div className="discovery-loader"><IonSpinner name="dots" color="primary" /></div>
             ) : (
-              <IonGrid className="ion-no-padding">
+              <IonGrid>
                 <IonRow>
                   {trending.map(m => (
-                    <IonCol size="4" sizeSm="4" sizeMd="3" key={m.id} className="ion-no-padding">
+                    <IonCol size="6" sizeSm="4" sizeMd="3" key={m.id}>
                       <MangaCard 
                         title={m.attributes.title.en || Object.values(m.attributes.title)[0]}
                         coverUrl={mangadexService.getCoverUrl(m)}
@@ -510,10 +278,10 @@ const SearchPage: React.FC = () => {
                 <p>Tu biblioteca está vacía. Añade mangas para obtener sugerencias personalizadas.</p>
               </div>
             ) : (
-              <IonGrid className="ion-no-padding">
+              <IonGrid>
                 <IonRow>
                   {suggestions.map(m => (
-                    <IonCol size="4" sizeSm="4" sizeMd="3" key={m.id} className="ion-no-padding">
+                    <IonCol size="6" sizeSm="4" sizeMd="3" key={m.id}>
                       <MangaCard 
                         title={m.attributes.title.en || Object.values(m.attributes.title)[0]}
                         coverUrl={mangadexService.getCoverUrl(m)}
@@ -622,10 +390,10 @@ const SearchPage: React.FC = () => {
               </div>
             ) : (
               <>
-                <IonGrid className="ion-no-padding">
+                <IonGrid>
                   <IonRow>
                     {completedManga.map((manga: any) => (
-                      <IonCol size="4" sizeMd="3" sizeLg="2" key={manga.id} className="ion-no-padding">
+                      <IonCol size="6" sizeSm="4" sizeMd="3" sizeLg="2" key={manga.id}>
                         <MangaCard 
                           title={mangadexService.getLocalizedTitle(manga)}
                           coverUrl={mangadexService.getCoverUrl(manga)}

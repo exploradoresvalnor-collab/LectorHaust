@@ -1,9 +1,9 @@
 .manga-grid {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px !important;
-    padding: 10px 6px !important;
-    justify-content: center;
+    gap: 16px 12px !important; /* Increased vertical and horizontal gap */
+    padding: 16px 12px !important; /* More breathing room on sides */
+    justify-content: flex-start; /* Align start for consistency */
 }
 
 .ion-no-padding {
@@ -25,12 +25,12 @@
 }
 
 .filter-chip {
-    background: rgba(26, 26, 26, 0.6);
-    color: rgba(255, 255, 255, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    padding: 8px 18px;
-    border-radius: 20px;
-    font-size: 0.8rem;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 6px 16px;
+    border-radius: 12px;
+    font-size: 0.75rem;
     font-weight: 700;
     white-space: nowrap;
     cursor: pointer;
@@ -44,9 +44,8 @@
 .filter-chip.active {
     background: var(--ion-color-primary);
     color: white;
-    border-color: var(--ion-color-primary);
-    box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
-    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 15px rgba(var(--ion-color-primary-rgb), 0.3);
 }
 
 /* Section Header */
@@ -936,94 +935,178 @@
         gap: 16px;
     }
 }
-/* Minimalist Floating Login Dock */
-.minimal-login-dock {
-    position: fixed;
-    bottom: 80px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 1000;
-    width: 90%;
-    max-width: 400px;
-}
-
-.dock-content {
-    background: rgba(30, 30, 30, 0.7);
+/* --- Modern Glassmorphism Bottom Sheet (Login Modal) --- */
+ion-modal.login-bottom-sheet {
+    --border-radius: 24px 24px 0 0;
+    --box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.4);
+    --background: rgba(20, 20, 20, 0.85);
+    /* Blurred transparency for iOS look */
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    padding: 8px 16px;
+}
+
+/* Specific styling for the actual modal content box */
+ion-modal.login-bottom-sheet::part(content) {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Darken the page behind the modal */
+ion-modal.login-bottom-sheet::part(backdrop) {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.glass-modal-content {
     display: flex;
+    flex-direction: column;
+    padding: 24px 20px 30px;
+    text-align: center;
     align-items: center;
-    gap: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-}
-
-.dock-mini-mascot, .dock-mini-avatar img {
-    width: 40px;
-    height: 40px;
-    object-fit: contain;
-}
-
-.dock-mini-avatar img {
-    border-radius: 50%;
-    border: 1.5px solid var(--ion-color-primary);
-    object-fit: cover;
-}
-
-.dock-text {
-    flex: 1;
-}
-
-.dock-text p {
-    margin: 0;
-    font-size: 0.85rem;
-    font-weight: 600;
+    height: 100%;
     color: white;
+    overflow-y: auto;
 }
 
-.dock-buttons {
+.login-modal-header {
     display: flex;
-    gap: 8px;
+    flex-direction: column;
     align-items: center;
+    margin-bottom: 16px;
 }
 
-.dock-login-btn {
-    --color: var(--ion-color-primary);
-    font-weight: 800;
-    font-size: 0.85rem;
-    letter-spacing: 1px;
-}
-
-.dock-anon-btn {
-    --color: rgba(255, 255, 255, 0.6);
-    font-weight: 700;
-    font-size: 0.75rem;
+.header-icon-container {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(217, 70, 239, 0.1));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    --padding-start: 12px;
-    --padding-end: 12px;
+    animation: float-slow 3s ease-in-out infinite;
 }
 
-.dock-close-btn {
-    --color: rgba(255, 255, 255, 0.4);
+.header-icon-container ion-icon {
+    font-size: 1.6rem;
+    color: #fff;
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+}
+
+@keyframes float-slow {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+
+.login-modal-header h2 {
+    font-size: 1.25rem;
+    font-weight: 800;
+    margin: 0 0 4px;
+    background: linear-gradient(to right, #ffffff, #a78bfa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.login-modal-header p {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
     margin: 0;
-    --padding-start: 4px;
-    --padding-end: 4px;
+    line-height: 1.3;
+    max-width: 250px;
 }
 
-.dock-close-btn IonIcon {
+.login-perks-list {
+    width: 100%;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: left;
+}
+
+.login-perk-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.perk-icon-wrapper {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(139, 92, 246, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ion-color-primary);
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.login-perk-item.success .perk-icon-wrapper { color: var(--ion-color-success); background: rgba(45, 211, 111, 0.15); }
+.login-perk-item.warning .perk-icon-wrapper { color: var(--ion-color-warning); background: rgba(255, 196, 9, 0.15); }
+
+.login-perk-item p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 500;
+}
+
+.login-actions {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.google-login-btn {
+    --background: white;
+    --color: #000;
+    --border-radius: 12px;
+    --box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
+    font-weight: 800;
+    font-size: 0.9rem;
+    height: 44px;
+    margin: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.google-login-btn ion-icon {
     font-size: 1.2rem;
 }
 
-@media (min-width: 1024px) {
-    .minimal-login-dock {
-        bottom: 30px;
-        right: 30px;
-        left: auto;
-        transform: none;
-    }
+/* Micro-interaction: continuous pulse on primary login button */
+.google-login-btn::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: 12px;
+    box-shadow: 0 0 0 0 white;
+    animation: btn-pulse 2s infinite;
+}
+
+@keyframes btn-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+}
+
+.anon-login-btn {
+    --background: rgba(255, 255, 255, 0.05);
+    --color: rgba(255, 255, 255, 0.8);
+    --border-radius: 12px;
+    --border-width: 1px;
+    --border-style: solid;
+    --border-color: rgba(255, 255, 255, 0.2);
+    font-weight: 600;
+    font-size: 0.8rem;
+    height: 40px;
+    margin: 0;
 }
 
 /* User Welcome Banner */

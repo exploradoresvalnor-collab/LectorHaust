@@ -1,6 +1,5 @@
 /// <reference types="vitest" />
 
-import legacy from '@vitejs/plugin-legacy'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import dns from 'dns'
@@ -12,10 +11,12 @@ dns.setDefaultResultOrder('ipv4first')
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    react(),
-    legacy()
+    react()
   ],
   server: {
+    host: 'localhost',
+    port: 5173,
+    strictPort: true,
     proxy: {
       '/api-md': {
         target: 'https://api.mangadex.org',

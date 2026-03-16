@@ -4,12 +4,19 @@
 }
 
 ion-segment-button {
-    --color: #a1a1aa;
-    --color-checked: var(--ion-color-primary);
+    --color: rgba(255, 255, 255, 0.4);
+    --color-checked: #fff;
     --indicator-color: var(--ion-color-primary);
-    font-size: 0.85rem;
-    font-weight: 700;
-    min-height: 45px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    min-height: 40px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+ion-segment-button::part(indicator-background) {
+    height: 3px;
+    border-radius: 3px;
 }
 
 /* Modern Search Bar & Filters */
@@ -237,6 +244,16 @@ ion-segment-button {
 
 .search-results-grid {
     padding-bottom: 90px;
+    --ion-grid-column-padding: 8px; /* More space between columns */
+}
+
+/* Also ensure regular grids in search results have gaps */
+.search-results-grid ion-grid {
+    padding-top: 10px;
+}
+
+.search-results-grid ion-row {
+    margin: 0 -8px; /* Offset the extra padding */
 }
 
 .completed-filters-bar {

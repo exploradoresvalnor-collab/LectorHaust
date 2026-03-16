@@ -1,10 +1,10 @@
 .manga-card-pro {
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 12px; /* Smoother corners */
     overflow: hidden;
     position: relative;
     aspect-ratio: 2/3;
-    transition: transform 0.2s ease;
+    transition: all 0.3s ease;
     background: #1a1a1a;
     border-bottom: 2px solid var(--ion-color-primary);
 }

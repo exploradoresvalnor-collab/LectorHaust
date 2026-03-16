@@ -1,34 +1,25 @@
 /**
  * Kitsu API Service
  */
+import { fetchJSON } from './apiHelpers';
 
 const BASE_URL = 'https://kitsu.io/api/edge';
 
 export const kitsuService = {
-    /**
-     * Search manga on Kitsu
-     */
     async searchManga(slug: string) {
         try {
-            const response = await fetch(`${BASE_URL}/manga?filter[slug]=${slug}`);
-            const data = await response.json();
+            const data = await fetchJSON(`${BASE_URL}/manga?filter[slug]=${slug}`);
             return data.data;
-        } catch (error) {
-            console.error('Error fetching Kitsu manga:', error);
+        } catch {
             return [];
         }
     },
 
-    /**
-     * Get characters by Kitsu ID
-     */
     async getCharacters(kitsuId: string) {
         try {
-            const response = await fetch(`${BASE_URL}/manga/${kitsuId}/characters?include=character`);
-            const data = await response.json();
+            const data = await fetchJSON(`${BASE_URL}/manga/${kitsuId}/characters?include=character`);
             return data.included || [];
-        } catch (error) {
-            console.error('Error fetching Kitsu characters:', error);
+        } catch {
             return [];
         }
     }
