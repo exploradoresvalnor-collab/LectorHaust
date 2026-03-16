@@ -239,10 +239,9 @@ ion-segment-button {
     padding-bottom: 90px;
 }
 
-/* Completed Segment Premium Refinement */
 .completed-filters-bar {
     margin: 0 0 20px;
-    padding: 10px 15px;
+    padding: 12px;
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.05);
 }
@@ -250,22 +249,18 @@ ion-segment-button {
 .filter-pill-row {
     display: flex;
     align-items: center;
-    gap: 12px;
-    overflow-x: auto;
-    padding: 10px 5px;
-    -webkit-overflow-scrolling: touch;
+    flex-wrap: wrap;
+    gap: 10px;
     width: 100%;
-}
-
-.filter-pill-row::-webkit-scrollbar {
-    display: none;
+    justify-content: flex-start;
 }
 
 .mini-pill {
-    min-width: fit-content;
+    flex: 1 1 auto;
+    min-width: 110px;
     white-space: nowrap;
-    flex-shrink: 0;
 }
+
 
 .lang-segment-mini {
     flex-shrink: 0;

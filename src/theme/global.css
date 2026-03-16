@@ -72,3 +72,9 @@ ion-tab-bar {
 .tab-bar-hidden {
     display: none !important;
 }
+
+/* Safe Area Support */
+ion-content {
+  --padding-top: env(safe-area-inset-top);
+  --padding-bottom: env(safe-area-inset-bottom);
+}
