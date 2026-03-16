@@ -1,0 +1,140 @@
+.comment-section-container {
+    margin-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+.comment-header h3 {
+    font-weight: 800;
+    font-size: 1.3rem;
+    color: white;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.comment-count {
+    font-size: 0.9rem;
+    color: var(--ion-color-primary);
+    opacity: 0.8;
+}
+
+/* Input Area */
+.comment-input-wrapper {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+    padding: 2px 8px 2px 18px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 2rem;
+    transition: all 0.3s ease;
+}
+
+.comment-input-wrapper:focus-within {
+    border-color: var(--ion-color-primary);
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.login-prompt-comment {
+    background: rgba(139, 92, 246, 0.1);
+    border-radius: 15px;
+    padding: 1rem;
+    text-align: center;
+    margin-bottom: 2rem;
+    border: 1px dashed rgba(139, 92, 246, 0.3);
+}
+
+.login-prompt-comment p {
+    margin: 0;
+    font-weight: 600;
+    color: var(--ion-color-primary);
+    font-size: 0.9rem;
+}
+
+/* List Area */
+.comment-list {
+    background: transparent !important;
+}
+
+.comment-item {
+    --background: rgba(255, 255, 255, 0.03);
+    --border-radius: 20px;
+    margin-bottom: 1rem;
+    --padding-start: 12px;
+    --padding-top: 12px;
+    --padding-bottom: 12px;
+    align-items: flex-start;
+}
+
+.comment-avatar {
+    width: 40px;
+    height: 40px;
+    margin-top: 4px;
+}
+
+.comment-avatar img {
+    border-radius: 50%;
+    border: 1.5px solid var(--ion-color-primary);
+}
+
+.mascot-avatar-small {
+    width: 100%;
+    height: 100%;
+    background: white;
+    border-radius: 50%;
+    padding: 2px;
+    border: 1.5px solid #FFD700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mascot-avatar-small img {
+    width: 80%;
+    height: 80%;
+    object-fit: contain;
+    border: none;
+}
+
+.comment-content {
+    margin-left: 8px;
+}
+
+.comment-user-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.comment-user-name {
+    font-weight: 700;
+    color: white;
+    font-size: 0.95rem;
+}
+
+.comment-date {
+    font-size: 0.75rem;
+    opacity: 0.5;
+}
+
+.comment-text-body p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.9rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+}
+
+.comment-loading, .empty-comments {
+    text-align: center;
+    padding: 2rem;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.empty-comments p {
+    font-style: italic;
+    font-size: 0.9rem;
+}

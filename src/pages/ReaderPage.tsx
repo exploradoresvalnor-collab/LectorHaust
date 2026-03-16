@@ -18,6 +18,7 @@ import { chevronBackOutline, chevronForwardOutline } from 'ionicons/icons';
 import { useParams } from 'react-router-dom';
 import { mangadexService } from '../services/mangadexService';
 import { useLibraryStore } from '../store/useLibraryStore';
+import CommentSection from '../components/CommentSection';
 import './ReaderPage.css';
 
 const ReaderPage: React.FC = () => {
@@ -272,9 +273,18 @@ const ReaderPage: React.FC = () => {
                 )}
               </div>
               
-              <IonButton fill="clear" color="medium" onClick={() => router.push('/home')} className="end-back-home">
+                <IonButton fill="clear" color="medium" onClick={() => router.push('/home')} className="end-back-home">
                 Volver al Inicio
               </IonButton>
+
+              {/* El Muro Haus (Chapter Comments) */}
+              {mangaId && (
+                <CommentSection 
+                  mangaId={mangaId} 
+                  chapterId={chapterId} 
+                  title={`Comentarios del Cap. ${chapterNum}`} 
+                />
+              )}
             </div>
           </div>
         )}

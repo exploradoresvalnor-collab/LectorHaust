@@ -32,6 +32,7 @@ import { anilistService } from '../services/anilistService';
 import { useLibraryStore } from '../store/useLibraryStore';
 import ChapterItem from '../components/ChapterItem';
 import LoadingScreen from '../components/LoadingScreen';
+import CommentSection from '../components/CommentSection';
 import './MangaDetailsPage.css';
 
 const MangaDetailsPage: React.FC = () => {
@@ -567,6 +568,9 @@ const MangaDetailsPage: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* El Muro Haus (Comments) */}
+          <CommentSection mangaId={id} title="El Muro Haus - Opiniones" />
         </div>
       </IonContent>
     </IonPage>
