@@ -524,48 +524,47 @@ const SearchPage: React.FC = () => {
               </p>
             </div>
 
-            {/* Language Selection */}
-            <div className="lang-filters" style={{ overflowX: 'auto', whiteSpace: 'nowrap', paddingBottom: '12px', display: 'flex', gap: '8px' }}>
-              {[
-                { code: 'es', label: '🇪🇸 Español' },
-                { code: 'en', label: '🇺🇸 English' }
-              ].map(lang => (
-                <IonChip 
-                  key={lang.code}
-                  color={completedLang === lang.code ? 'secondary' : 'medium'}
-                  outline={completedLang !== lang.code}
-                  onClick={() => {
-                    setCompletedLang(lang.code);
-                    fetchCompleted(false, completedGenre, lang.code);
+            {/* Premium Filter Bar */}
+            <div className="completed-filters-bar glass-effect animate-slide-up">
+              <div className="filter-pill-row">
+                <IonSegment 
+                  value={completedLang} 
+                  onIonChange={(e: any) => {
+                    setCompletedLang(e.detail.value);
+                    fetchCompleted(false, completedGenre, e.detail.value);
                   }}
+                  mode="ios"
+                  className="lang-segment-mini"
                 >
-                  <IonLabel>{lang.label}</IonLabel>
-                </IonChip>
-              ))}
-            </div>
-            
-            {/* Genre Selection */}
-            <div className="genre-filters" style={{ overflowX: 'auto', whiteSpace: 'nowrap', paddingBottom: '15px', marginBottom: '10px', display: 'flex', gap: '8px' }}>
-              {[
-                { val: '', label: '🌟 Todos' },
-                { val: '391b0423-d847-456f-aff0-8b0cfc03066b', label: '⚔️ Acción' },
-                { val: '423e2eae-a7a2-4a8b-ac03-a8351462d71d', label: '❤️ Romance' },
-                { val: 'cdc58593-87dd-415e-bbc0-2ec27bf404cc', label: '🪄 Fantasía' },
-                { val: '4d32cc48-9f00-4cca-9b5a-a839f0764984', label: '🤣 Comedia' },
-                { val: 'eabc5b4c-6aff-42f3-b657-3e90cbd00b75', label: '👻 Sobrenatural' }
-              ].map(g => (
-                <IonChip 
-                  key={g.val}
-                  color={completedGenre === g.val ? 'primary' : 'medium'}
-                  outline={completedGenre !== g.val}
-                  onClick={() => {
-                    setCompletedGenre(g.val);
-                    fetchCompleted(false, g.val);
-                  }}
-                >
-                  <IonLabel>{g.label}</IonLabel>
-                </IonChip>
-              ))}
+                  <IonSegmentButton value="es">ES</IonSegmentButton>
+                  <IonSegmentButton value="en">EN</IonSegmentButton>
+                </IonSegment>
+
+                <div className="genre-select-wrapper">
+                  <IonIcon icon={filterOutline} className="genre-icon-mini" />
+                  <IonSelect 
+                    value={completedGenre} 
+                    placeholder="Género"
+                    interface="action-sheet"
+                    className="genre-select-mini"
+                    onIonChange={(e: any) => {
+                      setCompletedGenre(e.detail.value);
+                      fetchCompleted(false, e.detail.value);
+                    }}
+                  >
+                    {[
+                      { val: '', label: 'Cualquier Género' },
+                      { val: '391b0423-d847-456f-aff0-8b0cfc03066b', label: 'Acción' },
+                      { val: '423e2eae-a7a2-4a8b-ac03-a8351462d71d', label: 'Romance' },
+                      { val: 'cdc58593-87dd-415e-bbc0-2ec27bf404cc', label: 'Fantasía' },
+                      { val: '4d32cc48-9f00-4cca-9b5a-a839f0764984', label: 'Comedia' },
+                      { val: 'eabc5b4c-6aff-42f3-b657-3e90cbd00b75', label: 'Sobrenatural' }
+                    ].map(g => (
+                      <IonSelectOption key={g.val} value={g.val}>{g.label}</IonSelectOption>
+                    ))}
+                  </IonSelect>
+                </div>
+              </div>
             </div>
 
             {completedLoading ? (

@@ -238,3 +238,64 @@ ion-segment-button {
 .search-results-grid {
     padding-bottom: 90px;
 }
+
+/* Completed Segment Premium Refinement */
+.completed-filters-bar {
+    margin: 0 0 20px;
+    padding: 10px 15px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.filter-pill-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.lang-segment-mini {
+    max-width: 100px;
+    --background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    height: 32px;
+}
+
+.lang-segment-mini ion-segment-button {
+    --indicator-color: var(--ion-color-secondary);
+    --color: rgba(255, 255, 255, 0.6);
+    --color-checked: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    min-width: 45px;
+}
+
+.genre-select-wrapper {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    height: 32px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.genre-icon-mini {
+    font-size: 1rem;
+    color: var(--ion-color-secondary);
+    margin-right: 8px;
+}
+
+.genre-select-mini {
+    --placeholder-color: rgba(255, 255, 255, 0.8);
+    --color: white;
+    font-size: 0.85rem;
+    font-weight: 600;
+    width: 100%;
+}
+
+.discovery-title {
+    font-size: 1.4rem;
+    letter-spacing: -0.5px;
+}
