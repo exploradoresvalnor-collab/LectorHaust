@@ -18,6 +18,8 @@ import { chevronBackOutline, chevronForwardOutline } from 'ionicons/icons';
 import { useParams } from 'react-router-dom';
 import { mangadexService } from '../services/mangadexService';
 import { useLibraryStore } from '../store/useLibraryStore';
+import { db, auth } from '../services/firebase';
+import { userStatsService } from '../services/userStatsService';
 import CommentSection from '../components/CommentSection';
 import './ReaderPage.css';
 
@@ -100,6 +102,11 @@ const ReaderPage: React.FC = () => {
         if (data && data.pages) {
           setPages(data.pages);
           markAsRead(chapterId);
+          
+          // Award XP (One-time per chapter load)
+          if (auth.currentUser) {
+            userStatsService.awardChapterXP(auth.currentUser.uid);
+          }
           
           try {
             const chapterInfo = await mangadexService.getChapter(chapterId);

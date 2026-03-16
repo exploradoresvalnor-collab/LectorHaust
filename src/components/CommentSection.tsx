@@ -24,6 +24,7 @@ import {
   doc 
 } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
+import { userStatsService } from '../services/userStatsService';
 import './CommentSection.css';
 
 interface Comment {
@@ -115,6 +116,11 @@ const CommentSection: React.FC<CommentSectionProps> = ({ mangaId, chapterId, tit
 
       setNewComment('');
       setReplyingTo(null);
+
+      // Award XP
+      if (currentUser) {
+        await userStatsService.awardCommentXP(currentUser.uid, !!replyingTo);
+      }
     } catch (error) {
       console.error("Error adding comment:", error);
     } finally {

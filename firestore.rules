@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 1. Favoritos e Historial (Solo el dueño puede tocar sus datos)
+    match /users/{userId}/{anyUserDocument=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // 2. Comentarios (Lectura pública, Escritura autenticada, Borrado solo de autor)
+    match /comments/{commentId} {
+      allow read: if true;
+      allow create: if request.auth != null 
+                    && request.resource.data.text.size() > 0 
+                    && request.resource.data.text.size() < 1000;
+      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow update: if false; // Por ahora no permitimos editar para evitar spam
+    }
+    
+    // 3. Notificaciones (Solo el destinatario puede leer y marcar como leídas)
+    match /notifications/{notifId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow update: if request.auth != null && request.auth.uid == resource.data.userId 
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow create: if request.auth != null; // Cualquiera puede enviar si hay respuesta
+      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    // 4. Estadísticas de Usuario (Gamificación - Lectura para todos, Escritura protegida)
+    match /userStats/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

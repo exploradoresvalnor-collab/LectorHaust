@@ -93,6 +93,63 @@
   color: white;
 }
 
+.xp-container {
+    margin-top: 1.5rem;
+    width: 100%;
+    max-width: 300px;
+}
+
+.xp-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.xp-progress-bg {
+    width: 100%;
+    height: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.xp-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--ion-color-primary), var(--ion-color-secondary));
+    border-radius: 10px;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.5);
+    position: relative;
+}
+
+.xp-progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.2),
+        transparent
+    );
+    animation: bar-shine 2s infinite;
+}
+
+@keyframes bar-shine {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(100%); }
+}
+
 .stat-label {
   font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.5);

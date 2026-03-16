@@ -32,21 +32,39 @@ import { useHistory } from 'react-router-dom';
 import { firebaseAuthService } from '../services/firebaseAuthService';
 import { User } from 'firebase/auth';
 import { useLibraryStore } from '../store/useLibraryStore';
+import { userStatsService, UserStats } from '../services/userStatsService';
 import './ProfilePage.css';
 
 const ProfilePage: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
+  const [stats, setStats] = useState<UserStats>({
+    xp: 0,
+    level: 1,
+    chaptersRead: 0,
+    commentsPosted: 0,
+    lastUpdated: Date.now()
+  });
   const history = useHistory();
 
   useEffect(() => {
-    const unsubscribe = firebaseAuthService.subscribe((user) => {
+    let unsubscribeStats: (() => void) | undefined;
+
+    const unsubscribeAuth = firebaseAuthService.subscribe((user) => {
       if (!user) {
         history.replace('/home');
       } else {
         setUser(user);
+        // Subscribe to stats
+        unsubscribeStats = userStatsService.subscribe(user.uid, (newStats) => {
+          setStats(newStats);
+        });
       }
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeStats) unsubscribeStats();
+    };
   }, [history]);
 
   const readChapters = useLibraryStore(state => state.readChapters);
@@ -56,9 +74,20 @@ const ProfilePage: React.FC = () => {
     history.replace('/home');
   };
 
-  const readCount = readChapters.length;
-  const userLevel = Math.floor(readCount / 10) + 1;
-  const chaptersToNextLevel = 10 - (readCount % 10);
+  const { level, nextLevelXP, progress } = userStatsService.calculateLevel(stats.xp);
+  const rank = userStatsService.getRankName(level);
+  const xpInCurrentLevel = stats.xp - (userStatsService.getXPForLevel(level - 1) === 100 ? 0 : 0); // Need to adjust this math if logic is complex
+  // Simplified for UI:
+  const displayXP = stats.xp; 
+  const displayNextXP = nextLevelXP; // This is actually XP needed FOR the level, not total accumulated
+  
+  // Re-calculating correctly for the bar
+  let accumulatedXPToReachLevel = 0;
+  for (let i = 1; i < level; i++) {
+    accumulatedXPToReachLevel += userStatsService.getXPForLevel(i);
+  }
+  const currentXPProgress = stats.xp - accumulatedXPToReachLevel;
+  const xpNeededForThisLevel = userStatsService.getXPForLevel(level);
 
   if (!user) return null;
 
@@ -88,11 +117,22 @@ const ProfilePage: React.FC = () => {
             )}
             <div className="status-indicator"></div>
           </div>
-          <h2 className="user-name">{user.displayName}</h2>
-          <p className="user-email">{user.email}</p>
+          <h2 className="user-name">{user.displayName || (user.isAnonymous ? 'Lector Fantasma' : 'Lector Haus')}</h2>
+          <p className="user-email">{user.isAnonymous ? 'Modo Anónimo Activo' : user.email}</p>
           <div className="badge-belt">
-             <IonBadge color="primary" className="profile-badge">Lector Novato</IonBadge>
-             <IonBadge color="secondary" className="profile-badge">Fundador</IonBadge>
+             <IonBadge color="primary" className="profile-badge">{rank}</IonBadge>
+             {!user.isAnonymous && <IonBadge color="secondary" className="profile-badge">Pro Hunter</IonBadge>}
+             {user.isAnonymous && <IonBadge color="medium" className="profile-badge">Fantasma</IonBadge>}
+          </div>
+
+          <div className="xp-container animate-slide-up">
+            <div className="xp-info">
+              <span>Nivel {level}</span>
+              <span>{Math.floor(currentXPProgress)} / {xpNeededForThisLevel} XP</span>
+            </div>
+            <div className="xp-progress-bg">
+              <div className="xp-progress-bar" style={{ width: `${Math.min(100, (currentXPProgress / xpNeededForThisLevel) * 100)}%` }}></div>
+            </div>
           </div>
         </div>
 
@@ -100,16 +140,16 @@ const ProfilePage: React.FC = () => {
           <IonCardContent>
              <div className="stats-grid">
                <div className="stat-item">
-                 <span className="stat-value">Lv. {userLevel}</span>
+                 <span className="stat-value">Lv. {level}</span>
                  <span className="stat-label">Nivel</span>
                </div>
                <div className="stat-item">
-                 <span className="stat-value">{readCount}</span>
+                 <span className="stat-value">{stats.chaptersRead}</span>
                  <span className="stat-label">Capítulos</span>
                </div>
                <div className="stat-item">
-                 <span className="stat-value">1</span>
-                 <span className="stat-label">Racha</span>
+                 <span className="stat-value">{stats.commentsPosted}</span>
+                 <span className="stat-label">Social</span>
                </div>
              </div>
           </IonCardContent>
@@ -145,8 +185,8 @@ const ProfilePage: React.FC = () => {
         <div className="promo-banner">
           <IonIcon icon={trophyOutline} className="promo-icon" />
           <div className="promo-text">
-            <h4>¡Sigue leyendo!</h4>
-            <p>Lee {chaptersToNextLevel} capítulos más para subir al nivel {userLevel + 1}.</p>
+            <h4>¡Camino a {userStatsService.getRankName(level + 1)}!</h4>
+            <p>Te faltan {Math.ceil(xpNeededForThisLevel - currentXPProgress)} XP para subir al nivel {level + 1}.</p>
           </div>
         </div>
       </IonContent>
