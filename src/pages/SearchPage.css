@@ -250,8 +250,15 @@ ion-segment-button {
 .filter-pill-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 5px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.mini-pill {
+    min-width: 120px;
+    flex-shrink: 0;
 }
 
 .lang-segment-mini {

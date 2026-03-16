@@ -46,6 +46,8 @@ const SearchPage: React.FC = () => {
   const [completedOffset, setCompletedOffset] = useState(0);
   const [completedGenre, setCompletedGenre] = useState<string>('');
   const [completedLang, setCompletedLang] = useState<string>('es');
+  const [completedDemographic, setCompletedDemographic] = useState<string | null>(null);
+  const [completedStatus, setCompletedStatus] = useState<string>('completed'); // Default is completed for this tab
   const [isCompletedDone, setIsCompletedDone] = useState(false);
   
   // Modern Filters
@@ -139,7 +141,7 @@ const SearchPage: React.FC = () => {
     if (trending.length === 0) loadDiscoveryData();
   });
 
-  const fetchCompleted = async (isLoadMore = false, genre = completedGenre, lang = completedLang) => {
+  const fetchCompleted = async (isLoadMore = false, genre = completedGenre, lang = completedLang, demographic = completedDemographic) => {
     if (!isLoadMore) {
         setCompletedLoading(true);
         setCompletedOffset(0);
@@ -151,6 +153,12 @@ const SearchPage: React.FC = () => {
         const resp = await mangadexService.getFullyTranslatedMasterpieces(null, lang, 15, offsetToUse, genre || null);
         
         let newData = resp.data || [];
+        
+        // Manual Filtering for Demographics if needed, or we pass it to the service if supported
+        // Mangadex API supports publicationDemographic[]
+        if (demographic) {
+          newData = newData.filter((m: any) => m.attributes.publicationDemographic === demographic);
+        }
         
         if (!newData.length) {
             setIsCompletedDone(true);
@@ -540,7 +548,26 @@ const SearchPage: React.FC = () => {
                   <IonSegmentButton value="en">EN</IonSegmentButton>
                 </IonSegment>
 
-                <div className="genre-select-wrapper">
+                <div className="genre-select-wrapper mini-pill">
+                  <IonIcon icon={sparklesOutline} className="genre-icon-mini" />
+                  <IonSelect 
+                    value={completedDemographic} 
+                    placeholder="Demografía"
+                    interface="action-sheet"
+                    className="genre-select-mini"
+                    onIonChange={(e: any) => {
+                      setCompletedDemographic(e.detail.value);
+                      fetchCompleted(false, completedGenre, completedLang, e.detail.value);
+                    }}
+                  >
+                    <IonSelectOption value={null}>Todas</IonSelectOption>
+                    {DEMOGRAPHICS.slice(1).map(d => (
+                      <IonSelectOption key={d.value} value={d.value}>{d.label}</IonSelectOption>
+                    ))}
+                  </IonSelect>
+                </div>
+
+                <div className="genre-select-wrapper mini-pill">
                   <IonIcon icon={filterOutline} className="genre-icon-mini" />
                   <IonSelect 
                     value={completedGenre} 
@@ -552,13 +579,15 @@ const SearchPage: React.FC = () => {
                       fetchCompleted(false, e.detail.value);
                     }}
                   >
+                    <IonSelectOption value="">Cualquiera</IonSelectOption>
                     {[
-                      { val: '', label: 'Cualquier Género' },
                       { val: '391b0423-d847-456f-aff0-8b0cfc03066b', label: 'Acción' },
                       { val: '423e2eae-a7a2-4a8b-ac03-a8351462d71d', label: 'Romance' },
                       { val: 'cdc58593-87dd-415e-bbc0-2ec27bf404cc', label: 'Fantasía' },
                       { val: '4d32cc48-9f00-4cca-9b5a-a839f0764984', label: 'Comedia' },
-                      { val: 'eabc5b4c-6aff-42f3-b657-3e90cbd00b75', label: 'Sobrenatural' }
+                      { val: 'eabc5b4c-6aff-42f3-b657-3e90cbd00b75', label: 'Sobrenatural' },
+                      { val: 'ee06359e-bb02-4aa8-8314-90d74a47095a', label: 'Terror' },
+                      { val: 'ace0432b-33ee-4e51-b9cd-93ee44095493', label: 'Psicológico' }
                     ].map(g => (
                       <IonSelectOption key={g.val} value={g.val}>{g.label}</IonSelectOption>
                     ))}
