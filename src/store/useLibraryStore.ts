@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { db, auth } from '../services/firebase';
 
 interface MangaEntry {
   id: string;
@@ -29,6 +31,9 @@ interface LibraryState {
   isRead: (chapterId: string) => boolean;
   dataSaverMode: boolean;
   toggleDataSaver: () => void;
+  // Cloud Sync
+  syncFromCloud: (userId: string) => Promise<void>;
+  pushToCloud: (userId: string) => Promise<void>;
 }
 
 export const useLibraryStore = create<LibraryState>()(
@@ -37,11 +42,14 @@ export const useLibraryStore = create<LibraryState>()(
       favorites: [],
       toggleFavorite: (manga) => {
         const isFav = get().favorites.some(f => f.id === manga.id);
-        set({
-          favorites: isFav 
-            ? get().favorites.filter(f => f.id !== manga.id)
-            : [...get().favorites, manga]
-        });
+        const updated = isFav 
+          ? get().favorites.filter(f => f.id !== manga.id)
+          : [...get().favorites, manga];
+        
+        set({ favorites: updated });
+        
+        const user = auth.currentUser;
+        if (user) get().pushToCloud(user.uid);
       },
       isFavorite: (id) => get().favorites.some(f => f.id === id),
       history: {},
@@ -52,6 +60,9 @@ export const useLibraryStore = create<LibraryState>()(
             [mangaId]: progress
           }
         }));
+        
+        const user = auth.currentUser;
+        if (user) get().pushToCloud(user.uid);
       },
       getProgress: (mangaId) => get().history[mangaId] || null,
       readChapters: [],
@@ -77,6 +88,38 @@ export const useLibraryStore = create<LibraryState>()(
       isRead: (chapterId) => get().readChapters.includes(chapterId),
       dataSaverMode: false,
       toggleDataSaver: () => set((state) => ({ dataSaverMode: !state.dataSaverMode })),
+      
+      syncFromCloud: async (userId) => {
+        try {
+          const docRef = doc(db, 'users', userId);
+          const docSnap = await getDoc(docRef);
+          
+          if (docSnap.exists()) {
+            const cloudData = docSnap.data();
+            set({
+              favorites: cloudData.favorites || [],
+              history: cloudData.history || {},
+              readChapters: cloudData.readChapters || []
+            });
+          }
+        } catch (err) {
+          console.error('Error syncing from cloud:', err);
+        }
+      },
+
+      pushToCloud: async (userId) => {
+        try {
+          const docRef = doc(db, 'users', userId);
+          await setDoc(docRef, {
+            favorites: get().favorites,
+            history: get().history,
+            readChapters: get().readChapters,
+            updatedAt: Date.now()
+          }, { merge: true });
+        } catch (err) {
+          console.error('Error pushing to cloud:', err);
+        }
+      }
     }),
     { 
       name: 'kami-reader-library', 

@@ -23,9 +23,11 @@ import {
   IonLabel,
   IonToast
 } from '@ionic/react';
-import { personCircleOutline, notifications, refreshOutline, chevronDownOutline, libraryOutline, sparklesOutline, checkmarkCircle, chevronBackOutline, chevronForwardOutline } from 'ionicons/icons';
+import { personCircleOutline, notifications, refreshOutline, chevronDownOutline, libraryOutline, sparklesOutline, checkmarkCircle, chevronBackOutline, chevronForwardOutline, logInOutline, closeOutline } from 'ionicons/icons';
 import MangaCard from '../components/MangaCard';
 import { mangadexService } from '../services/mangadexService';
+import { firebaseAuthService } from '../services/firebaseAuthService';
+import { User } from 'firebase/auth';
 import LoadingScreen from '../components/LoadingScreen';
 import { useLibraryStore } from '../store/useLibraryStore';
 import './HomePage.css';
@@ -39,9 +41,11 @@ const HomePage: React.FC = () => {
   const [isDone, setIsDone] = useState(false);
   const [newChaptersCount, setNewChaptersCount] = useState(0);
   const [showNewBanner, setShowNewBanner] = useState(false);
-  const [showSecretToast, setShowSecretToast] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [showLoginHint, setShowLoginHint] = useState(true);
   const [latestLang, setLatestLang] = useState('es');
   const [popularManga, setPopularManga] = useState<any[]>([]);
+  const [featuredMasterpiece, setFeaturedMasterpiece] = useState<any | null>(null);
   const { history } = useLibraryStore();
   const router = useIonRouter();
   const heroTimer = useRef<NodeJS.Timeout | null>(null);
@@ -140,6 +144,15 @@ const HomePage: React.FC = () => {
       const popularResponse = await mangadexService.getPopularManga('', 'es', 15, 0);
       setPopularManga(popularResponse.data || []);
 
+      // Fetch a pool of diverse Masterpieces for promotion
+      // We fetch from any origin (null) but increase pool to ensure variety
+      const masterpieces = await mangadexService.getFullyTranslatedMasterpieces(null, 'es', 20, 0);
+      if (masterpieces.data && masterpieces.data.length > 0) {
+        // Shuffle to get a random one from the 20 results
+        const pool = masterpieces.data;
+        setFeaturedMasterpiece(pool[Math.floor(Math.random() * pool.length)]);
+      }
+
     } catch (error) {
       console.error('Error fetching home data:', error);
     } finally {
@@ -171,6 +184,16 @@ const HomePage: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+    
+    // Subscribe to Firebase Auth
+    const unsubscribe = firebaseAuthService.subscribe((user: User | null) => {
+      setCurrentUser(user);
+      if (user) {
+        useLibraryStore.getState().syncFromCloud(user.uid);
+      }
+    });
+
+    return () => unsubscribe();
   }, [latestLang]);
 
   const handleMangaClick = (manga: any) => {
@@ -197,6 +220,18 @@ const HomePage: React.FC = () => {
   const currentHero = heroMangas[heroIndex];
 
 
+  const handleProfileClick = async () => {
+    if (currentUser) {
+      router.push('/profile');
+    } else {
+      try {
+        await firebaseAuthService.loginWithGoogle();
+      } catch (err) {
+        console.error('Login failed:', err);
+      }
+    }
+  };
+
   return (
     <IonPage className="home-page-container">
       <IonHeader className="ion-no-border" translucent={true}>
@@ -208,24 +243,64 @@ const HomePage: React.FC = () => {
             </div>
           </IonTitle>
           <IonButtons slot="end">
-            <IonButton className="profile-btn" onClick={() => setShowSecretToast(true)}>
-              <IonIcon icon={personCircleOutline} />
+            <IonButton className="profile-btn" onClick={handleProfileClick}>
+              {currentUser ? (
+                currentUser.photoURL ? (
+                  <div className="user-avatar-small animate-pop-in">
+                    <img src={currentUser.photoURL} alt="user" />
+                  </div>
+                ) : (
+                  <div className="user-mascot-golden animate-pop-in">
+                    <img src="/mascot.png" alt="pro" />
+                  </div>
+                )
+              ) : (
+                <div className="user-icon-blank">
+                  <IonIcon icon={personCircleOutline} />
+                </div>
+              )}
             </IonButton>
           </IonButtons>
         </IonToolbar>
       </IonHeader>
-
-      <IonToast 
-        isOpen={showSecretToast}
-        onDidDismiss={() => setShowSecretToast(false)}
-        message="Pronto podrás ver el secreto que te tenemos aquí"
-        duration={3000}
-        position="bottom"
-        color="secondary"
-        cssClass="secret-toast"
-      />
-
       <IonContent fullscreen className="ion-padding">
+        {/* Minimalist Floating Login/Welcome Hint */}
+        {showLoginHint && (
+          <div className="minimal-login-dock animate-slide-up">
+            <div className="dock-content">
+              {!currentUser ? (
+                <>
+                  <img src="/mascot.png" alt="Mascota" className="dock-mini-mascot" />
+                  <div className="dock-text">
+                    <p>¡No pierdas tu progreso!</p>
+                  </div>
+                  <IonButton fill="clear" className="dock-login-btn" onClick={handleProfileClick}>
+                    CONECTAR
+                  </IonButton>
+                </>
+              ) : (
+                <>
+                  <div className="dock-mini-avatar">
+                   {currentUser.photoURL ? <img src={currentUser.photoURL} alt="Mascota" /> : <div className="mini-mascot-pill"><img src="/mascot.png" alt="pro" /></div>}
+                  </div>
+                  <div className="dock-text">
+                    <p>¡Hola, {currentUser.displayName?.split(' ')[0]}! 🌟</p>
+                  </div>
+                  <IonButton fill="clear" className="dock-logout-btn" onClick={async () => { await firebaseAuthService.logout(); setShowLoginHint(false); }}>
+                    SALIR
+                  </IonButton>
+                  <IonButton fill="clear" className="dock-login-btn" onClick={() => router.push('/profile')}>
+                    PERFIL
+                  </IonButton>
+                </>
+              )}
+              <IonButton fill="clear" className="dock-close-btn" onClick={() => setShowLoginHint(false)}>
+                <IonIcon icon={closeOutline} />
+              </IonButton>
+            </div>
+          </div>
+        )}
+
         <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
           <IonRefresherContent></IonRefresherContent>
         </IonRefresher>
@@ -375,74 +450,102 @@ const HomePage: React.FC = () => {
               ))}
             </div>
 
-            {/* Deduplicate Latest Updates against Popular */}
+            {/* Content Logic */}
             {(() => {
               const filteredLatest = latest.filter((m: any) => 
                 !popularManga.some(p => p.id === m.id)
               );
 
-              return filteredLatest.length > 0 ? (
-                <div className="manga-list-container">
-                  {filteredLatest.map((manga: any) => {
-                    const mangaTitle = mangadexService.getLocalizedTitle(manga);
-                    const coverUrl = mangadexService.getCoverUrl(manga);
-                    const format = manga?.attributes?.originalLanguage;
-                    const isManhwa = format === 'ko';
-                    const isManhua = format === 'zh';
-                    const formatLabel = isManhwa ? 'Manhwa' : isManhua ? 'Manhua' : 'Manga';
-                    
-                    // Use injected precise data from mangadexService.getLatestUpdatedManga
-                    const lastChapter = manga?.attributes?.latestChapterNumber || manga?.attributes?.lastChapter;
-                    const readableAt = manga?.attributes?.latestChapterReadableAt || manga?.attributes?.updatedAt;
-                    const timeAgo = readableAt ? getTimeAgo(readableAt) : '';
-                    const tags = manga?.attributes?.tags
-                      ?.filter((t: any) => t.attributes?.group === 'genre')
-                      .slice(0, 2) // Take up to 2 genres for the list view
-                      .map((t: any) => t.attributes?.name?.en || t.attributes?.name?.es || '');
-                    
-                    return (
-                      <div 
-                        key={manga.id} 
-                        className="manga-list-item animate-fade-in"
-                        onClick={() => handleLatestClick(manga)}
-                      >
-                        <div className="list-item-cover-wrapper">
-                          <img src={coverUrl} alt={mangaTitle as string} className="list-item-cover" loading="lazy" />
-                          <div className="list-item-format-badge">{formatLabel}</div>
-                        </div>
-                        <div className="list-item-details">
-                          <h3 className="list-item-title">{mangaTitle}</h3>
-                          
-                          <div className="list-item-meta">
-                            {tags && tags.length > 0 && (
-                              <div className="list-item-tags">
-                                {tags.map((tag: string, idx: number) => (
-                                  <span key={idx} className="list-item-tag">{tag}</span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          
-                          <div className="list-item-footer">
-                            <div className="list-item-chapter">
-                              <span className="chapter-label">
-                                {lastChapter ? `Cap. ${lastChapter}` : 'Nuevo'}
+              return (
+                <div className="home-sections-combined">
+                  {/* --- Promotion Section: Obras Maestras --- */}
+                  {featuredMasterpiece && (
+                    <div className="masterpiece-promotion" onClick={() => handleLatestClick(featuredMasterpiece)}>
+                      <div className="promo-badge">RECOMENDADO</div>
+                      <div className="promo-content">
+                        <img 
+                          src={mangadexService.getCoverUrl(featuredMasterpiece)} 
+                          alt="promo" 
+                          className="promo-image" 
+                        />
+                        <div className="promo-text">
+                          <span className="promo-label">
+                            {featuredMasterpiece.attributes?.mangaType || 'Obra Maestra'} Finalizada
+                          </span>
+                          <h3 className="promo-title">{mangadexService.getLocalizedTitle(featuredMasterpiece)}</h3>
+                          <p className="promo-desc">
+                            Esta obra está 100% completada y traducida. ¡Ideal para maratonear!
+                          </p>
+                          <div className="promo-tags">
+                            {featuredMasterpiece.attributes?.tags?.slice(0, 3).map((t: any, i: number) => (
+                              <span key={i} className="promo-tag">
+                                {t.attributes?.name?.en || t.attributes?.name?.es}
                               </span>
-                            </div>
-                            <div className="list-item-time">
-                              <IonIcon icon={refreshOutline} className="time-icon" />
-                              <span>{timeAgo}</span>
-                            </div>
+                            ))}
                           </div>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.7 }}>
-                  <p>No se encontraron capítulos recientes (o ya están todos en Tendencias).</p>
-                  <IonButton fill="clear" onClick={() => fetchData()}>Reintentar</IonButton>
+                    </div>
+                  )}
+
+                  {filteredLatest.length > 0 ? (
+                    <div className="manga-list-container">
+                      {filteredLatest.map((manga: any) => {
+                        const mangaTitle = mangadexService.getLocalizedTitle(manga);
+                        const coverUrl = mangadexService.getCoverUrl(manga);
+                        const formatLabel = manga?.attributes?.mangaType || 'Manga';
+                        
+                        const lastChapter = manga?.attributes?.latestChapterNumber || manga?.attributes?.lastChapter;
+                        const readableAt = manga?.attributes?.latestChapterReadableAt || manga?.attributes?.updatedAt;
+                        const timeAgo = readableAt ? getTimeAgo(readableAt) : '';
+                        const tags = manga?.attributes?.tags
+                          ?.filter((t: any) => t.attributes?.group === 'genre')
+                          .slice(0, 2)
+                          .map((t: any) => t.attributes?.name?.en || t.attributes?.name?.es || '');
+                        
+                        return (
+                          <div 
+                            key={manga.id} 
+                            className="manga-list-item animate-fade-in"
+                            onClick={() => handleLatestClick(manga)}
+                          >
+                            <div className="list-item-cover-wrapper">
+                              <img src={coverUrl} alt={mangaTitle as string} className="list-item-cover" loading="lazy" />
+                              <div className="list-item-format-badge">{formatLabel}</div>
+                            </div>
+                            <div className="list-item-details">
+                              <h3 className="list-item-title">{mangaTitle}</h3>
+                              <div className="list-item-meta">
+                                {tags && tags.length > 0 && (
+                                  <div className="list-item-tags">
+                                    {tags.map((tag: string, idx: number) => (
+                                      <span key={idx} className="list-item-tag">{tag}</span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="list-item-footer">
+                                <div className="list-item-chapter">
+                                  <span className="chapter-label">
+                                    {lastChapter ? `Cap. ${lastChapter}` : 'Nuevo'}
+                                  </span>
+                                </div>
+                                <div className="list-item-time">
+                                  <IonIcon icon={refreshOutline} className="time-icon" />
+                                  <span>{timeAgo}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.7 }}>
+                      <p>No se encontraron capítulos recientes.</p>
+                      <IonButton fill="clear" onClick={() => fetchData(true)}>Reintentar</IonButton>
+                    </div>
+                  )}
                 </div>
               );
             })()}

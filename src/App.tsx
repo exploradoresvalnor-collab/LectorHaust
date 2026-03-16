@@ -21,6 +21,7 @@ import SearchPage from './pages/SearchPage';
 import LibraryPage from './pages/LibraryPage';
 import MangaDetailsPage from './pages/MangaDetailsPage';
 import ReaderPage from './pages/ReaderPage';
+import ProfilePage from './pages/ProfilePage';
 import { useState, useEffect } from 'react';
 import { useLibraryStore } from './store/useLibraryStore';
 import { checkUpdatesForLibrary, MangaUpdate } from './services/updateService';
@@ -66,7 +67,7 @@ const AppContent: React.FC = () => {
   const location = useLocation();
 
   // Paths where we want to HIDE the bottom tab bar
-  const hiddenTabsPaths = ['/reader/', '/manga/'];
+  const hiddenTabsPaths = ['/reader/', '/manga/', '/profile'];
   const shouldHideTabs = hiddenTabsPaths.some(path => location.pathname.includes(path));
 
   useEffect(() => {
@@ -91,6 +92,7 @@ const AppContent: React.FC = () => {
           <Route exact path="/reader/:chapterId" component={ReaderPage} />
           <Route exact path="/search" component={SearchPage} />
           <Route path="/library" component={LibraryPage} />
+          <Route exact path="/profile" component={ProfilePage} />
           <Route exact path="/">
             <Redirect to="/home" />
           </Route>

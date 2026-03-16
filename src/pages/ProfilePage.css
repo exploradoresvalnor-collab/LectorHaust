@@ -1,0 +1,182 @@
+.profile-page {
+  --background: #0f0f12;
+}
+
+.profile-toolbar {
+  --background: transparent;
+  --color: white;
+}
+
+.profile-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3rem 1rem 2rem;
+  text-align: center;
+}
+
+.avatar-container {
+  position: relative;
+  margin-bottom: 1.5rem;
+}
+
+.main-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 4px solid var(--ion-color-primary);
+  box-shadow: 0 0 30px rgba(139, 92, 246, 0.4);
+  background: #1a1a1a;
+}
+
+.status-indicator {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  background: #10dc60;
+  border: 4px solid #0f0f12;
+  border-radius: 50%;
+}
+
+.user-name {
+  font-size: 2rem;
+  font-weight: 800;
+  margin: 0;
+  color: white;
+  letter-spacing: -1px;
+}
+
+.user-email {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 1rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.badge-belt {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.profile-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+}
+
+/* Stats Card */
+.stats-card {
+  margin: 1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  text-align: center;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: white;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 4px;
+}
+
+/* Options List */
+.section-title {
+  margin: 2rem 1.5rem 1rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ion-color-primary);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.glass-list {
+  background: transparent !important;
+  margin: 0 1rem;
+}
+
+.option-item {
+  --background: rgba(255, 255, 255, 0.03);
+  --border-radius: 15px;
+  margin-bottom: 8px;
+  --border-style: none;
+  --padding-start: 16px;
+  --padding-top: 10px;
+  --padding-bottom: 10px;
+  backdrop-filter: blur(10px);
+}
+
+.option-item h2 {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.option-item p {
+  font-size: 0.85rem;
+  opacity: 0.6;
+}
+
+/* Promo Banner */
+.promo-banner {
+  margin: 2rem 1rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(217, 70, 239, 0.2));
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.promo-icon {
+  font-size: 2.5rem;
+  color: #ffca28;
+  filter: drop-shadow(0 0 10px rgba(255, 202, 40, 0.4));
+}
+
+.promo-text h4 {
+  margin: 0;
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.promo-text p {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+/* Glass Effect Card */
+.glass-card {
+  background: rgba(26, 26, 26, 0.6);
+  backdrop-filter: blur(20px);
+}
+
+.main-avatar-icon {
+    font-size: 100px;
+    color: #FFD700;
+    filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5));
+}
+
+.user-icon-golden {
+    color: #FFD700;
+}

@@ -84,7 +84,58 @@ export interface Manga {
     }>;
 }
 
+const LONG_STRIP_TAG_ID = '3e130c23-d63d-4c3d-b4a4-f0ea7df5711c';
+const FOUR_KOMA_TAG_ID = 'b11fda93-8f1d-4bef-b2ed-8803d3733170';
+const WEB_COMIC_TAG_ID = 'e197df38-d0e7-43b5-9b09-2842d0c326dd';
+
 export const mangadexService = {
+    /**
+     * Determines the type of manga (Manga, Manhwa, Manhua, Webtoon, Diario)
+     */
+    getMangaType(manga: any): string {
+        const origin = manga.attributes?.originalLanguage;
+        const tags = manga.attributes?.tags || [];
+        
+        const isLongStrip = tags.some((t: any) => t.id === LONG_STRIP_TAG_ID || t.attributes?.name?.en === 'Long Strip');
+        const isDaily = tags.some((t: any) => 
+            t.id === FOUR_KOMA_TAG_ID || 
+            t.id === WEB_COMIC_TAG_ID || 
+            t.attributes?.name?.en === '4-Koma' || 
+            t.attributes?.name?.en === 'Web Comic'
+        );
+
+        if (isLongStrip) return 'Webtoon';
+        if (origin === 'ko') return 'Manhwa';
+        if (origin === 'zh' || origin === 'zh-hk') return 'Manhua';
+        return 'Manga';
+    },
+
+    // Internal helper to check if daily for variety logic
+    isDailyManga(manga: any): boolean {
+        const tags = manga.attributes?.tags || [];
+        return tags.some((t: any) => 
+            t.id === FOUR_KOMA_TAG_ID || 
+            t.id === WEB_COMIC_TAG_ID || 
+            t.attributes?.name?.en === '4-Koma' || 
+            t.attributes?.name?.en === 'Web Comic'
+        );
+    },
+
+    /**
+     * Gets a localized language name
+     */
+    getLangName(lang: string): string {
+        const names: Record<string, string> = {
+            'ja': 'Japón',
+            'ko': 'Corea',
+            'zh': 'China',
+            'zh-hk': 'China (HK)',
+            'en': 'Inglés',
+            'es': 'Español',
+            'es-la': 'Español (Lat)'
+        };
+        return names[lang] || lang;
+    },
     /**
      * Search for manga with various filters
      */
@@ -274,6 +325,8 @@ export const mangadexService = {
                     }
 
                     if (hasLastChapter) {
+                        // Inyectamos el tipo de manga
+                        manga.attributes.mangaType = this.getMangaType(manga);
                         return manga;
                     }
                     return null;
@@ -298,19 +351,9 @@ export const mangadexService = {
         }
     },
 
-    /**
-     * Get mangas ordered by latest chapter update (AnimeFLV style)
-     */
-    /**
-     * Get mangas ordered by latest chapter update with ACCURATE timestamps (readableAt).
-     * This fetches chapters and groups them by manga.
-     */
-    /**
-     * Get mangas ordered by latest chapter update with ACCURATE timestamps (readableAt).
-     * This fetches chapters first to get timestamps, then fetches full manga data with covers.
-     */
     async getLatestUpdatedManga(limit = 12, offset = 0, lang = 'es') {
-        const fetchLimit = limit * 2;
+        // Increase initial fetch to find enough variety
+        const fetchLimit = limit * 4; 
         let url = `/chapter?limit=${fetchLimit}&offset=${offset}&contentRating[]=safe&contentRating[]=suggestive&order[readableAt]=desc&includes[]=manga`;
         
         if (lang === 'es') {
@@ -328,40 +371,78 @@ export const mangadexService = {
 
             for (const chapter of chapters) {
                 const mangaRel = chapter.relationships.find((r: any) => r.type === 'manga');
-                if (!mangaRel || seenMangaIds.has(mangaRel.id)) continue;
+                
+                // CRITICAL: Filter out external links (MangaPlus, etc.) and empty chapters
+                const isExternal = !!chapter.attributes.externalUrl;
+                const pageCount = chapter.attributes.pages || 0;
+                
+                if (!mangaRel || seenMangaIds.has(mangaRel.id) || isExternal || pageCount === 0) continue;
 
                 seenMangaIds.add(mangaRel.id);
                 mangaIdToChapterData[mangaRel.id] = {
                     readableAt: chapter.attributes.readableAt,
                     chapter: chapter.attributes.chapter
                 };
-                if (seenMangaIds.size >= limit) break;
             }
 
             const uniqueIds = Array.from(seenMangaIds);
             if (uniqueIds.length === 0) return { data: [] };
 
-            // Fetch full manga details with covers for these IDs
-            let mangaUrl = `/manga?limit=${uniqueIds.length}&includes[]=cover_art&includes[]=author`;
-            uniqueIds.forEach(id => mangaUrl += `&ids[]=${id}`);
+            // Fetch full manga details (Batch) - 50 max to stay safe
+            let mangaUrl = `/manga?limit=${Math.min(uniqueIds.length, 50)}&includes[]=cover_art&includes[]=author`;
+            uniqueIds.slice(0, 50).forEach(id => mangaUrl += `&ids[]=${id}`);
             
             const mangaResp = await apiFetch(mangaUrl);
             const fullMangas = mangaResp.data || [];
 
-            // Merge the chapter timestamp back into the full manga objects
+            // Merge details and Identify Type
             const mergedMangas = fullMangas.map((manga: any) => ({
                 ...manga,
                 attributes: {
                     ...manga.attributes,
                     latestChapterReadableAt: mangaIdToChapterData[manga.id]?.readableAt,
-                    latestChapterNumber: mangaIdToChapterData[manga.id]?.chapter
+                    latestChapterNumber: mangaIdToChapterData[manga.id]?.chapter,
+                    mangaType: this.getMangaType(manga)
                 }
             }));
 
-            // Sort them back to the order we found them in chapters (importance of readability)
-            const sortedMangas = uniqueIds.map(id => mergedMangas.find((m: any) => m.id === id)).filter(Boolean);
+            // Re-sort by actual chapter date (batch might return unsorted)
+            const sorted = mergedMangas.sort((a: any, b: any) => {
+                const dateA = new Date(a.attributes.latestChapterReadableAt).getTime();
+                const dateB = new Date(b.attributes.latestChapterReadableAt).getTime();
+                return dateB - dateA;
+            });
 
-            return { data: sortedMangas };
+            // Diversification Strategy: Mix origins and "Diario" content
+            const result: any[] = [];
+            const variety = sorted.filter((m: any) => 
+                m.attributes.originalLanguage !== 'ja' || 
+                this.isDailyManga(m)
+            );
+            const japaneseRegular = sorted.filter((m: any) => 
+                m.attributes.originalLanguage === 'ja' && 
+                !this.isDailyManga(m)
+            );
+
+            // Interleave: 1 Variety every 2 Japanese Regular to ensure variety
+            let vIdx = 0;
+            let jIdx = 0;
+            while (result.length < limit && (vIdx < variety.length || jIdx < japaneseRegular.length)) {
+                // Add 1 variety (Manhwa, Manhua, Webtoon or Diario)
+                if (vIdx < variety.length) {
+                    result.push(variety[vIdx++]);
+                }
+                // Add up to 2 Japanese
+                for (let i = 0; i < 2 && jIdx < japaneseRegular.length && result.length < limit; i++) {
+                    result.push(japaneseRegular[jIdx++]);
+                }
+            }
+            
+            // Fill remaining if needed
+            while (result.length < limit && vIdx < variety.length) result.push(variety[vIdx++]);
+            while (result.length < limit && jIdx < japaneseRegular.length) result.push(japaneseRegular[jIdx++]);
+
+            return { data: result };
         } catch (err) {
             console.error('Error fetching latest updated manga:', err);
             throw err;

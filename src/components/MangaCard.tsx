@@ -14,7 +14,15 @@ interface MangaCardProps {
 
 const MangaCard: React.FC<MangaCardProps> = ({ title, coverUrl, format, tags = [], progressLabel, onClick }) => {
   const getBadgeInfo = () => {
-    switch(format?.toLowerCase()) {
+    if (!format) return null;
+    const lowerFormat = format.toLowerCase();
+    
+    // Check if it's already a full label from our service
+    if (['webtoon', 'manhwa', 'manhua', 'manga'].includes(lowerFormat)) {
+      return { label: format.toUpperCase(), class: lowerFormat };
+    }
+
+    switch(lowerFormat) {
       case 'ja': return { label: 'MANGA', class: 'manga' };
       case 'ko': return { label: 'MANHWA', class: 'manhwa' };
       case 'zh': return { label: 'MANHUA', class: 'manhua' };

@@ -578,11 +578,11 @@ const SearchPage: React.FC = () => {
                 <IonGrid className="ion-no-padding">
                   <IonRow>
                     {completedManga.map((manga: any) => (
-                      <IonCol size="4" sizeMd="3" key={manga.id} className="ion-no-padding">
+                      <IonCol size="4" sizeMd="3" sizeLg="2" key={manga.id} className="ion-no-padding">
                         <MangaCard 
-                          title={mangadexService.getLocalizedTitle(manga) as string}
+                          title={mangadexService.getLocalizedTitle(manga)}
                           coverUrl={mangadexService.getCoverUrl(manga)}
-                          format={manga.attributes.originalLanguage}
+                          format={manga.attributes.mangaType || manga.attributes.originalLanguage}
                           onClick={() => router.push(`/manga/${manga.id}`)}
                         />
                       </IonCol>
