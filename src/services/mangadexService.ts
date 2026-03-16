@@ -87,6 +87,39 @@ export interface Manga {
 const LONG_STRIP_TAG_ID = '3e130c23-d63d-4c3d-b4a4-f0ea7df5711c';
 const FOUR_KOMA_TAG_ID = 'b11fda93-8f1d-4bef-b2ed-8803d3733170';
 const WEB_COMIC_TAG_ID = 'e197df38-d0e7-43b5-9b09-2842d0c326dd';
+const COLOR_TAG_ID = 'f5ba401b-8e31-480a-98b5-9e90989d3325';
+const GENRE_UUIDS: Record<string, string> = {
+    'action': '391b0423-d847-456f-aff0-8b0cfc03066b',
+    'romance': '423e2eae-a7a2-4a8b-ac03-a8351462d71d',
+    'fantasy': 'cdc58593-87dd-415e-bbc0-2ec27bf404cc',
+    'comedy': '4d32cc48-9f00-4cca-9b5a-a839f0764984',
+    'slice of life': 'e5301a23-ebd9-49dd-a0cb-2add944c7fe9',
+    'drama': 'b9af3a63-f058-46de-a9a0-e0c13906197a',
+    'sci-fi': '256c8bd9-4904-4360-bf4f-508a76d67183',
+    'mystery': 'ee968100-4191-4968-93d3-f82d72be7e46',
+    'horror': 'cdad7e68-1419-41dd-bdce-27753074a640',
+    'thriller': '07251805-a27e-4d59-b469-f980d8e14f56',
+    'isekai': 'ace04997-f6bd-436e-b261-779182193d3d',
+    'adventure': '87db829e-ada1-4581-bb9d-90977d5d7425',
+    'sports': '69960289-ad1e-45e4-bf72-74574e57e330',
+    'supernatural': 'e1215448-a0fd-44f3-9529-16a2d9c464c0',
+    'psychological': '3b60b75c-a2d7-4860-8d7a-b76e002da81f',
+    'historical': '33771934-abc2-4c8a-a435-0810dbce2062',
+    'cooking': 'ea5863d0-31cd-496d-896c-1372337cca54',
+    'music': 'ac728339-231b-427d-83b1-06158a0a575a',
+    'mecha': '5088fe6a-1c07-4de4-82b3-ef37d6e6abb9',
+    'school life': 'caaa44ca-6df5-428a-9a36-71eeab971ec3',
+    'gore': 'b29d6a3d-1514-4da3-b0e6-3482d708ca6d',
+    'crime': '5ca48418-4447-49f3-96b6-aae782fc492d',
+    'magical girls': '81c83e12-bb9d-4344-93d3-78430f78994a',
+    'medical': 'c8cbe35b-1b2b-4a3f-9c37-db84c4514856',
+    'philosophical': 'b1e97889-25b4-4258-b28b-cd7f4d28ea9b',
+    // Missing Spanish translations mapped for safety
+    'música': 'f42fbf9e-188a-447b-9fdc-f19dc1e4d685',
+    'cocina': 'ea2bc92d-1c26-4930-9b7c-d5c0dc1d6869',
+    'deportes': '69b626e5-1981-4148-9f5b-fc13bf733732',
+    'sobrenatural': 'eabc5b4c-6aff-42f3-b657-3e90cbd00b75'
+};
 
 export const mangadexService = {
     /**
@@ -139,7 +172,7 @@ export const mangadexService = {
     /**
      * Search for manga with various filters
      */
-    async searchManga(query: string, filters: { origin?: string, lang?: string, tags?: string[], status?: string, demographic?: string } = {}, limit = 20, offset = 0, order?: any) {
+    async searchManga(query: string, filters: { origin?: string, lang?: string, tags?: string[], status?: string, demographic?: string, fullColor?: boolean } = {}, limit = 20, offset = 0, order?: any) {
         let url = `/manga?limit=${limit}&offset=${offset}&includes[]=cover_art&includes[]=author&contentRating[]=safe&contentRating[]=suggestive`;
         
         if (query) {
@@ -167,39 +200,14 @@ export const mangadexService = {
         }
 
         if (filters.tags && filters.tags.length > 0) {
-            // Common MangaDex Genre UUIDs
-            const GENRE_UUIDS: Record<string, string> = {
-                'action': '391b0423-d847-456f-aff0-8b0cfc03066b',
-                'romance': '423e2eae-a7a2-4a8b-ac03-a8351462d71d',
-                'fantasy': 'cdc58593-87dd-415e-bbc0-2ec27bf404cc',
-                'comedy': '4d32cc48-9f00-4cca-9b5a-a839f0764984',
-                'slice of life': 'e5301a23-ebd9-49dd-a0cb-2add944c7fe9',
-                'drama': 'b9af3a63-f058-46de-a9a0-e0c13906197a',
-                'sci-fi': '256c8bd9-4904-4360-bf4f-508a76d67183',
-                'mystery': 'ee968100-4191-4968-93d3-f82d72be7e46',
-                'horror': 'cdad7e68-1419-41dd-bdce-27753074a640',
-                'thriller': '07251805-a27e-4d59-b469-f980d8e14f56',
-                'isekai': 'ace04997-f6bd-436e-b261-779182193d3d',
-                'adventure': '87db829e-ada1-4581-bb9d-90977d5d7425',
-                'sports': '69960289-ad1e-45e4-bf72-74574e57e330',
-                'supernatural': 'e1215448-a0fd-44f3-9529-16a2d9c464c0',
-                'psychological': '3b60b75c-a2d7-4860-8d7a-b76e002da81f',
-                'historical': '33721053-bc4a-4c22-92f5-23e59508bc5c',
-                'cooking': 'ea5863d0-31cd-496d-896c-1372337cca54',
-                'music': 'ac728339-231b-427d-83b1-06158a0a575a',
-                'mecha': '5088fe6a-1c07-4de4-82b3-ef37d6e6abb9',
-                'school life': 'caaa44ca-6df5-428a-9a36-71eeab971ec3',
-                'gore': 'b29d6a3d-1514-4da3-b0e6-3482d708ca6d',
-                'crime': '5ca48418-4447-49f3-96b6-aae782fc492d',
-                'magical girls': '81c83e12-bb9d-4344-93d3-78430f78994a'
-            };
-            
             filters.tags.forEach(tag => {
-                const uuid = GENRE_UUIDS[tag.toLowerCase()];
-                if (uuid) {
-                    url += `&includedTags[]=${uuid}`;
-                }
+                const uuid = GENRE_UUIDS[tag.toLowerCase()] || tag;
+                url += `&includedTags[]=${uuid}`;
             });
+        }
+
+        if (filters.fullColor) {
+            url += `&includedTags[]=${COLOR_TAG_ID}`;
         }
 
         return apiFetch(url);
@@ -208,7 +216,7 @@ export const mangadexService = {
     /**
      * Get popular manga filtered by language and origin
      */
-    async getPopularManga(origin: string | null = null, lang: string | null = 'es', limit = 12, offset = 0, genre: string | null = null): Promise<any> {
+    async getPopularManga(origin: string | null = null, lang: string | null = 'es', limit = 12, offset = 0, genre: string | null = null, fullColor = false): Promise<any> {
         let url = `/manga?limit=${limit}&offset=${offset}&hasAvailableChapters=true&contentRating[]=safe&contentRating[]=suggestive&order[followedCount]=desc&includes[]=cover_art`;
         
         if (lang) {
@@ -219,7 +227,12 @@ export const mangadexService = {
         }
 
         if (genre) {
-            url += `&includedTags[]=${genre}`;
+            const uuid = GENRE_UUIDS[genre.toLowerCase()] || genre;
+            url += `&includedTags[]=${uuid}`;
+        }
+
+        if (fullColor) {
+            url += `&includedTags[]=${COLOR_TAG_ID}`;
         }
 
         if (origin) {
@@ -252,10 +265,17 @@ export const mangadexService = {
      * Deep Fetch: Gets completed mangas and strictly verifies if all published chapters 
      * are translated to the target language (default 'es').
      */
-    async getFullyTranslatedMasterpieces(origin: string | null = null, lang: string | null = 'es', limit = 12, offset = 0, genre: string | null = null): Promise<any> {
+    async getFullyTranslatedMasterpieces(origin: string | null = null, lang: string | null = 'es', limit = 12, offset = 0, genre: string | null = null, fullColor = false): Promise<any> {
         // Lower limit pool to avoid 500 timeouts on complex queries
         const fetchLimit = limit * 2; 
-        let url = `/manga?limit=${fetchLimit}&offset=${offset}&hasAvailableChapters=true&status[]=completed&contentRating[]=safe&contentRating[]=suggestive&order[rating]=desc&includes[]=cover_art`;
+        let url = `/manga?limit=${fetchLimit}&offset=${offset}&hasAvailableChapters=true&contentRating[]=safe&contentRating[]=suggestive&order[rating]=desc&includes[]=cover_art`;
+        
+        if (fullColor) {
+            // Include both completed and ongoing for color content, as many finished manhwas are still ongoing in MD
+            url += `&status[]=completed&status[]=ongoing`;
+        } else {
+            url += `&status[]=completed`;
+        }
         
         const aggregatedLang = lang === 'es' ? ['es', 'es-la'] : [lang || 'en'];
         
@@ -264,7 +284,12 @@ export const mangadexService = {
         });
 
         if (genre) {
-            url += `&includedTags[]=${genre}`;
+            const uuid = GENRE_UUIDS[genre.toLowerCase()] || genre;
+            url += `&includedTags[]=${uuid}`;
+        }
+
+        if (fullColor) {
+            url += `&includedTags[]=${COLOR_TAG_ID}`;
         }
 
         if (origin) {

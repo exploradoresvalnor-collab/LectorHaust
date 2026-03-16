@@ -12,17 +12,9 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-// Debug Presence (Safe - No values logged)
-console.log('🔍 Firebase Env Keys Present:', {
-  hasApiKey: !!firebaseConfig.apiKey,
-  hasAuthDomain: !!firebaseConfig.authDomain,
-  hasProjectId: !!firebaseConfig.projectId,
-});
-
-// Initialize Firebase (Fix for HMR)
+// Initialize Firebase
 let app;
 if (!getApps().length) {
-  console.log('🔥 Firebase: Initializing app...');
   if (!firebaseConfig.apiKey) {
     console.warn('⚠️ Firebase: API Key is missing! Check your .env file.');
   }

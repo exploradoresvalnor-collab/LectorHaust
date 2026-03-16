@@ -51,6 +51,8 @@ const HomePage: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showLoginHint, setShowLoginHint] = useState(true);
   const [latestLang, setLatestLang] = useState('es');
+  // New State for Home Completed Jewels Promo
+  const [completedMasterpieces, setCompletedMasterpieces] = useState<any[]>([]);
   const [popularManga, setPopularManga] = useState<any[]>([]);
   const [featuredMasterpiece, setFeaturedMasterpiece] = useState<any | null>(null);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
@@ -153,10 +155,10 @@ const HomePage: React.FC = () => {
       setPopularManga(popularResponse.data || []);
 
       // Fetch a pool of diverse Masterpieces for promotion
-      // We fetch from any origin (null) but increase pool to ensure variety
-      const masterpieces = await mangadexService.getFullyTranslatedMasterpieces(null, 'es', 20, 0);
+      const masterpieces = await mangadexService.getFullyTranslatedMasterpieces(null, 'es', 15, 0);
       if (masterpieces.data && masterpieces.data.length > 0) {
-        // Shuffle to get a random one from the 20 results
+        setCompletedMasterpieces(masterpieces.data);
+        // Featured promo is a random one from the 15 results
         const pool = masterpieces.data;
         setFeaturedMasterpiece(pool[Math.floor(Math.random() * pool.length)]);
       }
@@ -229,14 +231,6 @@ const HomePage: React.FC = () => {
     await fetchData(true);
     event.detail.complete();
   };
-
-  if (loading) {
-    return (
-      <IonPage>
-        <LoadingScreen />
-      </IonPage>
-    );
-  }
 
   const currentHero = heroMangas[heroIndex];
 
@@ -345,7 +339,12 @@ const HomePage: React.FC = () => {
         )}
 
         <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
-          <IonRefresherContent></IonRefresherContent>
+          <IonRefresherContent 
+            pullingIcon={chevronDownOutline}
+            refreshingSpinner="crescent"
+            pullingText="Desliza para actualizar"
+            refreshingText="Cargando novedades..."
+          />
         </IonRefresher>
 
         {/* New Chapters Notification Banner */}
@@ -366,7 +365,16 @@ const HomePage: React.FC = () => {
 
         {/* Rotating Hero Banner */}
         <div className="hero-container animate-fade-in">
-          {currentHero ? (
+          {loading ? (
+             <div className="hero-card hero-skeleton">
+               <div className="hero-info">
+                 <IonSkeletonText animated style={{ width: '120px', height: '24px', borderRadius: '12px', marginBottom: '10px' }} />
+                 <IonSkeletonText animated style={{ width: '80%', height: '40px', marginBottom: '15px' }} />
+                 <IonSkeletonText animated style={{ width: '90%', height: '60px', marginBottom: '20px' }} />
+                 <IonSkeletonText animated style={{ width: '140px', height: '36px', borderRadius: '18px' }} />
+               </div>
+             </div>
+          ) : currentHero ? (
             <div 
               className="hero-card hero-transition" 
               key={heroIndex}
@@ -394,7 +402,6 @@ const HomePage: React.FC = () => {
                   />
                 ))}
               </div>
-              {/* Bouncing down arrow */}
               <div 
                 className="scroll-indicator"
                 onClick={(e) => {
@@ -454,6 +461,52 @@ const HomePage: React.FC = () => {
                 )}
               </div>
               <IonButton fill="clear" className="carousel-scroll-btn right" onClick={(e) => { e.stopPropagation(); scrollCarousel('popular-carousel', 'right'); }}>
+                <IonIcon icon={chevronForwardOutline} />
+              </IonButton>
+            </div>
+          </div>
+        )}
+
+        {/* --- CAROUSEL: Joyas Finalizadas --- */}
+        {(completedMasterpieces.length > 0 || loading) && (
+          <div className="animate-fade-in" style={{ marginTop: '1.5rem' }}>
+            <div className="section-header" style={{ paddingBottom: '0.5rem' }}>
+              <div className="accent-bar" style={{ background: '#4caf50' }}></div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <h2 style={{ marginBottom: 0 }}>Joyas Finalizadas 🏆</h2>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Obras 100% traducidas</span>
+              </div>
+            </div>
+            <div className="carousel-wrapper">
+              <IonButton fill="clear" className="carousel-scroll-btn left" onClick={(e) => { e.stopPropagation(); scrollCarousel('completed-carousel', 'left'); }}>
+                <IonIcon icon={chevronBackOutline} />
+              </IonButton>
+              <div className="manga-carousel" id="completed-carousel">
+                {loading ? (
+                  [1,2,3,4,5].map(i => (
+                    <div key={`skel-comp-${i}`} className="carousel-card">
+                      <IonSkeletonText animated style={{ width: '130px', height: '190px', borderRadius: '8px' }} />
+                    </div>
+                  ))
+                ) : (
+                  completedMasterpieces.map((manga: any) => (
+                    <div 
+                      key={`comp-${manga.id}`} 
+                      className="carousel-card"
+                      onClick={() => router.push(`/manga/${manga.id}`)}
+                    >
+                      <img 
+                        src={mangadexService.getCoverUrl(manga)} 
+                        className="carousel-cover" 
+                        alt={mangadexService.getLocalizedTitle(manga) as string} 
+                        loading="lazy"
+                      />
+                      <div className="carousel-title">{mangadexService.getLocalizedTitle(manga)}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <IonButton fill="clear" className="carousel-scroll-btn right" onClick={(e) => { e.stopPropagation(); scrollCarousel('completed-carousel', 'right'); }}>
                 <IonIcon icon={chevronForwardOutline} />
               </IonButton>
             </div>

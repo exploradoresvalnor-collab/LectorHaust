@@ -56,6 +56,8 @@ const SearchPage: React.FC = () => {
   const [activeStatus, setActiveStatus] = useState<string | null>(null);
   const [activeDemographic, setActiveDemographic] = useState<string | null>(null);
   const [activeOrder, setActiveOrder] = useState<string>('relevance');
+  const [activeColor, setActiveColor] = useState(false);
+  const [completedColor, setCompletedColor] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
 
   const FORMATS = [
@@ -87,7 +89,12 @@ const SearchPage: React.FC = () => {
     { label: 'Mejor Calificados', value: 'rating' }
   ];
 
-  const GENRES = ['Todos', 'Acción', 'Romance', 'Fantasía', 'Comedia', 'Drama', 'Sci-Fi', 'Misterio', 'Terror', 'Aventura', 'Deportes', 'Sobrenatural', 'Psicológico', 'Histórico', 'Cocina', 'Música', 'Mecha', 'Vida Escolar', 'Gore', 'Crimen', 'Magical Girls'];
+  const GENRES = [
+    'Todos', 'Acción', 'Romance', 'Fantasía', 'Comedia', 'Drama', 'Sci-Fi', 'Misterio', 'Terror', 
+    'Aventura', 'Deportes', 'Sobrenatural', 'Psicológico', 'Histórico', 'Cocina', 'Música', 
+    'Mecha', 'Vida Escolar', 'Gore', 'Crimen', 'Magical Girls', 'Isekai', 'Recuentos de la vida', 
+    'Thriller', 'Médico', 'Filosofía'
+  ];
 
   // Map Spanish names to English names for the API
   const genreMapping: Record<string, string> = {
@@ -110,7 +117,12 @@ const SearchPage: React.FC = () => {
     'Vida Escolar': 'school life',
     'Gore': 'gore',
     'Crimen': 'crime',
-    'Magical Girls': 'magical girls'
+    'Magical Girls': 'magical girls',
+    'Isekai': 'isekai',
+    'Recuentos de la vida': 'slice of life',
+    'Thriller': 'thriller',
+    'Médico': 'medical',
+    'Filosofía': 'philosophical'
   };
   
   const router = useIonRouter();
@@ -141,7 +153,7 @@ const SearchPage: React.FC = () => {
     if (trending.length === 0) loadDiscoveryData();
   });
 
-  const fetchCompleted = async (isLoadMore = false, genre = completedGenre, lang = completedLang, demographic = completedDemographic) => {
+  const fetchCompleted = async (isLoadMore = false, genre = completedGenre, lang = completedLang, demographic = completedDemographic, color = completedColor) => {
     if (!isLoadMore) {
         setCompletedLoading(true);
         setCompletedOffset(0);
@@ -150,7 +162,7 @@ const SearchPage: React.FC = () => {
     
     try {
         const offsetToUse = isLoadMore ? completedOffset : 0;
-        const resp = await mangadexService.getFullyTranslatedMasterpieces(null, lang, 15, offsetToUse, genre || null);
+        const resp = await mangadexService.getFullyTranslatedMasterpieces(null, lang, 15, offsetToUse, genre || null, color);
         
         let newData = resp.data || [];
         
@@ -193,7 +205,7 @@ const SearchPage: React.FC = () => {
       e.target.complete();
   };
 
-  const handleSearch = async (val: string, isMore = false, newFormat?: string | null, newGenre?: string | null, newStatus?: string | null, newDemographic?: string | null) => {
+  const handleSearch = async (val: string, isMore = false, newFormat?: string | null, newGenre?: string | null, newStatus?: string | null, newDemographic?: string | null, order?: string, color = activeColor) => {
     const searchVal = val !== undefined ? val : query;
     const format = newFormat !== undefined ? newFormat : activeFormat;
     const genre = newGenre !== undefined ? newGenre : activeGenre;
@@ -202,7 +214,7 @@ const SearchPage: React.FC = () => {
     
     setQuery(searchVal);
     
-    if ((!searchVal || searchVal.length < 2) && !format && !genre && !status && !demographic) {
+    if ((!searchVal || searchVal.length < 2) && !format && !genre && !status && !demographic && !color) {
       setResults([]);
       return;
     }
@@ -217,7 +229,9 @@ const SearchPage: React.FC = () => {
       const currentOffset = isMore ? offset + 20 : 0;
 
       // Construimos los filtros visuales (Esto aplica para ambas APIs)
-      const filters: any = {};
+      const filters: any = {
+        fullColor: color
+      };
       if (format) filters.origin = format;
       if (genre && genre !== 'Todos' && genreMapping[genre]) filters.tags = [genreMapping[genre]];
       if (status) filters.status = status;
@@ -317,18 +331,15 @@ const SearchPage: React.FC = () => {
                   debounce={500}
                   className="custom-searchbar floating-search"
                 />
-                
-                  <IonButton 
-                    fill="clear" 
-                    className={`filter-toggle-btn ${showFilters ? 'active' : ''}`}
-                    onClick={() => setShowFilters(!showFilters)}
-                  >
-                    <IonIcon icon={filterOutline} slot="icon-only" />
-                  </IonButton>
-                
+                <IonButton 
+                  fill="clear" 
+                  className={`filter-toggle-btn ${showFilters ? 'active' : ''}`}
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  <IonIcon icon={filterOutline} slot="icon-only" />
+                </IonButton>
               </div>
-              
-              
+
               <div className={`filters-container-pro ${showFilters ? 'expanded' : 'collapsed'}`}>
                 <div className="filter-grid-pro">
                   <div className="filter-item-pro">
@@ -392,19 +403,32 @@ const SearchPage: React.FC = () => {
                       className="custom-select-pro"
                       onIonChange={(e: any) => {
                         setActiveOrder(e.detail.value);
-                        handleSearch(query, false, activeFormat, activeGenre, activeStatus, activeDemographic);
+                        handleSearch(query, false, activeFormat, activeGenre, activeStatus, activeDemographic, e.detail.value);
                       }}
                     >
                       {ORDERS.map(o => <IonSelectOption key={o.value} value={o.value}>{o.label}</IonSelectOption>)}
                     </IonSelect>
                   </div>
 
-                  <div className="filter-action-item">
-                    <IonButton 
-                      expand="block" 
-                      className="brand-filter-btn"
-                      onClick={() => handleSearch(query)}
+                  <div className="filter-item-pro color-toggle-item">
+                    <span className="filter-label-v2">Color</span>
+                    <IonChip 
+                      color={activeColor ? 'secondary' : 'medium'} 
+                      outline={!activeColor}
+                      onClick={() => {
+                        const newColor = !activeColor;
+                        setActiveColor(newColor);
+                        handleSearch(query, false, activeFormat, activeGenre, activeStatus, activeDemographic, activeOrder, newColor);
+                      }}
+                      className="color-filter-chip"
                     >
+                      <IonIcon icon={sparklesOutline} />
+                      <IonLabel>A Color</IonLabel>
+                    </IonChip>
+                  </div>
+
+                  <div className="filter-action-item">
+                    <IonButton expand="block" className="brand-filter-btn" onClick={() => handleSearch(query)}>
                       <IonIcon icon={searchOutline} slot="start" />
                       FILTRAR
                     </IonButton>
@@ -412,36 +436,34 @@ const SearchPage: React.FC = () => {
                 </div>
               </div>
             </div>
+
             {loading && offset === 0 ? (
               <LoadingScreen />
             ) : (
-              <IonGrid className="search-results-grid">
-                <IonRow>
-                  {results.map((manga: any) => {
-                    const format = manga.attributes.originalLanguage;
-                    const tags = manga.attributes.tags
-                      ?.filter((t: any) => t.attributes?.group === 'genre')
-                      .slice(0, 2)
-                      .map((t: any) => t.attributes?.name?.en || t.attributes?.name?.es || '');
-                      
-                    return (
+              <>
+                <IonGrid className="search-results-grid">
+                  <IonRow>
+                    {results.map((manga: any) => (
                       <IonCol size="4" sizeMd="3" key={manga.id} className="ion-no-padding">
                         <MangaCard 
                           title={manga.attributes.title.en || Object.values(manga.attributes.title)[0]}
                           coverUrl={mangadexService.getCoverUrl(manga)}
-                          format={format}
-                          tags={tags}
+                          format={manga.attributes.originalLanguage}
+                          tags={manga.attributes.tags
+                            ?.filter((t: any) => t.attributes?.group === 'genre')
+                            .slice(0, 2)
+                            .map((t: any) => t.attributes?.name?.en || t.attributes?.name?.es || '')}
                           onClick={() => router.push(`/manga/${manga.id}`)}
                         />
                       </IonCol>
-                    );
-                  })}
-                </IonRow>
-              </IonGrid>
+                    ))}
+                  </IonRow>
+                </IonGrid>
+                <IonInfiniteScroll threshold="100px" disabled={isDone} onIonInfinite={loadMore}>
+                  <IonInfiniteScrollContent loadingSpinner="bubbles" />
+                </IonInfiniteScroll>
+              </>
             )}
-            <IonInfiniteScroll threshold="100px" disabled={isDone} onIonInfinite={loadMore}>
-              <IonInfiniteScrollContent loadingSpinner="bubbles" />
-            </IonInfiniteScroll>
           </div>
         )}
 
@@ -456,25 +478,20 @@ const SearchPage: React.FC = () => {
             ) : (
               <IonGrid className="ion-no-padding">
                 <IonRow>
-                  {trending.map(m => {
-                    const format = m.attributes.originalLanguage;
-                    const tags = m.attributes.tags
-                      ?.filter((t: any) => t.attributes?.group === 'genre')
-                      .slice(0, 2)
-                      .map((t: any) => t.attributes?.name?.en || t.attributes?.name?.es || '');
-                      
-                    return (
-                      <IonCol size="4" sizeSm="4" sizeMd="3" key={m.id} className="ion-no-padding">
-                        <MangaCard 
-                          title={m.attributes.title.en || Object.values(m.attributes.title)[0]}
-                          coverUrl={mangadexService.getCoverUrl(m)}
-                          format={format}
-                          tags={tags}
-                          onClick={() => router.push(`/manga/${m.id}`)}
-                        />
-                      </IonCol>
-                    );
-                  })}
+                  {trending.map(m => (
+                    <IonCol size="4" sizeSm="4" sizeMd="3" key={m.id} className="ion-no-padding">
+                      <MangaCard 
+                        title={m.attributes.title.en || Object.values(m.attributes.title)[0]}
+                        coverUrl={mangadexService.getCoverUrl(m)}
+                        format={m.attributes.originalLanguage}
+                        tags={m.attributes.tags
+                          ?.filter((t: any) => t.attributes?.group === 'genre')
+                          .slice(0, 2)
+                          .map((t: any) => t.attributes?.name?.en || t.attributes?.name?.es || '')}
+                        onClick={() => router.push(`/manga/${m.id}`)}
+                      />
+                    </IonCol>
+                  ))}
                 </IonRow>
               </IonGrid>
             )}
@@ -495,25 +512,20 @@ const SearchPage: React.FC = () => {
             ) : (
               <IonGrid className="ion-no-padding">
                 <IonRow>
-                  {suggestions.map(m => {
-                    const format = m.attributes?.originalLanguage;
-                    const tags = m.attributes?.tags
-                      ?.filter((t: any) => t.attributes?.group === 'genre')
-                      .slice(0, 2)
-                      .map((t: any) => t.attributes?.name?.en || t.attributes?.name?.es || '');
-                      
-                    return (
-                      <IonCol size="4" sizeSm="4" sizeMd="3" key={m.id} className="ion-no-padding">
-                        <MangaCard 
-                          title={m.attributes.title.en || Object.values(m.attributes.title)[0]}
-                          coverUrl={mangadexService.getCoverUrl(m)}
-                          format={format}
-                          tags={tags}
-                          onClick={() => router.push(`/manga/${m.id}`)}
-                        />
-                      </IonCol>
-                    );
-                  })}
+                  {suggestions.map(m => (
+                    <IonCol size="4" sizeSm="4" sizeMd="3" key={m.id} className="ion-no-padding">
+                      <MangaCard 
+                        title={m.attributes.title.en || Object.values(m.attributes.title)[0]}
+                        coverUrl={mangadexService.getCoverUrl(m)}
+                        format={m.attributes.originalLanguage}
+                        tags={m.attributes.tags
+                          ?.filter((t: any) => t.attributes?.group === 'genre')
+                          .slice(0, 2)
+                          .map((t: any) => t.attributes?.name?.en || t.attributes?.name?.es || '')}
+                        onClick={() => router.push(`/manga/${m.id}`)}
+                      />
+                    </IonCol>
+                  ))}
                 </IonRow>
               </IonGrid>
             )}
@@ -532,7 +544,6 @@ const SearchPage: React.FC = () => {
               </p>
             </div>
 
-            {/* Premium Filter Bar */}
             <div className="completed-filters-bar glass-effect animate-slide-up">
               <div className="filter-pill-row">
                 <IonSegment 
@@ -553,7 +564,7 @@ const SearchPage: React.FC = () => {
                   <IonSelect 
                     value={completedDemographic} 
                     placeholder="Demografía"
-                    interface="action-sheet"
+                    interface="popover"
                     className="genre-select-mini"
                     onIonChange={(e: any) => {
                       setCompletedDemographic(e.detail.value);
@@ -572,7 +583,7 @@ const SearchPage: React.FC = () => {
                   <IonSelect 
                     value={completedGenre} 
                     placeholder="Género"
-                    interface="action-sheet"
+                    interface="popover"
                     className="genre-select-mini"
                     onIonChange={(e: any) => {
                       setCompletedGenre(e.detail.value);
@@ -580,18 +591,26 @@ const SearchPage: React.FC = () => {
                     }}
                   >
                     <IonSelectOption value="">Cualquiera</IonSelectOption>
-                    {[
-                      { val: '391b0423-d847-456f-aff0-8b0cfc03066b', label: 'Acción' },
-                      { val: '423e2eae-a7a2-4a8b-ac03-a8351462d71d', label: 'Romance' },
-                      { val: 'cdc58593-87dd-415e-bbc0-2ec27bf404cc', label: 'Fantasía' },
-                      { val: '4d32cc48-9f00-4cca-9b5a-a839f0764984', label: 'Comedia' },
-                      { val: 'eabc5b4c-6aff-42f3-b657-3e90cbd00b75', label: 'Sobrenatural' },
-                      { val: 'ee06359e-bb02-4aa8-8314-90d74a47095a', label: 'Terror' },
-                      { val: 'ace0432b-33ee-4e51-b9cd-93ee44095493', label: 'Psicológico' }
-                    ].map(g => (
-                      <IonSelectOption key={g.val} value={g.val}>{g.label}</IonSelectOption>
+                    {GENRES.slice(1).map(g => (
+                      <IonSelectOption key={g} value={g}>{g}</IonSelectOption>
                     ))}
                   </IonSelect>
+                </div>
+
+                <div className="genre-select-wrapper mini-pill color-pill-mini">
+                  <IonChip 
+                    color={completedColor ? 'secondary' : 'medium'} 
+                    outline={!completedColor}
+                    onClick={() => {
+                      const newColor = !completedColor;
+                      setCompletedColor(newColor);
+                      fetchCompleted(false, completedGenre, completedLang, completedDemographic, newColor);
+                    }}
+                    className="full-color-chip-mini"
+                  >
+                    <IonIcon icon={sparklesOutline} />
+                    <IonLabel>Color</IonLabel>
+                  </IonChip>
                 </div>
               </div>
             </div>

@@ -250,22 +250,30 @@ ion-segment-button {
 .filter-pill-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     overflow-x: auto;
-    padding-bottom: 5px;
+    padding: 10px 5px;
     -webkit-overflow-scrolling: touch;
+    width: 100%;
+}
+
+.filter-pill-row::-webkit-scrollbar {
+    display: none;
 }
 
 .mini-pill {
-    min-width: 120px;
+    min-width: fit-content;
+    white-space: nowrap;
     flex-shrink: 0;
 }
 
 .lang-segment-mini {
-    max-width: 100px;
-    --background: rgba(0, 0, 0, 0.3);
+    flex-shrink: 0;
+    width: 90px;
+    --background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
-    height: 32px;
+    height: 36px;
 }
 
 .lang-segment-mini ion-segment-button {
