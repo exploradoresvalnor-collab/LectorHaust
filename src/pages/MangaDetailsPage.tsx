@@ -33,6 +33,7 @@ import ChapterItem from '../components/ChapterItem';
 import LoadingScreen from '../components/LoadingScreen';
 import CommentSection from '../components/CommentSection';
 import { useMangaDetails } from '../hooks/useMangaDetails';
+import { hapticsService } from '../services/hapticsService';
 import './MangaDetailsPage.css';
 
 const MangaDetailsPage: React.FC = () => {
@@ -103,6 +104,7 @@ const MangaDetailsPage: React.FC = () => {
     .map((t: any) => t.attributes?.name?.en || t.attributes?.name?.es || '');
 
   const handleToggleFavorite = () => {
+    hapticsService.mediumImpact();
     toggleFavorite({ 
       id, 
       title: title as string, 

@@ -30,6 +30,7 @@ import { mangadexService } from '../services/mangadexService';
 import { firebaseAuthService } from '../services/firebaseAuthService';
 import LoadingScreen from '../components/LoadingScreen';
 import { useHomeData } from '../hooks/useHomeData';
+import { hapticsService } from '../services/hapticsService';
 import './HomePage.css';
 
 const HomePage: React.FC = () => {
@@ -71,11 +72,13 @@ const HomePage: React.FC = () => {
     }
   };
 
-  const handleMangaClick = (manga: any) => {
+   const handleMangaClick = (manga: any) => {
+    hapticsService.lightImpact();
     router.push(`/manga/${manga.id}`);
   };
 
   const handleLatestClick = (manga: any) => {
+    hapticsService.lightImpact();
     router.push(`/manga/${manga.id}`);
   };
 
@@ -292,7 +295,7 @@ const HomePage: React.FC = () => {
               <h2>Tendencias 🔥</h2>
             </div>
             <div className="carousel-wrapper">
-              <IonButton fill="clear" className="carousel-scroll-btn left" onClick={(e) => { e.stopPropagation(); scrollCarousel('popular-carousel', 'left'); }}>
+              <IonButton fill="clear" className="carousel-scroll-btn left" onClick={(e) => { e.stopPropagation(); hapticsService.lightImpact(); scrollCarousel('popular-carousel', 'left'); }}>
                 <IonIcon icon={chevronBackOutline} />
               </IonButton>
               <div className="manga-carousel" id="popular-carousel">
@@ -366,7 +369,7 @@ const HomePage: React.FC = () => {
                   ))
                 )}
               </div>
-              <IonButton fill="clear" className="carousel-scroll-btn right" onClick={(e) => { e.stopPropagation(); scrollCarousel('completed-carousel', 'right'); }}>
+              <IonButton fill="clear" className="carousel-scroll-btn right" onClick={(e) => { e.stopPropagation(); hapticsService.lightImpact(); scrollCarousel('completed-carousel', 'right'); }}>
                 <IonIcon icon={chevronForwardOutline} />
               </IonButton>
             </div>
@@ -399,7 +402,7 @@ const HomePage: React.FC = () => {
                   key={lang.code}
                   color={latestLang === lang.code ? 'primary' : 'medium'}
                   outline={latestLang !== lang.code}
-                  onClick={() => setLatestLang(lang.code)}
+                  onClick={() => { hapticsService.lightImpact(); setLatestLang(lang.code); }}
                 >
                   <IonLabel>{lang.label}</IonLabel>
                 </IonChip>

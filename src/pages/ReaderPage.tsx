@@ -16,6 +16,7 @@ import { useParams } from 'react-router-dom';
 import { mangadexService } from '../services/mangadexService';
 import CommentSection from '../components/CommentSection';
 import { useMangaReader } from '../hooks/useMangaReader';
+import { hapticsService } from '../services/hapticsService';
 import './ReaderPage.css';
 
 const ReaderPage: React.FC = () => {
@@ -38,6 +39,16 @@ const ReaderPage: React.FC = () => {
     showEndSection,
     handleMangaTap
   } = useMangaReader(chapterId);
+
+  const toggleUi = () => {
+    hapticsService.lightImpact();
+    setShowUi(u => !u);
+  };
+
+  const handlePageTap = (e: any) => {
+    hapticsService.lightImpact();
+    handleMangaTap(e);
+  };
 
   // --- SECCIÓN FINAL (REUTILIZABLE) ---
   const renderEndSection = () => (
@@ -111,7 +122,7 @@ const ReaderPage: React.FC = () => {
             
             {/* --- MODO WEBTOON (SCROLL VERTICAL CONTINUO) --- */}
             {isWebtoon && (
-              <div className="pages-container manhwa-container" onClick={() => setShowUi(u => !u)}>
+              <div className="pages-container manhwa-container" onClick={toggleUi}>
                 {pages.map((page, index) => (
                   <div key={index} className="page-wrapper" data-index={index}>
                     <img 
@@ -128,7 +139,7 @@ const ReaderPage: React.FC = () => {
 
             {/* --- MODO MANGA (PAGINADO JAPONÉS RTL) --- */}
             {!isWebtoon && (
-              <div className="manga-pager-container" onClick={handleMangaTap}>
+              <div className="manga-pager-container" onClick={handlePageTap}>
                 {!showEndSection ? (
                   <>
                     <img 

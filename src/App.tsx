@@ -25,6 +25,7 @@ import ProfilePage from './pages/ProfilePage';
 import { useState, useEffect } from 'react';
 import { useLibraryStore } from './store/useLibraryStore';
 import { checkUpdatesForLibrary, MangaUpdate } from './services/updateService';
+import { hapticsService } from './services/hapticsService';
 
 /* Core CSS required for Ionic components to work properly */
 import '@ionic/react/css/core.css';
@@ -101,15 +102,15 @@ const AppContent: React.FC = () => {
           slot="bottom" 
           className={shouldHideTabs ? 'tab-bar-hidden' : ''}
         >
-          <IonTabButton tab="home" href="/home">
+          <IonTabButton tab="home" href="/home" onClick={() => hapticsService.lightImpact()}>
             <IonIcon aria-hidden="true" icon={home} />
             <IonLabel>Inicio</IonLabel>
           </IonTabButton>
-          <IonTabButton tab="search" href="/search">
+          <IonTabButton tab="search" href="/search" onClick={() => hapticsService.lightImpact()}>
             <IonIcon aria-hidden="true" icon={search} />
             <IonLabel>Explorar</IonLabel>
           </IonTabButton>
-          <IonTabButton tab="library" href="/library">
+          <IonTabButton tab="library" href="/library" onClick={() => hapticsService.lightImpact()}>
             <IonIcon aria-hidden="true" icon={library} />
             <IonLabel>Biblioteca</IonLabel>
           </IonTabButton>

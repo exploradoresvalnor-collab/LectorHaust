@@ -1,4 +1,4 @@
-# LectorHaust 📖✨
+# LectorHaus 📖✨
 
 Tu puerta al mundo del manga, manhwa y manhua con una experiencia premium y profesional.
 

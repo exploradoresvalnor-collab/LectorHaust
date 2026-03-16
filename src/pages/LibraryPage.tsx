@@ -25,6 +25,7 @@ import { playOutline, gridOutline, listOutline, bookOutline, refreshCircleOutlin
 import MangaCard from '../components/MangaCard';
 import { mangadexService } from '../services/mangadexService';
 import { useLibraryStore } from '../store/useLibraryStore';
+import { hapticsService } from '../services/hapticsService';
 import './LibraryPage.css';
 
 const LibraryPage: React.FC = () => {
@@ -95,7 +96,10 @@ const LibraryPage: React.FC = () => {
         <IonToolbar className="glass-effect" style={{ paddingBottom: '10px' }}>
           <IonTitle>Mi Biblioteca</IonTitle>
           <div className="library-controls" style={{ padding: '0 15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '5px' }}>
-            <IonSegment value={activeTab} onIonChange={e => setActiveTab(e.detail.value as any)} mode="ios" style={{ width: '60%' }}>
+            <IonSegment value={activeTab} onIonChange={e => {
+              hapticsService.lightImpact();
+              setActiveTab(e.detail.value as any);
+            }} mode="ios" style={{ width: '60%' }}>
               <IonSegmentButton value="favorites"><IonLabel>Favoritos</IonLabel></IonSegmentButton>
               <IonSegmentButton value="history"><IonLabel>Historial</IonLabel></IonSegmentButton>
             </IonSegment>

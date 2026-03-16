@@ -35,6 +35,7 @@ import {
   ORDERS, 
   GENRES 
 } from '../hooks/useSearch';
+import { hapticsService } from '../services/hapticsService';
 import './SearchPage.css';
 
 const SearchPage: React.FC = () => {
@@ -67,7 +68,10 @@ const SearchPage: React.FC = () => {
     <IonPage>
       <IonHeader className="ion-no-border">
         <IonToolbar className="glass-effect" style={{ padding: '10px 0' }}>
-          <IonSegment value={activeSegment} onIonChange={(e: any) => setActiveSegment(e.detail.value as string)} mode="md" className="custom-segment">
+          <IonSegment value={activeSegment} onIonChange={(e: any) => {
+            hapticsService.lightImpact();
+            setActiveSegment(e.detail.value as string);
+          }} mode="md" className="custom-segment">
             <IonSegmentButton value="trending">
               <IonIcon icon={trendingUpOutline} />
               <IonLabel>Tendencias</IonLabel>

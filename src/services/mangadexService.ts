@@ -1,10 +1,14 @@
+import { Capacitor } from '@capacitor/core';
+
 /**
  * MangaDex API Service
  */
 
 // Eliminamos la validación de isLocalhost. 
 // Ahora TODOS (Local y Vercel) usarán el proxy para evitar bloqueos de operadoras.
-const API_BASE = '/api-md';
+const isNative = Capacitor.isNativePlatform();
+// En local/Vercel usas el proxy relativo. En App Nativa usas el proxy remoto de Vercel.
+const API_BASE = isNative ? 'https://lector-haust.vercel.app/api-md' : '/api-md';
 const UPLOADS_URL = 'https://uploads.mangadex.org';
 const CLOUDINARY_CLOUD_NAME = 'djzak5yb2';
 

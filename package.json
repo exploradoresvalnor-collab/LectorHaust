@@ -12,8 +12,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@capacitor/android": "^8.2.0",
     "@capacitor/app": "8.0.1",
-    "@capacitor/core": "8.2.0",
+    "@capacitor/core": "^8.2.0",
     "@capacitor/haptics": "8.0.1",
     "@capacitor/keyboard": "8.0.1",
     "@capacitor/status-bar": "8.0.1",
@@ -31,7 +32,7 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
-    "@capacitor/cli": "8.2.0",
+    "@capacitor/cli": "^8.2.0",
     "@testing-library/dom": ">=7.21.4",
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^16.2.0",
