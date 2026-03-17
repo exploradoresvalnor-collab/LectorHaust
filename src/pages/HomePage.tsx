@@ -116,7 +116,7 @@ const HomePage: React.FC = () => {
         <IonToolbar className="main-header">
           <IonTitle slot="start">
             <div className="brand-container" onClick={() => fetchData(true)}>
-              <img src="/logolh.webp" alt="Lector Haus Logo" className="brand-logo-img" />
+              <img src="/logo-premium.png" alt="Lector Haus Logo" className="brand-logo-img" />
               <span className="brand-name-text">lector<span>Haus</span></span>
             </div>
           </IonTitle>
