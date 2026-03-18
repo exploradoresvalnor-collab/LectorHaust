@@ -837,9 +837,6 @@ export const mangadexService = {
         // Avoid double-prefixing if already optimized
         if (url.includes('res.cloudinary.com')) return url;
         
-        // Skip Cloudinary for MangaDex At-Home nodes (mangadex.network)
-        if (url.includes('mangadex.network')) return url;
-
         // Use custom params (defaulting to best quality auto format)
         return `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/fetch/${params}/${encodeURIComponent(url)}`;
     },

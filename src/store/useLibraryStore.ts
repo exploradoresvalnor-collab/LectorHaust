@@ -109,17 +109,23 @@ export const useLibraryStore = create<LibraryState>()(
         syncTimeout = setTimeout(async () => {
           try {
             const docRef = doc(db, 'users', userId);
-            await setDoc(docRef, {
+            
+            // Helper to remove 'undefined' which Firebase doesn't support
+            const clean = (obj: any): any => {
+              return JSON.parse(JSON.stringify(obj, (k, v) => (v === undefined ? null : v)));
+            };
+
+            await setDoc(docRef, clean({
               favorites: get().favorites,
               history: get().history,
               readChapters: get().readChapters,
               showNSFW: get().showNSFW,
               updatedAt: Date.now()
-            }, { merge: true });
+            }), { merge: true });
           } catch (err) {
             console.error('Error pushing to cloud:', err);
           }
-        }, 1500); // Debounce de 1.5s para no spamear Firebase
+        }, 1500); 
       }
     }),
     { 

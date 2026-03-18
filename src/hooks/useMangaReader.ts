@@ -40,8 +40,8 @@ export function useMangaReader(chapterId?: string) {
           chapterNumber: chapterNum,
           pageIndex: currentPageIndex.current + 1,
           lastRead: Date.now(),
-          mangaTitle: mangaTitle || undefined,
-          mangaCover: mangaCover || undefined
+          mangaTitle: mangaTitle || '',
+          mangaCover: mangaCover || ''
         });
       }
     };
