@@ -335,7 +335,7 @@ const SearchPage: React.FC = () => {
 
             <div className="completed-filters-bar glass-effect animate-slide-up">
               <div className="filter-pill-row">
-                <div className="genre-select-wrapper mini-pill" style={{ flex: '0 0 auto', minWidth: '80px' }}>
+                <div className="genre-select-wrapper mini-pill">
                   <IonIcon icon={filterOutline} className="genre-icon-mini" />
                   <IonSelect 
                     value={completedLang} 

@@ -5,6 +5,26 @@
 .profile-toolbar {
   --background: transparent;
   --color: white;
+  padding-right: 8px; /* Extra padding for the end buttons */
+}
+
+.logout-btn-header {
+  --border-radius: 12px;
+  --border-width: 1px;
+  --border-color: rgba(235, 68, 90, 0.4);
+  --color: #eb445a;
+  --background: rgba(235, 68, 90, 0.05);
+  font-weight: 800;
+  font-size: 0.75rem;
+  height: 32px;
+  margin-right: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  backdrop-filter: blur(10px);
+}
+
+.logout-btn-header ion-icon {
+  font-size: 1rem;
 }
 
 /* --- Cover Banner --- */
@@ -28,6 +48,7 @@
 .profile-content {
   --padding-start: 16px;
   --padding-end: 16px;
+  --padding-bottom: 120px !important; /* Force space for the floating pill bar */
 }
 
 .profile-responsive-layout {
@@ -101,17 +122,53 @@
 }
 
 .user-name {
-  font-size: 2.2rem;
+  font-size: 1.8rem; /* Slightly smaller for mobile */
   font-weight: 800;
   margin: 0;
   color: white;
   letter-spacing: -1px;
+  line-height: 1.2;
+}
+
+.edit-profile-btn {
+  --color: rgba(255, 255, 255, 0.4);
+  --padding-start: 4px;
+  --padding-end: 4px;
+  margin-top: 5px;
 }
 
 .user-email {
   color: rgba(255, 255, 255, 0.5);
   font-size: 0.95rem;
-  margin: 0.2rem 0 1rem;
+  margin: 0.2rem 0 0.5rem;
+}
+
+.user-uid-tag {
+  background: rgba(140, 82, 255, 0.1);
+  border: 1px solid rgba(140, 82, 255, 0.2);
+  padding: 6px 12px;
+  border-radius: 10px;
+  color: #a67dff;
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: 700;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px auto 16px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  backdrop-filter: blur(5px);
+}
+
+.user-uid-tag:active {
+  transform: scale(0.92);
+  background: rgba(140, 82, 255, 0.2);
+}
+
+.user-uid-tag ion-icon {
+  font-size: 0.9rem;
+  opacity: 0.7;
 }
 
 .badge-belt {
@@ -171,7 +228,7 @@
 }
 
 .social-nav-btn {
-  margin-top: 24px;
+  margin-top: 32px; /* More space from XP bar */
   --background: linear-gradient(135deg, #8c52ff, #7038ff);
   --border-radius: 16px;
   --box-shadow: 0 8px 20px rgba(140, 82, 255, 0.3);
@@ -191,6 +248,13 @@
   background: rgba(255, 255, 255, 0.05);
   padding: 4px;
   border-radius: 14px;
+  overflow-x: auto; /* Allow scrolling if too many/long tabs */
+  display: flex;
+}
+
+.profile-segment ion-segment-button {
+  min-width: 100px; /* Ensure tabs have enough room */
+  flex: 1;
 }
 
 ion-segment-button {

@@ -618,9 +618,18 @@ const ChatPage: React.FC = () => {
                       </IonButton>
                     ) : friendshipStatus === 'pending_received' ? (
                       <IonButton expand="block" color="success" onClick={async () => {
+                        try {
                           await socialService.acceptFriendRequest(currentUser.uid, selectedProfileUser.uid);
                           setFriendshipStatus('friends');
                           presentToast({ message: '¡Nuevo Nakama agregado! 🤝', duration: 2000, color: 'success' });
+                        } catch (error: any) {
+                          console.error("Error accepting friend request:", error);
+                          presentToast({ 
+                            message: `Error: ${error.message || 'No se pudo aceptar la solicitud'}`, 
+                            duration: 3000, 
+                            color: 'danger' 
+                          });
+                        }
                       }}>
                         <IonIcon icon={checkmarkOutline} slot="start" />
                         ACEPTAR SOLICITUD
@@ -632,9 +641,18 @@ const ChatPage: React.FC = () => {
                         disabled={friendshipStatus === 'loading'}
                         onClick={async () => {
                           if (currentUser) {
-                            await socialService.sendFriendRequest(currentUser.uid, selectedProfileUser.uid);
-                            setFriendshipStatus('pending_sent');
-                            presentToast({ message: 'Solicitud enviada 🤝', duration: 2000, color: 'success' });
+                            try {
+                              await socialService.sendFriendRequest(currentUser.uid, selectedProfileUser.uid);
+                              setFriendshipStatus('pending_sent');
+                              presentToast({ message: 'Solicitud enviada 🤝', duration: 2000, color: 'success' });
+                            } catch (error: any) {
+                              console.error("Error sending friend request:", error);
+                              presentToast({ 
+                                message: `Error: ${error.message || 'No se pudo enviar la solicitud'}`, 
+                                duration: 3000, 
+                                color: 'danger' 
+                              });
+                            }
                           }
                         }}
                       >

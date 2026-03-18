@@ -18,7 +18,10 @@ import {
   IonBadge,
   useIonToast,
   IonActionSheet,
-  useIonRouter
+  useIonRouter,
+  IonFab,
+  IonFabButton,
+  IonAlert
 } from '@ionic/react';
 import { 
   closeOutline, 
@@ -43,15 +46,26 @@ const SocialPage: React.FC = () => {
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [showAddAlert, setShowAddAlert] = useState(false);
   const [presentToast] = useIonToast();
   const router = useIonRouter();
 
   useEffect(() => {
-    const unsubscribe = firebaseAuthService.subscribe(async (user) => {
+    let unsubReq: (() => void) | undefined;
+    let unsubFriends: (() => void) | undefined;
+    let unsubChats: (() => void) | undefined;
+
+    const unsubscribeAuth = firebaseAuthService.subscribe(async (user) => {
+      // 1. Cleanup previous listeners if user changes or logs out
+      if (unsubReq) unsubReq();
+      if (unsubFriends) unsubFriends();
+      if (unsubChats) unsubChats();
+
       setCurrentUser(user);
+
       if (user) {
         // Subscribe to requests
-        const unsubReq = socialService.subscribeToFriendRequests(user.uid, async (rawRequests) => {
+        unsubReq = socialService.subscribeToFriendRequests(user.uid, async (rawRequests) => {
           const detailedRequests = await Promise.all(
             rawRequests.map(async (req) => {
               const userRef = doc(db, 'users', req.fromId);
@@ -62,39 +76,45 @@ const SocialPage: React.FC = () => {
           setRequests(detailedRequests);
         });
 
-        // Load Friends
+        // Load Friends (Real-time)
         const userRef = doc(db, 'users', user.uid);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          const friendIds = userSnap.data().friends || [];
-          const detailedFriends = await Promise.all(
-            friendIds.map(async (fId: string) => {
-              const fRef = doc(db, 'users', fId);
-              const fSnap = await getDoc(fRef);
-              return { id: fId, ...(fSnap.data() || { name: 'Usuario Desconocido' }) };
-            })
-          );
-          setFriends(detailedFriends);
-        }
+        unsubFriends = onSnapshot(userRef, async (userSnap) => {
+          if (userSnap.exists()) {
+            const friendIds = userSnap.data().friends || [];
+            const detailedFriends = await Promise.all(
+              friendIds.map(async (fId: string) => {
+                const fRef = doc(db, 'users', fId);
+                const fSnap = await getDoc(fRef);
+                return { id: fId, ...(fSnap.data() || { name: 'Usuario Desconocido' }) };
+              })
+            );
+            setFriends(detailedFriends);
+          }
+        });
 
         // Subscribe to unread counts
         const chatsRef = collection(db, `users/${user.uid}/privateChats`);
-        const unsubChats = onSnapshot(chatsRef, (snapshot) => {
+        unsubChats = onSnapshot(chatsRef, (snapshot) => {
           const counts: Record<string, number> = {};
           snapshot.forEach(docSnap => {
             counts[docSnap.id] = docSnap.data().unreadCount || 0;
           });
           setUnreadCounts(counts);
         });
-
-        return () => {
-          unsubReq();
-          unsubChats();
-        };
+      } else {
+        // If logged out, reset lists
+        setRequests([]);
+        setFriends([]);
+        setUnreadCounts({});
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeAuth();
+      if (unsubReq) unsubReq();
+      if (unsubFriends) unsubFriends();
+      if (unsubChats) unsubChats();
+    };
   }, []);
 
   const handleAccept = async (friendUid: string) => {
@@ -110,7 +130,32 @@ const SocialPage: React.FC = () => {
 
   const handleReject = async (friendUid: string) => {
     if (currentUser) {
-      await socialService.rejectFriendRequest(currentUser.uid, friendUid);
+      try {
+        await socialService.rejectFriendRequest(currentUser.uid, friendUid);
+        presentToast({ message: 'Solicitud rechazada', duration: 2000, color: 'medium' });
+      } catch (error: any) {
+        console.error("Error rejecting request:", error);
+        presentToast({ message: 'Error al rechazar solicitud', duration: 2000, color: 'danger' });
+      }
+    }
+  };
+
+  const handleSendRequest = async (friendUid: string) => {
+    if (!friendUid || friendUid.trim() === '') {
+      presentToast({ message: 'Ingresa un ID válido', duration: 2000, color: 'warning' });
+      return;
+    }
+    if (friendUid === currentUser?.uid) {
+      presentToast({ message: 'No puedes agregarte a ti mismo', duration: 2000, color: 'warning' });
+      return;
+    }
+    try {
+      await socialService.sendFriendRequest(currentUser.uid, friendUid.trim());
+      presentToast({ message: '¡Solicitud enviada! 📨', duration: 2000, color: 'success' });
+      setShowAddAlert(false);
+    } catch (error: any) {
+      console.error("Error enviando solicitud:", error);
+      presentToast({ message: `Error: ${error.message || 'No se pudo enviar'}`, duration: 3000, color: 'danger' });
     }
   };
 
@@ -198,10 +243,10 @@ const SocialPage: React.FC = () => {
                 {requests.map(req => (
                   <IonItem key={req.id} className="social-item">
                     <IonAvatar slot="start">
-                      <img src={req.userData.avatarUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${req.fromId}`} alt="avatar" />
+                      <img src={req.userData?.avatarUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${req.fromId}`} alt="avatar" />
                     </IonAvatar>
                     <IonLabel>
-                      <h2>{req.userData.name || req.userData.displayName || 'Lector'}</h2>
+                      <h2>{req.userData?.name || req.userData?.displayName || 'Lector'}</h2>
                       <p>Quiere ser tu Nakama</p>
                     </IonLabel>
                     <div className="request-actions" slot="end">
@@ -226,6 +271,38 @@ const SocialPage: React.FC = () => {
         )}
       </IonContent>
 
+      <IonFab vertical="bottom" horizontal="end" slot="fixed">
+        <IonFabButton onClick={() => setShowAddAlert(true)} className="add-friend-fab-button">
+          <IonIcon icon={personAddOutline} />
+        </IonFabButton>
+      </IonFab>
+
+      <IonAlert
+        isOpen={showAddAlert}
+        onDidDismiss={() => setShowAddAlert(false)}
+        header="Agregar Nakama"
+        message="Ingresa el ID de tu amigo para enviarle una solicitud:"
+        inputs={[
+          {
+            name: 'friendId',
+            type: 'text',
+            placeholder: 'ID del usuario'
+          }
+        ]}
+        buttons={[
+          {
+            text: 'Cancelar',
+            role: 'cancel'
+          },
+          {
+            text: 'Enviar',
+            handler: (data) => {
+              handleSendRequest(data.friendId);
+            }
+          }
+        ]}
+      />
+
       <IonActionSheet
         isOpen={showActionSheet}
         onDidDismiss={() => setShowActionSheet(false)}
@@ -237,9 +314,14 @@ const SocialPage: React.FC = () => {
             icon: trashOutline,
             handler: async () => {
               if (currentUser && selectedFriend) {
-                await socialService.removeFriend(currentUser.uid, selectedFriend);
-                setFriends(prev => prev.filter(f => f.id !== selectedFriend));
-                presentToast({ message: 'Nakama eliminado', duration: 2000 });
+                try {
+                  await socialService.removeFriend(currentUser.uid, selectedFriend);
+                  setFriends(prev => prev.filter(f => f.id !== selectedFriend));
+                  presentToast({ message: 'Nakama eliminado', duration: 2000, color: 'medium' });
+                } catch (error: any) {
+                  console.error("Error removing friend:", error);
+                  presentToast({ message: 'Error al eliminar Nakama', duration: 2000, color: 'danger' });
+                }
               }
             }
           },

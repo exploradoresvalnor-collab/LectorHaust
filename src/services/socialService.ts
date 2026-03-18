@@ -50,9 +50,9 @@ export const socialService = {
 
     // 2. Add me to friend's list of friends
     const friendRef = doc(db, 'users', friendUid);
-    batch.set(friendRef, {
+    batch.update(friendRef, {
       friends: arrayUnion(myUid)
-    }, { merge: true });
+    });
 
     // 3. Delete the request
     const requestRef = doc(db, `users/${myUid}/friendRequests`, friendUid);

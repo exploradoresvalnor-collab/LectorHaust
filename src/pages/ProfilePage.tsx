@@ -21,7 +21,9 @@ import {
   IonSegmentButton,
   IonListHeader,
   IonToggle,
-  IonSkeletonText
+  IonSkeletonText,
+  useIonToast,
+  IonAlert
 } from '@ionic/react';
 import { 
   personCircleOutline,
@@ -35,19 +37,25 @@ import {
   eyeOutline,
   alertCircleOutline,
   playOutline,
-  peopleOutline
+  peopleOutline,
+  copyOutline,
+  pencilOutline
 } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
 import { useIonRouter } from '@ionic/react';
 import { firebaseAuthService } from '../services/firebaseAuthService';
-import { User } from 'firebase/auth';
+import { User, updateProfile } from 'firebase/auth';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { userStatsService, UserStats } from '../services/userStatsService';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../services/firebase';
 import './ProfilePage.css';
 
 const ProfilePage: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<'resumen' | 'historial' | 'ajustes'>('resumen');
+  const [showEditAlert, setShowEditAlert] = useState(false);
+  const [presentToast] = useIonToast();
   const router = useIonRouter();
   const { history: readingHistory, favorites } = useLibraryStore();
   const [stats, setStats] = useState<UserStats>({
@@ -70,6 +78,9 @@ const ProfilePage: React.FC = () => {
     let unsubscribeStats: (() => void) | undefined;
 
     const unsubscribeAuth = firebaseAuthService.subscribe((user) => {
+      // Cleanup previous stats listener if exists
+      if (unsubscribeStats) unsubscribeStats();
+
       if (!user) {
         history.replace('/home');
       } else {
@@ -109,6 +120,32 @@ const ProfilePage: React.FC = () => {
   const currentXPProgress = stats.xp - accumulatedXPToReachLevel;
   const xpNeededForThisLevel = userStatsService.getXPForLevel(level);
 
+  const handleUpdateProfile = async (data: { name: string; avatar: string }) => {
+    if (!user) return;
+    
+    try {
+      // 1. Update Firebase Auth
+      await updateProfile(user, {
+        displayName: data.name,
+        photoURL: data.avatar
+      });
+
+      // 2. Update Firestore for social consistency
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        name: data.name,
+        avatar: data.avatar
+      });
+
+      presentToast({ message: 'Perfil actualizado con éxito ✨', duration: 2000, color: 'success' });
+      // Minor hack to force UI refresh
+      setUser({ ...user, displayName: data.name, photoURL: data.avatar } as User);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      presentToast({ message: 'Error al actualizar perfil', duration: 2000, color: 'danger' });
+    }
+  };
+
   if (!user) return null;
 
   return (
@@ -146,8 +183,24 @@ const ProfilePage: React.FC = () => {
               <div className="status-indicator"></div>
             </div>
             
-            <h2 className="user-name">{user.displayName || (user.isAnonymous ? 'Lector Fantasma' : 'Lector Haus')}</h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <h2 className="user-name">{user.displayName || (user.isAnonymous ? 'Lector Fantasma' : 'Lector Haus')}</h2>
+              <IonButton fill="clear" size="small" onClick={() => setShowEditAlert(true)} className="edit-profile-btn">
+                <IonIcon icon={pencilOutline} slot="icon-only" />
+              </IonButton>
+            </div>
             <p className="user-email">{user.isAnonymous ? 'Modo Anónimo Activo' : user.email}</p>
+            
+            <div 
+              className="user-uid-tag animate-fade-in" 
+              onClick={() => {
+                navigator.clipboard.writeText(user.uid);
+                presentToast({ message: 'ID copiado al portapapeles 📋', duration: 2000, color: 'primary' });
+              }}
+            >
+              <span>ID: {user.uid.substring(0, 8)}...{user.uid.substring(user.uid.length - 4)}</span>
+              <IonIcon icon={copyOutline} />
+            </div>
             
             <div className="badge-belt">
                <IonBadge color="primary" className="profile-badge">{rank}</IonBadge>
@@ -181,12 +234,13 @@ const ProfilePage: React.FC = () => {
               value={activeTab} 
               onIonChange={e => setActiveTab(e.detail.value as any)}
               className="profile-segment"
+              scrollable={true}
             >
               <IonSegmentButton value="resumen">
                 <IonLabel>Resumen</IonLabel>
               </IonSegmentButton>
               <IonSegmentButton value="historial">
-                <IonLabel>Últimos Vistos</IonLabel>
+                <IonLabel>Historial</IonLabel>
               </IonSegmentButton>
               <IonSegmentButton value="ajustes">
                 <IonLabel>Ajustes</IonLabel>
@@ -337,6 +391,36 @@ const ProfilePage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        <IonAlert
+          isOpen={showEditAlert}
+          onDidDismiss={() => setShowEditAlert(false)}
+          header="Editar Perfil"
+          message="Personaliza tu nombre y avatar para que tus Nakamas te reconozcan."
+          inputs={[
+            {
+              name: 'name',
+              type: 'text',
+              placeholder: 'Nombre / Alias',
+              value: user.displayName || ''
+            },
+            {
+              name: 'avatar',
+              type: 'url',
+              placeholder: 'URL de Avatar (JPG/PNG)',
+              value: user.photoURL || ''
+            }
+          ]}
+          buttons={[
+            { text: 'Cancelar', role: 'cancel' },
+            { 
+              text: 'Guardar', 
+              handler: (data) => {
+                handleUpdateProfile(data);
+              } 
+            }
+          ]}
+        />
       </IonContent>
     </IonPage>
   );
