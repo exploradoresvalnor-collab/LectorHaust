@@ -8,7 +8,8 @@ import {
   signInAnonymously,
   updateProfile
 } from 'firebase/auth';
-import { auth } from './firebase';
+import { auth, db } from './firebase';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 
 const googleProvider = new GoogleAuthProvider();
 
@@ -25,7 +26,22 @@ export const firebaseAuthService = {
         return await signInWithRedirect(auth, googleProvider);
       }
       const result = await signInWithPopup(auth, googleProvider);
-      return result.user;
+      const user = result.user;
+
+      // Ensure user document exists in Firestore
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) {
+        await setDoc(userRef, {
+          name: user.displayName,
+          avatar: user.photoURL,
+          email: user.email,
+          createdAt: serverTimestamp(),
+          friends: []
+        });
+      }
+
+      return user;
     } catch (error) {
       console.error('Error logging in with Google:', error);
       throw error;
@@ -80,6 +96,19 @@ export const firebaseAuthService = {
         displayName: ghostName,
         photoURL: `https://api.dicebear.com/7.x/identicon/svg?seed=${user.uid}`
       });
+      
+      // Ensure user document exists in Firestore for Anonymous Users too
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) {
+        await setDoc(userRef, {
+          name: ghostName,
+          avatar: `https://api.dicebear.com/7.x/identicon/svg?seed=${user.uid}`,
+          isAnonymous: true,
+          createdAt: serverTimestamp(),
+          friends: []
+        });
+      }
 
       return user;
     } catch (error) {

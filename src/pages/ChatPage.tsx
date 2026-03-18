@@ -343,9 +343,12 @@ const ChatPage: React.FC = () => {
         if (currentUser && !currentUser.isAnonymous) {
            const status = await socialService.getFriendshipStatus(currentUser.uid, msg.userId);
            setFriendshipStatus(status);
+        } else {
+           setFriendshipStatus('none');
         }
       } catch (error) {
         console.warn("Silent: Error loading public profile meta:", error);
+        setFriendshipStatus('none');
       } finally {
         setIsStatsLoading(false);
       }

@@ -101,17 +101,22 @@ export const socialService = {
    * Check full friendship status
    */
   async getFriendshipStatus(myUid: string, targetUid: string): Promise<'friends' | 'pending_sent' | 'pending_received' | 'none'> {
-    const myDoc = await getDoc(doc(db, 'users', myUid));
-    if (myDoc.exists() && myDoc.data().friends?.includes(targetUid)) {
-      return 'friends';
+    try {
+      const myDoc = await getDoc(doc(db, 'users', myUid));
+      if (myDoc.exists() && myDoc.data().friends?.includes(targetUid)) {
+        return 'friends';
+      }
+      const sentReq = await getDoc(doc(db, `users/${targetUid}/friendRequests`, myUid));
+      if (sentReq.exists()) return 'pending_sent';
+
+      const receivedReq = await getDoc(doc(db, `users/${myUid}/friendRequests`, targetUid));
+      if (receivedReq.exists()) return 'pending_received';
+
+      return 'none';
+    } catch (e) {
+      console.warn("Friendship status check failed", e);
+      return 'none';
     }
-    const sentReq = await getDoc(doc(db, `users/${targetUid}/friendRequests`, myUid));
-    if (sentReq.exists()) return 'pending_sent';
-
-    const receivedReq = await getDoc(doc(db, `users/${myUid}/friendRequests`, targetUid));
-    if (receivedReq.exists()) return 'pending_received';
-
-    return 'none';
   },
 
   /**
