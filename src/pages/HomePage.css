@@ -359,7 +359,7 @@
 }
 
 .premium-modal-content {
-  padding: 24px 20px 40px;
+  padding: 24px 20px calc(40px + env(safe-area-inset-bottom));
   color: white;
   display: flex;
   flex-direction: column;

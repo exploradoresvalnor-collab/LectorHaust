@@ -92,7 +92,7 @@
 }
 
 .details-body {
-    padding: 25px 20px 120px; /* Enhanced bottom padding to avoid tab-bar/pagination overlap */
+    padding: 25px 20px calc(120px + env(safe-area-inset-bottom)); /* Enhanced bottom padding for safe areas */
     background: var(--ion-background-color);
     border-radius: 25px 25px 0 0;
     margin-top: -25px;

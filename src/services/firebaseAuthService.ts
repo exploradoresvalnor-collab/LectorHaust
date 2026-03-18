@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { 
   signInWithPopup, 
   GoogleAuthProvider, 
@@ -17,6 +18,12 @@ export const firebaseAuthService = {
    */
   async loginWithGoogle() {
     try {
+      // On native mobile platforms, signInWithPopup often fails. 
+      // Using signInWithRedirect or a future native plugin is recommended.
+      if (Capacitor.getPlatform() !== 'web') {
+        const { signInWithRedirect } = await import('firebase/auth');
+        return await signInWithRedirect(auth, googleProvider);
+      }
       const result = await signInWithPopup(auth, googleProvider);
       return result.user;
     } catch (error) {

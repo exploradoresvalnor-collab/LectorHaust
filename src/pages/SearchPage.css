@@ -44,6 +44,8 @@ ion-segment-button::part(indicator-background) {
     --color: rgba(255, 255, 255, 0.5);
     margin: 0;
     transition: all 0.3s ease;
+    min-width: 44px;
+    min-height: 44px;
 }
 
 .filter-toggle-btn.active {
@@ -303,7 +305,7 @@ ion-segment-button::part(indicator-background) {
 }
 
 .search-results-grid {
-    padding-bottom: 90px;
+    padding-bottom: calc(90px + env(safe-area-inset-bottom));
     --ion-grid-column-padding: 8px; /* More space between columns */
 }
 

@@ -42,9 +42,11 @@ import {
   happyOutline,
   attachOutline
 } from 'ionicons/icons';
+import { Capacitor } from '@capacitor/core';
 import { Keyboard } from '@capacitor/keyboard';
 import { db } from '../services/firebase';
 import { collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp, doc, setDoc } from 'firebase/firestore';
+import { User } from 'firebase/auth';
 import { firebaseAuthService } from '../services/firebaseAuthService';
 import { socialService, FriendRequest } from '../services/socialService';
 import { userStatsService, UserStats } from '../services/userStatsService';
@@ -54,7 +56,9 @@ import './ChatPage.css';
 // --- Helpers ---
 const formatTimestamp = (timestamp: any) => {
   if (!timestamp) return '';
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const date = (timestamp && typeof timestamp.toDate === 'function') 
+    ? timestamp.toDate() 
+    : new Date(timestamp);
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 const getCountryFlag = () => {
@@ -96,13 +100,18 @@ interface ChatMessage {
   userName: string;
   userAvatar: string;
   timestamp: any;
+  type?: 'recommendation';
+  mangaId?: string;
+  mangaCover?: string;
+  mangaTitle?: string;
+  status?: string;
 }
 
 const ChatPage: React.FC = () => {
   const router = useIonRouter();
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const contentRef = useRef<HTMLIonContentElement | null>(null);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
@@ -171,7 +180,7 @@ const ChatPage: React.FC = () => {
     const metaRef = doc(db, 'global_chat', '_meta_typing');
     const unsubscribeTyping = onSnapshot(metaRef, (docSnap) => {
       if (docSnap.exists()) {
-        const data = docSnap.data();
+        const data = docSnap.data() as Record<string, string>;
         const activeTypers = Object.keys(data).filter(uid => {
           // Filter out our own typing status
           return currentUser ? uid !== currentUser.uid && data[uid] : data[uid];

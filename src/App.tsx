@@ -78,8 +78,9 @@ const AppContent: React.FC = () => {
   // Paths where we want to HIDE the bottom tab bar
   const shouldHideTabs = 
     location.pathname.startsWith('/manga/') || 
-    location.pathname.startsWith('/read/') ||
-    location.pathname.startsWith('/chat');
+    location.pathname.startsWith('/reader/') ||
+    location.pathname.startsWith('/chat') ||
+    location.pathname.startsWith('/social');
 
   useEffect(() => {
     // Check for updates every 5 minutes
