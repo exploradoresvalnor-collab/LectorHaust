@@ -18,9 +18,12 @@ interface LibraryState {
   toggleRead: (chapterId: string) => void;
   markAsRead: (chapterId: string) => void;
   isRead: (chapterId: string) => boolean;
-  // Cloud Sync
+   // Cloud Sync
   syncFromCloud: (userId: string) => Promise<void>;
   pushToCloud: (userId: string) => Promise<void>;
+  // Global Settings
+  showNSFW: boolean;
+  setShowNSFW: (val: boolean) => void;
 }
 
 let syncTimeout: NodeJS.Timeout | null = null;
@@ -29,6 +32,12 @@ export const useLibraryStore = create<LibraryState>()(
   persist(
     (set, get) => ({
       favorites: [],
+      showNSFW: false,
+      setShowNSFW: (val) => {
+        set({ showNSFW: val });
+        const user = auth.currentUser;
+        if (user) get().pushToCloud(user.uid);
+      },
       toggleFavorite: (manga) => {
         const isFav = get().favorites.some(f => f.id === manga.id);
         const updated = isFav 
@@ -86,7 +95,8 @@ export const useLibraryStore = create<LibraryState>()(
             set({
               favorites: cloudData.favorites || [],
               history: cloudData.history || {},
-              readChapters: cloudData.readChapters || []
+              readChapters: cloudData.readChapters || [],
+              showNSFW: cloudData.showNSFW || false
             });
           }
         } catch (err) {
@@ -103,6 +113,7 @@ export const useLibraryStore = create<LibraryState>()(
               favorites: get().favorites,
               history: get().history,
               readChapters: get().readChapters,
+              showNSFW: get().showNSFW,
               updatedAt: Date.now()
             }, { merge: true });
           } catch (err) {

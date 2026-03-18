@@ -163,11 +163,26 @@
 }
 
 .xp-progress-bar {
-    height: 100%;
-    background: linear-gradient(90deg, var(--ion-color-secondary), var(--ion-color-primary));
-    border-radius: 10px;
-    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
+  height: 100%;
+  background: linear-gradient(90deg, var(--ion-color-primary), var(--ion-color-secondary));
+  box-shadow: 0 0 10px rgba(var(--ion-color-primary-rgb), 0.5);
+  border-radius: 4px;
+  transition: width 0.5s ease-out;
+}
+
+.social-nav-btn {
+  margin-top: 24px;
+  --background: linear-gradient(135deg, #8c52ff, #7038ff);
+  --border-radius: 16px;
+  --box-shadow: 0 8px 20px rgba(140, 82, 255, 0.3);
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  height: 48px;
+  --color: white;
+}
+
+.social-nav-btn:active {
+  transform: scale(0.98);
 }
 
 /* --- Segments (Tabs) --- */

@@ -13,6 +13,7 @@ query ($origin: CountryCode) {
             idMal
             title { romaji english }
             format
+            bannerImage
             coverImage { large extraLarge }
             description
             genres
@@ -101,9 +102,12 @@ export const anilistService = {
             media (search: $search, type: MANGA) {
               id
               idMal
-              title { romaji english }
+              title { romaji english native }
               format
+              bannerImage
               coverImage { large extraLarge }
+              description
+              countryOfOrigin
             }
           }
         }

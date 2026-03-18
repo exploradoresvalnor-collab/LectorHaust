@@ -11,21 +11,26 @@ import {
   setupIonicReact,
   useIonRouter,
   IonToast,
-  useIonViewWillEnter
+  useIonViewWillEnter,
+  IonBadge
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
 import { useLocation } from 'react-router-dom';
-import { home, search, library } from 'ionicons/icons';
+import { home, search, library, chatbubbles } from 'ionicons/icons';
 import HomePage from './pages/HomePage';
 import SearchPage from './pages/SearchPage';
 import LibraryPage from './pages/LibraryPage';
 import MangaDetailsPage from './pages/MangaDetailsPage';
 import ReaderPage from './pages/ReaderPage';
 import ProfilePage from './pages/ProfilePage';
+import ChatPage from './pages/ChatPage';
+import SocialPage from './pages/SocialPage';
 import { useState, useEffect } from 'react';
 import { useLibraryStore } from './store/useLibraryStore';
 import { checkUpdatesForLibrary, MangaUpdate } from './services/updateService';
 import { hapticsService } from './services/hapticsService';
+import { db } from './services/firebase';
+import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 
 /* Core CSS required for Ionic components to work properly */
 import '@ionic/react/css/core.css';
@@ -60,16 +65,21 @@ import './theme/global.css';
 
 setupIonicReact();
 
+import OfflineBanner from './components/OfflineBanner';
+
 const AppContent: React.FC = () => {
   const { favorites } = useLibraryStore();
   const [showToast, setShowToast] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<MangaUpdate | null>(null);
+  const [hasUnreadChat, setHasUnreadChat] = useState(false);
   const router = useIonRouter();
   const location = useLocation();
 
   // Paths where we want to HIDE the bottom tab bar
-  const hiddenTabsPaths = ['/reader/', '/manga/', '/profile'];
-  const shouldHideTabs = hiddenTabsPaths.some(path => location.pathname.includes(path));
+  const shouldHideTabs = 
+    location.pathname.startsWith('/manga/') || 
+    location.pathname.startsWith('/read/') ||
+    location.pathname.startsWith('/chat');
 
   useEffect(() => {
     // Check for updates every 5 minutes
@@ -84,8 +94,37 @@ const AppContent: React.FC = () => {
     return () => clearInterval(interval);
   }, [favorites]);
 
+  // Chat Notifications Logic
+  useEffect(() => {
+    const chatRef = collection(db, 'global_chat');
+    const q = query(chatRef, orderBy('timestamp', 'desc'), limit(1));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty && location.pathname !== '/chat') {
+        const lastMsg = snapshot.docs[0].data();
+        const lastMsgTime = lastMsg.timestamp?.toMillis() || Date.now();
+        const lastRead = Number(localStorage.getItem('lastReadChat') || 0);
+
+        if (lastMsgTime > lastRead) {
+          setHasUnreadChat(true);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [location.pathname]);
+
+  // Clear badge when entering chat
+  useEffect(() => {
+    if (location.pathname === '/chat') {
+      setHasUnreadChat(false);
+      localStorage.setItem('lastReadChat', Date.now().toString());
+    }
+  }, [location.pathname]);
+
   return (
     <>
+      <OfflineBanner />
       <IonTabs>
         <IonRouterOutlet>
           <Route exact path="/home" component={HomePage} />
@@ -94,6 +133,10 @@ const AppContent: React.FC = () => {
           <Route exact path="/search" component={SearchPage} />
           <Route path="/library" component={LibraryPage} />
           <Route exact path="/profile" component={ProfilePage} />
+          <Route exact path="/chat">
+            <ChatPage />
+          </Route>
+          <Route exact path="/social" component={SocialPage} />
           <Route exact path="/">
             <Redirect to="/home" />
           </Route>
@@ -110,6 +153,13 @@ const AppContent: React.FC = () => {
             <IonIcon aria-hidden="true" icon={search} />
             <IonLabel>Explorar</IonLabel>
           </IonTabButton>
+          <IonTabButton tab="chat" href="/chat" onClick={() => hapticsService.lightImpact()}>
+            <IonIcon aria-hidden="true" icon={chatbubbles} />
+            {hasUnreadChat && (
+              <IonBadge color="danger" className="tab-badge"> </IonBadge>
+            )}
+            <IonLabel>Chat</IonLabel>
+          </IonTabButton>
           <IonTabButton tab="library" href="/library" onClick={() => hapticsService.lightImpact()}>
             <IonIcon aria-hidden="true" icon={library} />
             <IonLabel>Biblioteca</IonLabel>
@@ -122,7 +172,7 @@ const AppContent: React.FC = () => {
         onDidDismiss={() => setShowToast(false)}
         message={`¡Nuevo capítulo de ${updateInfo?.mangaTitle}! (Cap. ${updateInfo?.chapterTitle})`}
         duration={5000}
-        position="top"
+        position="bottom"
         color="primary"
         cssClass="custom-toast"
         buttons={[

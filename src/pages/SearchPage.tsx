@@ -20,6 +20,7 @@ import {
   IonInfiniteScroll,
   IonInfiniteScrollContent,
   IonButton,
+  IonSkeletonText,
   useIonRouter,
   useIonViewWillEnter
 } from '@ionic/react';
@@ -30,6 +31,7 @@ import { mangadexService } from '../services/mangadexService';
 import { 
   useSearch, 
   FORMATS, 
+  LANGUAGES,
   STATUSES, 
   DEMOGRAPHICS, 
   ORDERS, 
@@ -241,12 +243,28 @@ const SearchPage: React.FC = () => {
 
         {activeSegment === 'trending' && (
           <div className="discovery-section trending-discovery animate-fade-in">
-            <div className="section-header">
-              <div className="accent-bar"></div>
-              <h2 className="discovery-title">Tendencias Globales 🔥</h2>
+            <div className="search-hero-banner trending-hero">
+              <div className="hero-content">
+                <IonIcon icon={trendingUpOutline} className="hero-icon" />
+                <h2 className="hero-title">Tendencias Globales</h2>
+                <p className="hero-subtitle">Manga en la cima de la popularidad.</p>
+              </div>
             </div>
+            
             {loading ? (
-              <div className="discovery-loader"><IonSpinner name="dots" color="primary" /></div>
+              <IonGrid className="search-results-grid">
+                <IonRow>
+                  {Array.from({ length: 12 }).map((_, i) => (
+                     <IonCol size="6" sizeSm="4" sizeMd="3" key={i}>
+                       <div style={{ padding: '0 8px' }}>
+                          <IonSkeletonText animated style={{ height: '220px', borderRadius: '15px' }} />
+                          <IonSkeletonText animated style={{ width: '80%', height: '14px', marginTop: '8px', borderRadius: '4px' }} />
+                          <IonSkeletonText animated style={{ width: '50%', height: '14px', marginTop: '4px', borderRadius: '4px' }} />
+                       </div>
+                     </IonCol>
+                  ))}
+                </IonRow>
+              </IonGrid>
             ) : (
               <IonGrid>
                 <IonRow>
@@ -306,30 +324,32 @@ const SearchPage: React.FC = () => {
 
         {activeSegment === 'completed' && (
           <div className="completed-section animate-fade-in">
-            <div className="discovery-header" style={{ marginBottom: '20px' }}>
-              <div className="section-header">
-                <div className="accent-bar" style={{ background: '#4caf50' }}></div>
-                <h2 className="discovery-title">Obras Maestras Finalizadas</h2>
+            <div className="search-hero-banner completed-hero">
+              <div className="hero-content">
+                <IonIcon icon={sparklesOutline} className="hero-icon" />
+                <h2 className="hero-title">Obras Maestras</h2>
+                <p className="hero-subtitle">Manga finalizado con traducción verificada.</p>
               </div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '5px' }}>
-                Series terminadas con traducción completa verificada.
-              </p>
             </div>
 
             <div className="completed-filters-bar glass-effect animate-slide-up">
               <div className="filter-pill-row">
-                <IonSegment 
-                  value={completedLang} 
-                  onIonChange={(e: any) => {
-                    setCompletedLang(e.detail.value);
-                    fetchCompleted(false, completedGenre, e.detail.value);
-                  }}
-                  mode="ios"
-                  className="lang-segment-mini"
-                >
-                  <IonSegmentButton value="es">ES</IonSegmentButton>
-                  <IonSegmentButton value="en">EN</IonSegmentButton>
-                </IonSegment>
+                <div className="genre-select-wrapper mini-pill" style={{ flex: '0 0 auto', minWidth: '80px' }}>
+                  <IonIcon icon={filterOutline} className="genre-icon-mini" />
+                  <IonSelect 
+                    value={completedLang} 
+                    interface="popover" 
+                    className="genre-select-mini"
+                    onIonChange={(e: any) => {
+                      setCompletedLang(e.detail.value);
+                      fetchCompleted(false, completedGenre, e.detail.value);
+                    }}
+                  >
+                    {LANGUAGES.map(l => (
+                      <IonSelectOption key={l.value} value={l.value}>{l.label}</IonSelectOption>
+                    ))}
+                  </IonSelect>
+                </div>
 
                 <div className="genre-select-wrapper mini-pill">
                   <IonIcon icon={sparklesOutline} className="genre-icon-mini" />
@@ -388,10 +408,19 @@ const SearchPage: React.FC = () => {
             </div>
 
             {completedLoading ? (
-              <div style={{ textAlign: 'center', padding: '3rem' }}>
-                <IonSpinner name="dots" color="primary" />
-                <p style={{ marginTop: '10px', opacity: 0.8 }}>Validando traducción completa...</p>
-              </div>
+              <IonGrid className="search-results-grid" style={{ marginTop: '15px' }}>
+                <IonRow>
+                  {Array.from({ length: 12 }).map((_, i) => (
+                     <IonCol size="6" sizeSm="4" sizeMd="3" sizeLg="2" key={i}>
+                       <div style={{ padding: '0 8px' }}>
+                          <IonSkeletonText animated style={{ height: '220px', borderRadius: '15px' }} />
+                          <IonSkeletonText animated style={{ width: '80%', height: '14px', marginTop: '8px', borderRadius: '4px' }} />
+                          <IonSkeletonText animated style={{ width: '50%', height: '14px', marginTop: '4px', borderRadius: '4px' }} />
+                       </div>
+                     </IonCol>
+                  ))}
+                </IonRow>
+              </IonGrid>
             ) : (
               <>
                 <IonGrid>

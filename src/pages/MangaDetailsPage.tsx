@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   IonContent, 
   IonHeader, 
@@ -7,38 +7,73 @@ import {
   IonButtons, 
   IonBackButton, 
   IonTitle, 
-  IonImg, 
+  IonSpinner, 
   IonText, 
   IonBadge, 
-  IonSpinner,
-  useIonRouter,
+  IonIcon, 
   IonButton,
-  IonIcon,
-  IonSkeletonText,
   IonList,
   IonItem,
   IonLabel,
+  IonSkeletonText,
+  IonNote,
+  useIonRouter,
   IonSelect,
   IonSelectOption,
-  IonInfiniteScroll,
-  IonInfiniteScrollContent,
   IonPopover,
-  IonNote
+  IonModal,
+  useIonToast
 } from '@ionic/react';
-import { heart, heartOutline, chevronBackOutline, chevronForwardOutline, playSkipBackOutline, playSkipForwardOutline, alertCircleOutline, informationCircleOutline } from 'ionicons/icons';
+import { 
+  heart, 
+  heartOutline, 
+  alertCircleOutline, 
+  informationCircleOutline,
+  bookOutline, 
+  calendarOutline, 
+  star, 
+  shareSocialOutline,
+  chevronBackOutline,
+  chevronForwardOutline,
+  playSkipBackOutline,
+  playSkipForwardOutline,
+  chatbubblesOutline,
+  globeOutline,
+  close,
+  logoWhatsapp,
+  logoTwitter,
+  paperPlane,
+  copyOutline,
+  shareOutline
+} from 'ionicons/icons';
 import { useParams } from 'react-router-dom';
 import { mangadexService } from '../services/mangadexService';
 import { useLibraryStore } from '../store/useLibraryStore';
 import ChapterItem from '../components/ChapterItem';
+
 import LoadingScreen from '../components/LoadingScreen';
 import CommentSection from '../components/CommentSection';
 import { useMangaDetails } from '../hooks/useMangaDetails';
 import { hapticsService } from '../services/hapticsService';
+import { offlineService } from '../services/offlineService';
+import { db } from '../services/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { firebaseAuthService } from '../services/firebaseAuthService';
+import { userStatsService } from '../services/userStatsService';
 import './MangaDetailsPage.css';
 
 const MangaDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const router = useIonRouter();
+  // Smart recommendations state
+  const [verifiedRecs, setVerifiedRecs] = useState<any[]>([]);
+  const [loadingRecs, setLoadingRecs] = useState(false);
+  // Offline downloads state
+  const [downloadedChapters, setDownloadedChapters] = useState<Set<string>>(new Set());
+  const [downloadingChapters, setDownloadingChapters] = useState<Record<string, number>>({});
+  const [showShareSheet, setShowShareSheet] = useState(false);
+  const [presentToast] = useIonToast();
+
   const { toggleFavorite, isFavorite, isRead, getProgress, toggleRead } = useLibraryStore();
   const progress = id ? getProgress(id) : null;
 
@@ -59,6 +94,60 @@ const MangaDetailsPage: React.FC = () => {
     handleLangChange,
     loadPage
   } = useMangaDetails(id);
+
+  // Verify recommendations have chapters on MangaDex
+  useEffect(() => {
+    if (!aniData?.recommendations?.edges?.length) {
+      setVerifiedRecs([]);
+      return;
+    }
+
+    let cancelled = false;
+    const verify = async () => {
+      setLoadingRecs(true);
+      const edges = aniData.recommendations.edges.slice(0, 10);
+      const results: any[] = [];
+
+      // Process in parallel (3 at a time to avoid rate limiting)
+      for (let i = 0; i < edges.length; i += 3) {
+        const batch = edges.slice(i, i + 3);
+        const batchResults = await Promise.all(
+          batch.map(async (edge: any) => {
+            const rec = edge.node.mediaRecommendation;
+            const title = rec.title.english || rec.title.romaji;
+            try {
+              const verified = await mangadexService.fetchVerifiedRecommendation(title);
+              if (verified && verified.hasChapters) {
+                return {
+                  aniId: rec.id,
+                  mdId: verified.id,
+                  title: rec.title.romaji || rec.title.english,
+                  coverImage: rec.coverImage.large,
+                  score: rec.averageScore
+                };
+              }
+            } catch { /* skip failed */ }
+            return null;
+          })
+        );
+        if (cancelled) return;
+        results.push(...batchResults.filter(Boolean));
+        // Update progressively so user sees results appear
+        if (results.length > 0) {
+          setVerifiedRecs([...results]);
+          setLoadingRecs(false);
+        }
+      }
+
+      if (!cancelled) {
+        setVerifiedRecs(results);
+        setLoadingRecs(false);
+      }
+    };
+
+    verify();
+    return () => { cancelled = true; };
+  }, [aniData]);
 
   if (loading) {
     return (
@@ -112,6 +201,68 @@ const MangaDetailsPage: React.FC = () => {
       format: mangaFormat,
       tags: mangaTags
     });
+  };
+
+  const handleChatShare = async () => {
+    const user = firebaseAuthService.getCurrentUser();
+    if (!user) return;
+
+    try {
+      // Get flag and name for guest or user
+      const locale = navigator.language || 'en-US';
+      const countryCode = locale.split('-')[1] || locale.toUpperCase();
+      const codePoints = countryCode.toUpperCase().split('').map(char => 127397 + char.charCodeAt(0));
+      const flag = String.fromCodePoint(...codePoints) || '🌍';
+      const guestId = user.uid.substring(0, 4).toUpperCase();
+      const finalDisplayName = user.displayName || `Lector ${guestId} ${flag}`;
+
+      await addDoc(collection(db, 'global_chat'), {
+        type: 'recommendation',
+        text: `¡Os recomiendo este manga! 📖 ${title}`,
+        mangaId: id,
+        mangaTitle: title,
+        mangaCover: coverUrl,
+        userId: user.uid,
+        userName: finalDisplayName,
+        userAvatar: user.photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${user.uid}`,
+        timestamp: serverTimestamp()
+      });
+
+      // Award XP
+      await userStatsService.awardRecommendationXP(user.uid);
+
+      presentToast({
+        message: '¡Recomendación enviada al Chat Global! +30 XP 🌟',
+        duration: 2500,
+        color: 'success',
+        position: 'top'
+      });
+    } catch (error) {
+      console.error("Error sharing to chat:", error);
+    }
+  };
+
+  const handleSocialShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: title as string,
+          text: `Mira este manga en Lector Haus: ${title}`,
+          url: window.location.href,
+        });
+      } catch (err) {
+        console.log('Share cancelled or failed', err);
+      }
+    } else {
+      // Fallback: Copy to clipboard
+      navigator.clipboard.writeText(window.location.href);
+      presentToast({
+        message: 'Enlace copiado al portapapeles',
+        duration: 2000,
+        color: 'primary',
+        position: 'top'
+      });
+    }
   };
 
   const lastReadChapterNum = progress?.chapterNumber;
@@ -201,6 +352,17 @@ const MangaDetailsPage: React.FC = () => {
             >
               <IonIcon slot="icon-only" icon={isFavorite(id) ? heart : heartOutline} color="danger" />
             </IonButton>
+
+            <IonButton 
+              fill="outline" 
+              className="share-action-btn"
+              onClick={() => {
+                hapticsService.lightImpact();
+                setShowShareSheet(true);
+              }}
+            >
+              <IonIcon slot="icon-only" icon={shareSocialOutline} color="primary" />
+            </IonButton>
           </div>
 
 
@@ -240,28 +402,45 @@ const MangaDetailsPage: React.FC = () => {
           )}
 
           <h2 className="section-subtitle">Capítulos</h2>
-          <div className="details-lang-header" style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <IonSelect 
-              value={chapterLang} 
-              interface="popover" 
-              className="chapter-lang-select"
-              onIonChange={e => handleLangChange(e.detail.value)}
-              style={{ flex: 1 }}
-            >
-              <IonSelectOption value="es">🇪🇸 ES</IonSelectOption>
-              <IonSelectOption value="es-la">🇲🇽 LAT</IonSelectOption>
-              <IonSelectOption value="en">🇺🇸 EN</IonSelectOption>
-              <IonSelectOption value="ja">🇯🇵 JP</IonSelectOption>
-            </IonSelect>
+          <div className="details-lang-header mobile-optimized-header">
+            <div className="filter-select-group">
+              <IonIcon icon={bookOutline} className="header-filter-icon" />
+              <IonSelect 
+                value={chapterLang} 
+                interface="popover" 
+                className="chapter-lang-select-v2"
+                onIonChange={e => handleLangChange(e.detail.value)}
+              >
+                {[
+                  { code: 'es', label: '🇪🇸 ES' },
+                  { code: 'es-la', label: '🇲🇽 LAT' },
+                  { code: 'en', label: '🇺🇸 EN' },
+                  { code: 'pt-br', label: '🇧🇷 BR' },
+                  { code: 'fr', label: '🇫🇷 FR' },
+                  { code: 'it', label: '🇮🇹 IT' },
+                  { code: 'de', label: '🇩🇪 DE' },
+                  { code: 'ru', label: '🇷🇺 RU' },
+                  { code: 'tr', label: '🇹🇷 TR' },
+                  { code: 'vi', label: '🇻🇳 VI' },
+                  { code: 'th', label: '🇹🇭 TH' },
+                  { code: 'zh', label: '🇨🇳 ZH' },
+                  { code: 'ja', label: '🇯🇵 JP' }
+                ].map(lang => (
+                  <IonSelectOption key={lang.code} value={lang.code}>{lang.label}</IonSelectOption>
+                ))}
+              </IonSelect>
+            </div>
 
             <IonButton 
               fill="clear" 
-              size="small" 
-              onClick={() => setChapterOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-              style={{ marginLeft: '10px' }}
+              className="order-toggle-btn-v2"
+              onClick={() => {
+                hapticsService.lightImpact();
+                setChapterOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+              }}
             >
-              <IonIcon icon={chapterOrder === 'asc' ? chevronForwardOutline : chevronBackOutline} slot="start" style={{ transform: 'rotate(90deg)' }} />
-            {chapterOrder === 'asc' ? 'Ascendente' : 'Descendente'}
+              <IonIcon icon={chapterOrder === 'asc' ? playSkipForwardOutline : playSkipBackOutline} style={{ transform: 'rotate(90deg)' }} />
+              <span>{chapterOrder === 'asc' ? 'Primero' : 'Último'}</span>
             </IonButton>
           </div>
 
@@ -294,33 +473,59 @@ const MangaDetailsPage: React.FC = () => {
                 ))}
               </IonList>
             ) : chapters.length > 0 ? (
-              chapters.map((chapter: any) => {
-                const scanlationGroupRel = chapter.relationships?.find((r: any) => r.type === 'scanlation_group');
-                const scanlationGroupName = scanlationGroupRel?.attributes?.name;
-                
-                return (
-                  <ChapterItem 
-                    key={chapter.id}
-                    number={chapter.attributes?.chapter}
-                    title={chapter.attributes?.title}
-                    publishedAt={chapter.attributes?.readableAt}
-                    externalUrl={chapter.attributes?.externalUrl}
-                    scanlationGroup={scanlationGroupName}
-                    isRead={isRead(chapter.id)}
-                    onToggleRead={(e) => {
-                      e.stopPropagation();
-                      toggleRead(chapter.id);
-                    }}
-                    onClick={() => {
-                      if (chapter.attributes.externalUrl) {
-                        window.open(chapter.attributes.externalUrl, '_blank');
-                      } else {
-                        router.push(`/reader/${chapter.id}`);
-                      }
-                    }}
-                  />
-                );
-              })
+              <div className="chapters-list-view">
+                {chapters.map((chapter: any) => {
+                  const scanlationGroupRel = chapter.relationships?.find((r: any) => r.type === 'scanlation_group');
+                  const scanlationGroupName = scanlationGroupRel?.attributes?.name;
+                  
+                  return (
+                    <ChapterItem 
+                      key={chapter.id}
+                      number={chapter.attributes?.chapter}
+                      title={chapter.attributes?.title}
+                      publishedAt={chapter.attributes?.readableAt}
+                      externalUrl={chapter.attributes?.externalUrl}
+                      scanlationGroup={scanlationGroupName}
+                      isRead={isRead(chapter.id)}
+                      isDownloaded={downloadedChapters.has(chapter.id)}
+                      downloadProgress={downloadingChapters[chapter.id]}
+                      onDownload={async (e) => {
+                        e.stopPropagation();
+                        if (downloadedChapters.has(chapter.id)) return;
+                        hapticsService.lightImpact();
+                        setDownloadingChapters(prev => ({ ...prev, [chapter.id]: 0 }));
+                        try {
+                          const data = await mangadexService.getChapterPages(chapter.id);
+                          if (data?.pages) {
+                            const title = mangadexService.getLocalizedTitle(manga);
+                            const cover = mangadexService.getCoverUrl(manga);
+                            await offlineService.downloadChapter(
+                              chapter.id, id || '', title, chapter.attributes?.chapter || '?', data.pages, cover,
+                              (progress) => setDownloadingChapters(prev => ({ ...prev, [chapter.id]: progress.percent }))
+                            );
+                            setDownloadedChapters(prev => new Set([...prev, chapter.id]));
+                          }
+                        } catch (err) {
+                          console.error('[Download] Failed:', err);
+                        } finally {
+                          setDownloadingChapters(prev => { const n = { ...prev }; delete n[chapter.id]; return n; });
+                        }
+                      }}
+                      onToggleRead={(e) => {
+                        e.stopPropagation();
+                        toggleRead(chapter.id);
+                      }}
+                      onClick={() => {
+                        if (chapter.attributes.externalUrl) {
+                          window.open(chapter.attributes.externalUrl, '_blank');
+                        } else {
+                          router.push(`/reader/${chapter.id}`);
+                        }
+                      }}
+                    />
+                  );
+                })}
+              </div>
             ) : (
               <div className="empty-adventure animate-fade-in ion-text-center">
                 <IonIcon icon={alertCircleOutline} color="medium" style={{ fontSize: '64px', marginBottom: '10px' }} />
@@ -385,64 +590,49 @@ const MangaDetailsPage: React.FC = () => {
                 <div className="total-info-badge">
                   {totalChapters} Capítulos encontrados
                 </div>
-
-                <IonPopover trigger="jump-page-trigger" triggerAction="click" className="jump-page-popover">
-                  <div className="popover-content">
-                    <p>Saltar a página</p>
-                    <div className="jump-input-container">
-                      <input 
-                        type="number" 
-                        min="1" 
-                        max={totalPages} 
-                        defaultValue={currentPage}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            const val = parseInt((e.target as HTMLInputElement).value);
-                            if (val >= 1 && val <= totalPages) {
-                              loadPage(val);
-                              // Dismiss the popover after selection
-                              const popover = document.querySelector('ion-popover.jump-page-popover') as any;
-                              if (popover) popover.dismiss();
-                            }
-                          }
-                        }}
-                        className="jump-page-input"
-                      />
-                      <IonButton fill="clear" onClick={(e) => {
-                        const input = (e.target as any).previousSibling as HTMLInputElement;
-                        const val = parseInt(input.value);
-                        if (val >= 1 && val <= totalPages) {
-                          loadPage(val);
-                          const popover = document.querySelector('ion-popover.jump-page-popover') as any;
-                          if (popover) popover.dismiss();
-                        }
-                      }}>IR</IonButton>
-                    </div>
-                  </div>
-                </IonPopover>
               </div>
             )}
           </div>
 
-          {/* Recommendations Section */}
-          {aniData?.recommendations?.edges?.length > 0 && (
-            <div className="recommendations-section" style={{ marginTop: '30px' }}>
-              <h2 className="section-subtitle">Recomendados</h2>
-              <div className="recommendations-grid">
-                {aniData.recommendations.edges.slice(0, 4).map((edge: any) => (
-                  <div 
-                    key={edge.node.mediaRecommendation.id} 
-                    className="recommendation-thumb"
-                    onClick={async () => {
-                      const mdId = await mangadexService.fetchMangaDexIdByTitle(edge.node.mediaRecommendation.title.english || edge.node.mediaRecommendation.title.romaji);
-                      if (mdId) router.push(`/manga/${mdId}`);
-                    }}
-                  >
-                    <img src={mangadexService.getOptimizedUrl(edge.node.mediaRecommendation.coverImage.large)} alt="Recommend" />
-                    <p>{edge.node.mediaRecommendation.title.romaji || edge.node.mediaRecommendation.title.english}</p>
-                  </div>
-                ))}
-              </div>
+          {/* Recommendations Section - Smart Verified */}
+          {(loadingRecs || verifiedRecs.length > 0) && (
+            <div className="recommendations-section">
+              <h2 className="section-subtitle">También te gustará</h2>
+              {loadingRecs ? (
+                <div className="recommendations-scroll">
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="recommendation-card-v2 skeleton-rec">
+                      <div className="recommendation-cover-wrapper">
+                        <IonSkeletonText animated style={{ width: '100%', height: '100%', borderRadius: '14px' }} />
+                      </div>
+                      <IonSkeletonText animated style={{ width: '80%', height: '14px', marginTop: '8px' }} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="recommendations-scroll">
+                  {verifiedRecs.map((rec: any) => (
+                    <div 
+                      key={rec.aniId} 
+                      className="recommendation-card-v2"
+                      onClick={() => router.push(`/manga/${rec.mdId}`)}
+                    >
+                      <div className="recommendation-cover-wrapper">
+                        <img 
+                          src={mangadexService.getOptimizedUrl(rec.coverImage)} 
+                          alt={rec.title} 
+                          loading="lazy"
+                        />
+                        <div className="recommendation-score">
+                          <IonIcon icon={star} />
+                          {rec.score ? (rec.score / 10).toFixed(1) : '?.?'}
+                        </div>
+                      </div>
+                      <p className="recommendation-title">{rec.title}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -450,6 +640,79 @@ const MangaDetailsPage: React.FC = () => {
           <CommentSection mangaId={id} title="El Muro Haus - Opiniones" />
         </div>
       </IonContent>
+
+      <IonModal
+        isOpen={showShareSheet}
+        onDidDismiss={() => setShowShareSheet(false)}
+        initialBreakpoint={0.4}
+        breakpoints={[0, 0.4, 0.6]}
+        handle={true}
+        className="premium-bottom-sheet"
+      >
+        <div className="share-sheet-content">
+          <div className="share-sheet-header">
+            <h3>Compartir en...</h3>
+            <p>Elige dónde quieres recomendar este manga</p>
+          </div>
+          
+          <div className="share-grid">
+            <div className="share-item chat-global" onClick={handleChatShare}>
+              <div className="share-icon-wrapper">
+                <IonIcon icon={chatbubblesOutline} />
+              </div>
+              <span>Chat Global</span>
+            </div>
+
+            <div className="share-item whatsapp" onClick={() => {
+              window.open(`https://wa.me/?text=${encodeURIComponent(`Mira este manga en Lector Haus: ${title} ${window.location.href}`)}`, '_blank');
+              setShowShareSheet(false);
+            }}>
+              <div className="share-icon-wrapper">
+                <IonIcon icon={logoWhatsapp} />
+              </div>
+              <span>WhatsApp</span>
+            </div>
+
+            <div className="share-item telegram" onClick={() => {
+              window.open(`https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(`Mira este manga en Lector Haus: ${title}`)}`, '_blank');
+              setShowShareSheet(false);
+            }}>
+              <div className="share-icon-wrapper">
+                <IonIcon icon={paperPlane} />
+              </div>
+              <span>Telegram</span>
+            </div>
+
+            <div className="share-item twitter" onClick={() => {
+              window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Mira este manga en Lector Haus: ${title} ${window.location.href}`)}`, '_blank');
+              setShowShareSheet(false);
+            }}>
+              <div className="share-icon-wrapper">
+                <IonIcon icon={logoTwitter} />
+              </div>
+              <span>Twitter</span>
+            </div>
+
+            <div className="share-item other" onClick={handleSocialShare}>
+              <div className="share-icon-wrapper">
+                <IonIcon icon={shareOutline} />
+              </div>
+              <span>Más</span>
+            </div>
+
+            <div className="share-item copy" onClick={() => {
+              navigator.clipboard.writeText(window.location.href);
+              setShowShareSheet(false);
+              presentToast({ message: 'Enlace copiado', duration: 2000, color: 'success' });
+            }}>
+              <div className="share-icon-wrapper">
+                <IonIcon icon={copyOutline} />
+              </div>
+              <span>Copiar Link</span>
+            </div>
+          </div>
+        </div>
+      </IonModal>
     </IonPage>
   );
 };

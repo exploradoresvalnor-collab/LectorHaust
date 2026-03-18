@@ -4,6 +4,7 @@ import { useLibraryStore } from '../store/useLibraryStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { auth } from '../services/firebase';
 import { userStatsService } from '../services/userStatsService';
+import { offlineService } from '../services/offlineService';
 
 export function useMangaReader(chapterId?: string) {
   const [pages, setPages] = useState<string[]>([]);
@@ -11,6 +12,9 @@ export function useMangaReader(chapterId?: string) {
   const [error, setError] = useState<string | null>(null);
   const [mangaId, setMangaId] = useState<string | null>(null);
   const [chapterNum, setChapterNum] = useState<string>('1');
+  const [isOffline, setIsOffline] = useState(false);
+  const [mangaTitle, setMangaTitle] = useState<string>('');
+  const [mangaCover, setMangaCover] = useState<string>('');
   
   const [prevChapterId, setPrevChapterId] = useState<string | null>(null);
   const [nextChapterId, setNextChapterId] = useState<string | null>(null);
@@ -35,11 +39,13 @@ export function useMangaReader(chapterId?: string) {
           chapterId: chapterId,
           chapterNumber: chapterNum,
           pageIndex: currentPageIndex.current + 1,
-          lastRead: Date.now()
+          lastRead: Date.now(),
+          mangaTitle: mangaTitle || undefined,
+          mangaCover: mangaCover || undefined
         });
       }
     };
-  }, [mangaId, chapterId, chapterNum, saveProgress]);
+  }, [mangaId, chapterId, chapterNum, mangaTitle, mangaCover, saveProgress]);
 
   // Observer para modo Webtoon
   useEffect(() => {
@@ -70,7 +76,7 @@ export function useMangaReader(chapterId?: string) {
     }
   }, [currentMangaPage, isWebtoon]);
 
-  // Cargar datos del capítulo
+  // Cargar datos del capítulo (offline first)
   useEffect(() => {
     let isMounted = true;
 
@@ -85,42 +91,69 @@ export function useMangaReader(chapterId?: string) {
       
       try {
         lastLoadedId.current = chapterId;
-        const data = await mangadexService.getChapterPages(chapterId, dataSaverMode ? 'data-saver' : 'data');
-        
+
+        // 🔌 OFFLINE FIRST: Check if chapter is downloaded locally
+        const downloaded = await offlineService.isDownloaded(chapterId);
+        let pagesLoaded = false;
+
+        if (downloaded) {
+          const localPages = await offlineService.getLocalPages(chapterId);
+          if (localPages.length > 0 && isMounted) {
+            setPages(localPages);
+            setIsOffline(true);
+            markAsRead(chapterId);
+            pagesLoaded = true;
+            console.log(`[Reader] Loaded ${localPages.length} pages from offline storage`);
+          }
+        }
+
+        // If no offline pages, fetch from network
+        if (!pagesLoaded) {
+          const data = await mangadexService.getChapterPages(chapterId, dataSaverMode ? 'data-saver' : 'data');
+          if (!isMounted) return;
+          if (data && data.pages) {
+            setPages(data.pages);
+            markAsRead(chapterId);
+            if (auth.currentUser) userStatsService.awardChapterXP(auth.currentUser.uid);
+          }
+        }
+
+        // Always fetch chapter metadata for navigation (prev/next)
+        const chapterInfo = await mangadexService.getChapter(chapterId);
         if (!isMounted) return;
 
-        if (data && data.pages) {
-          setPages(data.pages);
-          markAsRead(chapterId);
-          if (auth.currentUser) userStatsService.awardChapterXP(auth.currentUser.uid);
-          
-          const chapterInfo = await mangadexService.getChapter(chapterId);
+        setChapterNum(chapterInfo.data.attributes.chapter || '1');
+        
+        const mangaRel = chapterInfo.data.relationships?.find((r: any) => r.type === 'manga');
+        if (mangaRel) {
+          setMangaId(mangaRel.id);
+          const format = mangaRel.attributes?.originalLanguage;
+          setIsWebtoon(format === 'ko' || format === 'zh');
+
+          // Fetch manga details to get title and cover for progress tracking
+          try {
+            const mangaData = await mangadexService.getMangaById(mangaRel.id);
+            if (mangaData?.data && isMounted) {
+              setMangaTitle(mangadexService.getLocalizedTitle(mangaData.data));
+              setMangaCover(mangadexService.getCoverUrl(mangaData.data));
+            }
+          } catch { /* non-critical */ }
+
+          const chaptersData = await mangadexService.getMangaChapters(
+            mangaRel.id, 
+            chapterInfo.data.attributes.translatedLanguage || 'es',
+            100, 0
+          );
           if (!isMounted) return;
 
-          setChapterNum(chapterInfo.data.attributes.chapter || '1');
-          
-          const mangaRel = chapterInfo.data.relationships?.find((r: any) => r.type === 'manga');
-          if (mangaRel) {
-            setMangaId(mangaRel.id);
-            const format = mangaRel.attributes?.originalLanguage;
-            setIsWebtoon(format === 'ko' || format === 'zh');
-
-            const chaptersData = await mangadexService.getMangaChapters(
-              mangaRel.id, 
-              chapterInfo.data.attributes.translatedLanguage || 'es',
-              100, 0
-            );
-            if (!isMounted) return;
-
-            if (chaptersData.data) {
-              const sorted = chaptersData.data
-                .filter((c: any) => c.attributes.chapter)
-                .sort((a: any, b: any) => parseFloat(a.attributes.chapter) - parseFloat(b.attributes.chapter));
-              
-              const currentIdx = sorted.findIndex((c: any) => c.id === chapterId);
-              setPrevChapterId(currentIdx > 0 ? sorted[currentIdx - 1].id : null);
-              setNextChapterId(currentIdx < sorted.length - 1 ? sorted[currentIdx + 1].id : null);
-            }
+          if (chaptersData.data) {
+            const sorted = chaptersData.data
+              .filter((c: any) => c.attributes.chapter)
+              .sort((a: any, b: any) => parseFloat(a.attributes.chapter) - parseFloat(b.attributes.chapter));
+            
+            const currentIdx = sorted.findIndex((c: any) => c.id === chapterId);
+            setPrevChapterId(currentIdx > 0 ? sorted[currentIdx - 1].id : null);
+            setNextChapterId(currentIdx < sorted.length - 1 ? sorted[currentIdx + 1].id : null);
           }
         }
       } catch (err: any) {
@@ -175,6 +208,7 @@ export function useMangaReader(chapterId?: string) {
     setShowUi,
     showEndSection,
     setShowEndSection,
-    handleMangaTap
+    handleMangaTap,
+    isOffline
   };
 }

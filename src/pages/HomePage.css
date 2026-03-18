@@ -271,7 +271,8 @@
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    padding: 40px 20px 90px;
+    /* Extra bottom padding to clear the 65px floating tab bar + bottom safe area + spacing */
+    padding: 40px 20px calc(110px + env(safe-area-inset-bottom));
 }
 
 .hero-img-layer {
@@ -285,6 +286,8 @@
     background-repeat: no-repeat;
     z-index: 0;
     transition: all 0.5s ease;
+    image-rendering: -webkit-optimize-contrast; /* Mejora la nitidez en navegadores basados en Chrome */
+    image-rendering: high-quality;
 }
 
 .hero-gradient-overlay {
@@ -343,6 +346,152 @@
         right: auto;
         bottom: 40px;
     }
+}
+
+/* Premium Entry Modal Styling */
+.premium-entry-modal::part(content) {
+  border-radius: 32px 32px 0 0;
+  background: rgba(15, 15, 15, 0.8) !important;
+  backdrop-filter: blur(25px) saturate(180%);
+  -webkit-backdrop-filter: blur(25px) saturate(180%);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 -20px 50px rgba(0, 0, 0, 0.7);
+}
+
+.premium-modal-content {
+  padding: 24px 20px 40px;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+}
+
+.modal-close-handle {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 1.2rem;
+  z-index: 10;
+}
+
+.header-glow-icon {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(244, 114, 182, 0.3) 100%);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  color: #fff;
+  font-size: 2rem;
+  box-shadow: 0 0 30px rgba(139, 92, 246, 0.4);
+}
+
+.premium-title {
+  text-align: center;
+  font-size: 1.7rem;
+  font-weight: 900;
+  margin: 0 0 6px;
+  letter-spacing: -0.5px;
+}
+
+.premium-title .highlight {
+  background: linear-gradient(90deg, #a78bfa 0%, #f472b6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.premium-subtitle {
+  text-align: center;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0 0 28px;
+}
+
+.premium-perks-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.perk-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: transform 0.2s ease;
+}
+
+.perk-card:active {
+  transform: scale(0.98);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.perk-icon {
+  font-size: 1.5rem;
+  padding: 10px;
+  border-radius: 12px;
+}
+
+.perk-icon.clouds { color: #60a5fa; background: rgba(96, 165, 250, 0.1); }
+.perk-icon.chat { color: #4ade80; background: rgba(74, 222, 128, 0.1); }
+.perk-icon.xp { color: #fbbf24; background: rgba(251, 191, 36, 0.1); }
+
+.perk-info h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.perk-info p {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.premium-actions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.action-btn {
+  margin: 0;
+  height: 52px;
+  --border-radius: 14px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.action-btn.google {
+  --background: #fff;
+  --color: #000;
+  box-shadow: 0 10px 25px rgba(255, 255, 255, 0.1);
+}
+
+.action-btn.ghost {
+  --color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+}
+/* Custom styles for Swiper pagination */
+.hero-swiper-container .swiper-pagination {
+    bottom: calc(85px + env(safe-area-inset-bottom)) !important; /* Move dots above floating nav */
 }
 
 .scroll-indicator {
@@ -610,6 +759,7 @@
     object-fit: cover;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    image-rendering: -webkit-optimize-contrast;
 }
 
 .carousel-title {

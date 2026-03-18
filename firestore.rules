@@ -7,6 +7,27 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
+    // Chat Global
+    match /global_chat/{messageId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // User Profiles & Stats
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow adding friends (sub-action) - simplified for now
+      allow update: if request.auth != null;
+    }
+    
+    // Friend Requests
+    match /users/{userId}/friendRequests/{requestId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null;
+    }
+    
     // 2. Comentarios (Lectura pública, Escritura autenticada, Borrado solo de autor)
     match /comments/{commentId} {
       allow read: if true;
@@ -24,6 +45,13 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
       allow create: if request.auth != null; // Cualquiera puede enviar si hay respuesta
       allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    // 4. Reportes y Moderación (Usuario puede crear, nadie puede leer excepto Admin desde la consola)
+    match /reports/{reportId} {
+      allow read, update, delete: if false;
+      allow create: if request.auth != null 
+                    && request.resource.data.keys().hasAll(['messageId', 'reportedUserId', 'reporterId', 'reason', 'timestamp']);
     }
     
     // 4. Estadísticas de Usuario (Gamificación - Lectura para todos, Escritura protegida)

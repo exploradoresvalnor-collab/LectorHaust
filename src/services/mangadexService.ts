@@ -37,25 +37,25 @@ function getProxyUrl(endpoint: string) {
 /**
  * Helper to fetch from MangaDex using proxy with automatic retry for 500 errors
  */
-async function apiFetch(endpoint: string, retries = 2) {
+async function apiFetch(endpoint: string, retries = 2, delay = 1000) {
     const proxiedUrl = getProxyUrl(endpoint);
     try {
         const response = await rateLimitedFetch(proxiedUrl);
         
-        // If 500 and we have retries, wait a bit and try again
-        if (response.status === 500 && retries > 0) {
-            console.warn(`[MangaDex] API 500 Error. Retrying... (${retries} left)`);
-            await new Promise(r => setTimeout(r, 1000)); // Wait 1s
-            return apiFetch(endpoint, retries - 1);
+        if (!response.ok) {
+            if (response.status >= 500 && retries > 0) {
+                console.warn(`[MangaDex] API ${response.status} Error. Retrying in ${delay}ms... (${retries} left)`);
+                await new Promise(res => setTimeout(res, delay));
+                return apiFetch(endpoint, retries - 1, delay * 2);
+            }
+            throw new Error(`MangaDex API Error: ${response.status}`);
         }
-
-        if (!response.ok) throw new Error(`MangaDex API Error: ${response.status}`);
         return response.json();
     } catch (err) {
         if (retries > 0) {
-            console.warn(`[MangaDex] Network Error. Retrying... (${retries} left)`, err);
-            await new Promise(r => setTimeout(r, 1000));
-            return apiFetch(endpoint, retries - 1);
+            console.warn(`[MangaDex] Global Fetch Error. Retrying in ${delay}ms... (${retries} left)`, err);
+            await new Promise(res => setTimeout(res, delay));
+            return apiFetch(endpoint, retries - 1, delay * 2);
         }
         throw err;
     }
@@ -119,6 +119,15 @@ const GENRE_UUIDS: Record<string, string> = {
 };
 
 export const mangadexService = {
+    getContentRatingParams(allowNSFW: boolean): string {
+        let params = '&contentRating[]=safe&contentRating[]=suggestive';
+        if (allowNSFW) {
+            // Se elimina 'pornographic' porque causa errores 500/403 en MangaDex sin autenticación OAuth.
+            params += '&contentRating[]=erotica';
+        }
+        return params;
+    },
+
     /**
      * Determines the type of manga (Manga, Manhwa, Manhua, Webtoon, Diario)
      */
@@ -152,25 +161,72 @@ export const mangadexService = {
     },
 
     /**
+     * Comprehensive mapping of ISO 639-1 language codes to readable names
+     */
+    getLangMapping(): Record<string, string> {
+        return {
+            'ja': 'Japonés',
+            'en': 'Inglés',
+            'es': 'Español',
+            'es-la': 'Español Lat.',
+            'ko': 'Coreano',
+            'zh': 'Chino (Simp)',
+            'zh-hk': 'Chino (Trad)',
+            'fr': 'Francés',
+            'pt-br': 'Portugués (BR)',
+            'pt': 'Portugués',
+            'it': 'Italiano',
+            'de': 'Alemán',
+            'ru': 'Ruso',
+            'tr': 'Turco',
+            'vi': 'Vietnamita',
+            'th': 'Tailandés',
+            'id': 'Indonesio',
+            'pl': 'Polaco',
+            'ar': 'Árabe',
+            'hu': 'Húngaro',
+            'cs': 'Checo',
+            'el': 'Griego',
+            'he': 'Hebreo',
+            'hi': 'Hindi',
+            'sv': 'Sueco',
+            'uk': 'Ucraniano',
+            'ms': 'Malayo',
+            'bn': 'Bengalí',
+            'fa': 'Persa'
+        };
+    },
+
+    /**
+     * Supported original language origins for filtering
+     */
+    getOriginMapping(): Record<string, string> {
+        return {
+            'ja': 'Manga (JP)',
+            'ko': 'Manhwa (KR)',
+            'zh': 'Manhua (CN)',
+            'en': 'Western (EN)',
+            'fr': 'Francés (FR)',
+            'vi': 'Vietnamita (VI)',
+            'th': 'Tailandés (TH)',
+            'ru': 'Ruso (RU)',
+            'id': 'Indonesio (ID)'
+        };
+    },
+
+    /**
      * Gets a localized language name
      */
     getLangName(lang: string): string {
-        const names: Record<string, string> = {
-            'ja': 'Japón',
-            'ko': 'Corea',
-            'zh': 'China',
-            'zh-hk': 'China (HK)',
-            'en': 'Inglés',
-            'es': 'Español',
-            'es-la': 'Español (Lat)'
-        };
-        return names[lang] || lang;
+        const names = this.getLangMapping();
+        return names[lang] || lang.toUpperCase();
     },
     /**
      * Search for manga with various filters
      */
-    async searchManga(query: string, filters: { origin?: string, lang?: string, tags?: string[], status?: string, demographic?: string, fullColor?: boolean } = {}, limit = 20, offset = 0, order?: any) {
-        let url = `/manga?limit=${limit}&offset=${offset}&includes[]=cover_art&includes[]=author&contentRating[]=safe&contentRating[]=suggestive`;
+    async searchManga(query: string, filters: { origin?: string, lang?: string, tags?: string[], status?: string, demographic?: string, fullColor?: boolean } = {}, limit = 20, offset = 0, order?: any, allowNSFW = false) {
+        let url = `/manga?limit=${limit}&offset=${offset}&includes[]=cover_art&includes[]=author`;
+        url += this.getContentRatingParams(allowNSFW);
         
         if (query) {
             url += `&title=${encodeURIComponent(query)}`;
@@ -213,8 +269,9 @@ export const mangadexService = {
     /**
      * Get popular manga filtered by language and origin
      */
-    async getPopularManga(origin: string | null = null, lang: string | null = 'es', limit = 12, offset = 0, genre: string | null = null, fullColor = false): Promise<any> {
-        let url = `/manga?limit=${limit}&offset=${offset}&hasAvailableChapters=true&contentRating[]=safe&contentRating[]=suggestive&order[followedCount]=desc&includes[]=cover_art`;
+    async getPopularManga(origin: string | null = null, lang: string | null = 'es', limit = 12, offset = 0, genre: string | null = null, fullColor = false, allowNSFW = false): Promise<any> {
+        let url = `/manga?limit=${limit}&offset=${offset}&hasAvailableChapters=true&order[followedCount]=desc&includes[]=cover_art&includes[]=author`;
+        url += this.getContentRatingParams(allowNSFW);
         
         if (lang) {
             url += `&availableTranslatedLanguage[]=${lang}`;
@@ -233,13 +290,8 @@ export const mangadexService = {
         }
 
         if (origin) {
-            const langMap: { [key: string]: string } = { 
-                'JP': 'ja', 
-                'KR': 'ko', 
-                'CN': 'zh'
-            };
-            const originValue = langMap[origin] || origin;
-            url += `&originalLanguage[]=${originValue.toLowerCase()}`;
+            const originValue = origin.toLowerCase();
+            url += `&originalLanguage[]=${originValue}`;
         }
 
         try {
@@ -262,19 +314,38 @@ export const mangadexService = {
      * Deep Fetch: Gets completed mangas and strictly verifies if all published chapters 
      * are translated to the target language (default 'es').
      */
-    async getFullyTranslatedMasterpieces(origin: string | null = null, lang: string | null = 'es', limit = 12, offset = 0, genre: string | null = null, fullColor = false): Promise<any> {
-        // Lower limit pool to avoid 500 timeouts on complex queries
-        const fetchLimit = limit * 2; 
-        let url = `/manga?limit=${fetchLimit}&offset=${offset}&hasAvailableChapters=true&contentRating[]=safe&contentRating[]=suggestive&order[rating]=desc&includes[]=cover_art`;
+    async getFullyTranslatedMasterpieces(origin: string | null = null, lang = 'es', limit = 10, offset = 0, genre: string | null = null, fullColor = false, allowNSFW = false) {
+        // 1. Try Cache First (Fast Path)
+        // Updated cache version (v2) to force fresh validation with new rules
+        const cacheKey = `masterpieces_v2_${origin || 'ALL'}_${lang}_${genre || 'NONE'}_${fullColor}_${allowNSFW}`;
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            try {
+                const { data, timestamp } = JSON.parse(cached);
+                const isFresh = Date.now() - timestamp < 1000 * 60 * 60 * 12; // 12 hours
+                if (isFresh && data.length >= limit) {
+                    console.log(`[Cache] Returning cached masterpieces for ${origin}`);
+                    return { data: data.slice(0, limit), total: data.length, offset };
+                }
+            } catch (e) {
+                localStorage.removeItem(cacheKey);
+            }
+        }
+
+        // 2. Fetch from API (Slow Path)
+        // Reduced from limit * 6 (80) to limit * 4 (max 48) for faster validation
+        const fetchLimit = Math.min(limit * 4, 48); 
+        let url = `/manga?limit=${fetchLimit}&offset=${offset}&hasAvailableChapters=true&order[followedCount]=desc&includes[]=cover_art&includes[]=author`;
+        url += this.getContentRatingParams(allowNSFW);
         
+        console.log(`[Masterpieces] Fetching with URL: ${url}`);
         if (fullColor) {
-            // Include both completed and ongoing for color content, as many finished manhwas are still ongoing in MD
             url += `&status[]=completed&status[]=ongoing`;
         } else {
             url += `&status[]=completed`;
         }
         
-        const aggregatedLang = lang === 'es' ? ['es', 'es-la'] : [lang || 'en'];
+        const aggregatedLang = lang === 'es' ? ['es', 'es-la', 'en'] : [lang || 'en'];
         
         aggregatedLang.forEach(l => {
             url += `&availableTranslatedLanguage[]=${l}`;
@@ -290,11 +361,7 @@ export const mangadexService = {
         }
 
         if (origin) {
-            const langMap: { [key: string]: string } = { 
-                'JP': 'ja', 
-                'KR': 'ko', 
-                'CN': 'zh'
-            };
+            const langMap: { [key: string]: string } = { 'JP': 'ja', 'KR': 'ko', 'CN': 'zh' };
             const originValue = langMap[origin] || origin;
             url += `&originalLanguage[]=${originValue.toLowerCase()}`;
         }
@@ -306,66 +373,103 @@ export const mangadexService = {
             }
 
             const validMangas: any[] = [];
+            const chunkSize = 3; // Validate at most 3 at a time to prevent Vite proxy ETIMEDOUT crashes
 
-            // Parallel validation
-            const validationPromises = response.data.map(async (manga: any) => {
-                try {
-                    const lastChapterStr = manga.attributes.lastChapter;
-                    if (!lastChapterStr) return null; // If we don't know the end, discard it
+            for (let i = 0; i < response.data.length; i += chunkSize) {
+                // Short-circuit: If we already have enough valid mangas, STOP checking the rest
+                if (validMangas.length >= limit) break;
 
-                    const lastChapterNum = parseFloat(lastChapterStr);
-                    if (isNaN(lastChapterNum)) return null;
+                const chunk = response.data.slice(i, i + chunkSize);
+                const chunkPromises = chunk.map(async (manga: any) => {
+                    try {
+                        const lastChapterStr = manga.attributes.lastChapter;
+                        const status = manga.attributes.status;
 
-                    let aggUrl = `/manga/${manga.id}/aggregate?`;
-                    aggregatedLang.forEach(l => {
-                        aggUrl += `translatedLanguage[]=${l}&`;
-                    });
-                    
-                    const aggData = await apiFetch(aggUrl.slice(0, -1));
-                    if (!aggData || !aggData.volumes) return null;
+                        // If we don't have a last chapter but it's completed, we try to use the latest from aggregate
+                        // instead of just discarding it immediately (lenient for KR/CN)
+                        if (!lastChapterStr && status !== 'completed') return null;
 
-                    const volumes = Object.values(aggData.volumes) as any[];
-                    let hasLastChapter = false;
+                        let aggUrl = `/manga/${manga.id}/aggregate?`;
+                        aggregatedLang.forEach(l => {
+                            aggUrl += `translatedLanguage[]=${l}&`;
+                        });
+                        
+                        const aggData = await apiFetch(aggUrl.slice(0, -1));
+                        if (!aggData || !aggData.volumes) return null;
 
-                    for (const vol of volumes) {
-                        if (vol.chapters && typeof vol.chapters === 'object') {
-                            const chapterKeys = Object.keys(vol.chapters);
-                            
-                            // Strict check
-                            if (chapterKeys.includes(lastChapterStr)) {
-                                hasLastChapter = true;
-                                break;
-                            }
-
-                            // Flexible check (1 chapter margin)
-                            const maxTranslated = Math.max(...chapterKeys.map(k => parseFloat(k)).filter(n => !isNaN(n)));
-                            if (maxTranslated >= lastChapterNum - 1) {
-                                hasLastChapter = true;
-                                break;
+                        const volumes = Object.values(aggData.volumes) as any[];
+                        let hasLastChapter = false;
+                        let totalChaptersCount = 0;
+                        const uniqueChapters = new Set();
+                        
+                        for (const vol of volumes) {
+                            if (vol.chapters && typeof vol.chapters === 'object') {
+                                Object.keys(vol.chapters).forEach(k => uniqueChapters.add(k));
                             }
                         }
-                    }
+                        totalChaptersCount = uniqueChapters.size;
 
-                    if (hasLastChapter) {
-                        // Inyectamos el tipo de manga
-                        manga.attributes.mangaType = this.getMangaType(manga);
-                        return manga;
+                        // RULES FOR A "JOYITA"
+                        // 1. Must have at least 5 chapters (avoids one-shots or empty placeholders)
+                        if (totalChaptersCount < 5) return null;
+
+                        // 2. If lastChapter metadata exists, must have at least 80% coverage
+                        if (lastChapterStr) {
+                            const lastChapterNum = parseFloat(lastChapterStr);
+                            if (!isNaN(lastChapterNum) && lastChapterNum > 0) {
+                                const coverage = totalChaptersCount / lastChapterNum;
+                                // If coverage < 80%, it's likely heavily incomplete in this language
+                                if (coverage < 0.8) return null;
+                                hasLastChapter = true; // High enough coverage
+                            }
+                        } else {
+                            // 3. If no metadata but status is completed and we have many chapters, assume it's good
+                            if (status === 'completed' && totalChaptersCount >= 5) {
+                                hasLastChapter = true;
+                            }
+                        }
+
+                        if (hasLastChapter) {
+                            manga.attributes.mangaType = this.getMangaType(manga);
+                            const desc = manga.attributes.description || {};
+                            manga.attributes.hasSpanishDesc = !!(desc.es || desc['es-la'] || desc['es-419']);
+                            return manga;
+                        }
+                        return null;
+                    } catch (err) {
+                        // Fail silently for individual validation
+                        return null;
                     }
-                    return null;
-                } catch (err) {
-                    console.warn(`[MangaDex] Failed to parse aggregate for ${manga.id}`, err);
-                    return null;
+                });
+
+                const chunkResults = await Promise.all(chunkPromises);
+                for (const result of chunkResults) {
+                    if (result && validMangas.length < limit) {
+                        validMangas.push(result);
+                    }
                 }
+            }
+
+            // Final Sort: Prioritize those with Spanish description
+            const sortedByDesc = validMangas.sort((a, b) => {
+                const aHas = a.attributes.hasSpanishDesc ? 1 : 0;
+                const bHas = b.attributes.hasSpanishDesc ? 1 : 0;
+                return bHas - aHas;
             });
 
-            const results = await Promise.all(validationPromises);
-            validMangas.push(...results.filter(m => m !== null));
+            // 3. Save to Cache
+            if (sortedByDesc.length > 0) {
+                localStorage.setItem(cacheKey, JSON.stringify({
+                    data: sortedByDesc,
+                    timestamp: Date.now()
+                }));
+            }
 
             return {
-                data: validMangas.slice(0, limit),
-                total: validMangas.length, // Rough estimate for the UI
+                data: sortedByDesc.slice(0, limit),
+                total: sortedByDesc.length,
                 offset: offset,
-                rawOffsetNext: offset + fetchLimit // Next fetch offset for the caller
+                rawOffsetNext: offset + fetchLimit
             };
         } catch (err) {
             console.error('Error fetching deep completed manga:', err);
@@ -373,10 +477,48 @@ export const mangadexService = {
         }
     },
 
-    async getLatestUpdatedManga(limit = 12, offset = 0, lang = 'es') {
-        // Increase initial fetch to find enough variety
+    async getLatestUpdatedManga(limit = 12, offset = 0, lang = 'es', type = 'all', allowNSFW = false) {
+        // Mode 1: Manga-first (Best for filtered views like Manhwa/Manhua)
+        if (type !== 'all') {
+            const typeValue = type.toLowerCase();
+            // If it's a known mapping key (manga, manhwa, manhua), use the code. 
+            // Otherwise, assume it's already an origin code (ja, ko, zh, fr, etc.)
+            const typeMap: Record<string, string> = { 'manga': 'ja', 'manhwa': 'ko', 'manhua': 'zh' };
+            const targetOrigin = typeMap[typeValue] || typeValue;
+            
+            let url = `/manga?limit=${limit}&offset=${offset}&includes[]=cover_art&includes[]=author&order[latestUploadedChapter]=desc&originalLanguage[]=${targetOrigin}`;
+            url += this.getContentRatingParams(allowNSFW);
+            
+            if (lang === 'es') {
+                url += `&availableTranslatedLanguage[]=es&availableTranslatedLanguage[]=es-la`;
+            } else if (lang) {
+                url += `&availableTranslatedLanguage[]=${lang}`;
+            }
+
+            try {
+                const resp = await apiFetch(url);
+                const mangas = resp.data || [];
+                
+                // Add mangaType and placeholder for compatibility
+                return {
+                    data: mangas.map((m: any) => ({
+                        ...m,
+                        attributes: {
+                            ...m.attributes,
+                            mangaType: this.getMangaType(m)
+                        }
+                    }))
+                };
+            } catch (err) {
+                console.error('Error fetching filtered latest manga:', err);
+                return { data: [] };
+            }
+        }
+
+        // Mode 2: Chapter-first (Best for the "All" view with maximum variety)
         const fetchLimit = limit * 4; 
-        let url = `/chapter?limit=${fetchLimit}&offset=${offset}&contentRating[]=safe&contentRating[]=suggestive&order[readableAt]=desc&includes[]=manga`;
+        let url = `/chapter?limit=${fetchLimit}&offset=${offset}&order[readableAt]=desc&includes[]=manga`;
+        url += this.getContentRatingParams(allowNSFW);
         
         if (lang === 'es') {
             url += `&translatedLanguage[]=es&translatedLanguage[]=es-la`;
@@ -393,8 +535,6 @@ export const mangadexService = {
 
             for (const chapter of chapters) {
                 const mangaRel = chapter.relationships.find((r: any) => r.type === 'manga');
-                
-                // CRITICAL: Filter out external links (MangaPlus, etc.) and empty chapters
                 const isExternal = !!chapter.attributes.externalUrl;
                 const pageCount = chapter.attributes.pages || 0;
                 
@@ -410,14 +550,12 @@ export const mangadexService = {
             const uniqueIds = Array.from(seenMangaIds);
             if (uniqueIds.length === 0) return { data: [] };
 
-            // Fetch full manga details (Batch) - 50 max to stay safe
             let mangaUrl = `/manga?limit=${Math.min(uniqueIds.length, 50)}&includes[]=cover_art&includes[]=author`;
             uniqueIds.slice(0, 50).forEach(id => mangaUrl += `&ids[]=${id}`);
             
             const mangaResp = await apiFetch(mangaUrl);
             const fullMangas = mangaResp.data || [];
 
-            // Merge details and Identify Type
             const mergedMangas = fullMangas.map((manga: any) => ({
                 ...manga,
                 attributes: {
@@ -428,41 +566,30 @@ export const mangadexService = {
                 }
             }));
 
-            // Re-sort by actual chapter date (batch might return unsorted)
             const sorted = mergedMangas.sort((a: any, b: any) => {
                 const dateA = new Date(a.attributes.latestChapterReadableAt).getTime();
                 const dateB = new Date(b.attributes.latestChapterReadableAt).getTime();
                 return dateB - dateA;
             });
 
-            // Diversification Strategy: Mix origins and "Diario" content
-            const result: any[] = [];
             const variety = sorted.filter((m: any) => 
                 m.attributes.originalLanguage !== 'ja' || 
                 this.isDailyManga(m)
             );
+            
             const japaneseRegular = sorted.filter((m: any) => 
                 m.attributes.originalLanguage === 'ja' && 
                 !this.isDailyManga(m)
             );
 
-            // Interleave: 1 Variety every 2 Japanese Regular to ensure variety
+            const result: any[] = [];
             let vIdx = 0;
             let jIdx = 0;
-            while (result.length < limit && (vIdx < variety.length || jIdx < japaneseRegular.length)) {
-                // Add 1 variety (Manhwa, Manhua, Webtoon or Diario)
-                if (vIdx < variety.length) {
-                    result.push(variety[vIdx++]);
-                }
-                // Add up to 2 Japanese
-                for (let i = 0; i < 2 && jIdx < japaneseRegular.length && result.length < limit; i++) {
-                    result.push(japaneseRegular[jIdx++]);
-                }
-            }
             
-            // Fill remaining if needed
-            while (result.length < limit && vIdx < variety.length) result.push(variety[vIdx++]);
-            while (result.length < limit && jIdx < japaneseRegular.length) result.push(japaneseRegular[jIdx++]);
+            while (result.length < limit && (vIdx < variety.length || jIdx < japaneseRegular.length)) {
+                if (vIdx < variety.length) result.push(variety[vIdx++]);
+                if (result.length < limit && jIdx < japaneseRegular.length) result.push(japaneseRegular[jIdx++]);
+            }
 
             return { data: result };
         } catch (err) {
@@ -563,13 +690,10 @@ export const mangadexService = {
         const resp = await apiFetch(`/at-home/server/${chapterId}`);
         const { baseUrl, chapter } = resp;
         
-        // Detectamos si está en móvil para usar el modo rápido
-        const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
-        const folder = isMobile ? 'data-saver' : quality;
-        const files = folder === 'data-saver' ? chapter.dataSaver : chapter.data;
+        const files = quality === 'data-saver' ? chapter.dataSaver : chapter.data;
         
         const pageUrls = files.map((file: string) => {
-            const rawUrl = `${baseUrl}/${folder}/${chapter.hash}/${file}`;
+            const rawUrl = `${baseUrl}/${quality}/${chapter.hash}/${file}`;
             return mangadexService.getOptimizedUrl(rawUrl);
         });
         return { pages: pageUrls, hash: chapter.hash, baseUrl };
@@ -582,22 +706,19 @@ export const mangadexService = {
         return apiFetch(`/chapter/${id}?includes[]=manga`);
     },
 
-    /**
-     * Helper to get cover URL (HD para PC y Móvil gracias a Cloudinary)
-     */
-    getCoverUrl(manga: any) {
+    getCoverUrl(manga: any, quality: 'original' | '256' | '512' = '256') {
         try {
-            if (!manga || !manga.relationships) return 'https://placehold.co/512x768/222222/cccccc?text=Sin+Portada';
+            if (!manga) return 'https://placehold.co/512x768/222222/cccccc?text=Sin+Portada';
             
-            const coverRel = manga.relationships.find((r: any) => r.type === 'cover_art');
+            const id = manga.id;
+            const coverRel = manga.relationships?.find((rel: any) => rel.type === 'cover_art');
             const fileName = coverRel?.attributes?.fileName;
             
             if (fileName) {
-                // Pedimos SIEMPRE la versión original (sin .256.jpg ni .512.jpg)
-                const rawUrl = `https://uploads.mangadex.org/covers/${manga.id}/${fileName}`;
-                
-                // Cloudinary se encarga de optimizar el peso sin dañar la calidad visual
-                return mangadexService.getOptimizedUrl(rawUrl);
+                const suffix = quality === 'original' ? '' : `.${quality}.jpg`;
+                const rawUrl = `${UPLOADS_URL}/covers/${id}/${fileName}${suffix}`;
+                // Cloudinary fetch for additional performance if available
+                return this.getOptimizedUrl(rawUrl);
             }
         } catch (err) {
             console.warn('[MangaDex] Error generating cover URL:', err);
@@ -625,17 +746,59 @@ export const mangadexService = {
     /**
      * Find MangaDex ID by title (for AniList mapping)
      */
-    async fetchMangaDexIdByTitle(title: string) {
+    async fetchMangaDexIdByTitle(title: string): Promise<string | null> {
+        if (!title) return null;
         try {
-            const url = `/manga?title=${encodeURIComponent(title)}&limit=1&order[relevance]=desc`;
+            // Clean title for better matching
+            const cleanTitle = title.replace(/[^\w\s]/gi, '').trim();
+            const url = `/manga?title=${encodeURIComponent(cleanTitle)}&limit=1&order[relevance]=desc`;
             const data = await apiFetch(url);
             if (data.data && data.data.length > 0) {
                 return data.data[0].id;
             }
+            return null;
         } catch (err) {
-            console.error(`Error searching MangaDex for title "${title}":`, err);
+            console.error(`[MangaDex] Bridging error for title: ${title}`, err);
+            return null;
         }
-        return null;
+    },
+
+    /**
+     * Find MangaDex ID by title AND verify it has chapters.
+     * Returns { id, hasChapters } or null if not found.
+     */
+    async fetchVerifiedRecommendation(title: string, lang = 'es'): Promise<{ id: string; title: string; hasChapters: boolean } | null> {
+        if (!title) return null;
+        try {
+            const cleanTitle = title.replace(/[^\w\s]/gi, '').trim();
+            const url = `/manga?title=${encodeURIComponent(cleanTitle)}&limit=1&order[relevance]=desc&includes[]=cover_art`;
+            const data = await apiFetch(url);
+            if (!data.data || data.data.length === 0) return null;
+
+            const mangaId = data.data[0].id;
+            // Check if it has at least 1 chapter in ANY language
+            const chapUrl = `/manga/${mangaId}/feed?limit=1&offset=0&order[chapter]=desc`;
+            const chapData = await apiFetch(chapUrl);
+            const hasChapters = chapData.data && chapData.data.length > 0;
+
+            return { id: mangaId, title: cleanTitle, hasChapters };
+        } catch (err) {
+            console.warn(`[MangaDex] Verify recommendation failed for: ${title}`, err);
+            return null;
+        }
+    },
+
+    /**
+     * Fetch a single manga by ID with cover_art included
+     */
+    async getMangaById(mangaId: string) {
+        try {
+            const data = await apiFetch(`/manga/${mangaId}?includes[]=cover_art`);
+            return data;
+        } catch (err) {
+            console.warn(`[MangaDex] Failed to fetch manga ${mangaId}:`, err);
+            return null;
+        }
     },
 
     /**
@@ -669,19 +832,16 @@ export const mangadexService = {
     /**
      * Get optimized URL via Cloudinary Fetch
      */
-    getOptimizedUrl(url: string) {
+    getOptimizedUrl(url: string, params = 'f_auto,q_auto:best') {
         if (!CLOUDINARY_CLOUD_NAME || !url) return url;
         // Avoid double-prefixing if already optimized
         if (url.includes('res.cloudinary.com')) return url;
         
         // Skip Cloudinary for MangaDex At-Home nodes (mangadex.network)
-        // Cloudinary fetch often fails with these temporary/volatile nodes (404)
-        if (url.includes('mangadex.network')) {
-            return url;
-        }
+        if (url.includes('mangadex.network')) return url;
 
-        // f_auto: automatic format (webp/avif), q_auto: automatic quality, c_limit: limit size to original
-        return `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/fetch/f_auto,q_auto,c_limit/${encodeURIComponent(url)}`;
+        // Use custom params (defaulting to best quality auto format)
+        return `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/fetch/${params}/${encodeURIComponent(url)}`;
     },
 
     /**
@@ -704,7 +864,8 @@ export const mangadexService = {
     getLocalizedDescription(manga: any) {
         if (!manga?.attributes?.description) return 'No hay descripción disponible.';
         const desc = manga.attributes.description;
-        const rawDesc = desc.es || desc['es-la'] || desc.en || Object.values(desc)[0] || '';
+        // Priority: ES (Spain) -> ES-LA (Legacy) -> ES-419 (Standard Latam) -> EN
+        const rawDesc = desc.es || desc['es-la'] || desc['es-419'] || desc.en || Object.values(desc)[0] || '';
         return this.cleanDescription(rawDesc as string);
     },
 

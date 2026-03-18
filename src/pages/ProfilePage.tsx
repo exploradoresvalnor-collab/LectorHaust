@@ -18,7 +18,10 @@ import {
   IonCardContent,
   IonBadge,
   IonSegment,
-  IonSegmentButton
+  IonSegmentButton,
+  IonListHeader,
+  IonToggle,
+  IonSkeletonText
 } from '@ionic/react';
 import { 
   personCircleOutline,
@@ -28,9 +31,14 @@ import {
   trophyOutline, 
   colorPaletteOutline,
   shieldCheckmarkOutline,
-  diamondOutline
+  diamondOutline,
+  eyeOutline,
+  alertCircleOutline,
+  playOutline,
+  peopleOutline
 } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
+import { useIonRouter } from '@ionic/react';
 import { firebaseAuthService } from '../services/firebaseAuthService';
 import { User } from 'firebase/auth';
 import { useLibraryStore } from '../store/useLibraryStore';
@@ -40,14 +48,23 @@ import './ProfilePage.css';
 const ProfilePage: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<'resumen' | 'historial' | 'ajustes'>('resumen');
+  const router = useIonRouter();
+  const { history: readingHistory, favorites } = useLibraryStore();
   const [stats, setStats] = useState<UserStats>({
     xp: 0,
     level: 1,
     chaptersRead: 0,
     commentsPosted: 0,
+    achievements: [],
     lastUpdated: Date.now()
   });
+  const [isStatsLoading, setIsStatsLoading] = useState(true);
   const history = useHistory();
+
+  useEffect(() => {
+     const timer = setTimeout(() => setIsStatsLoading(false), 500);
+     return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     let unsubscribeStats: (() => void) | undefined;
@@ -70,7 +87,7 @@ const ProfilePage: React.FC = () => {
     };
   }, [history]);
 
-  const readChapters = useLibraryStore(state => state.readChapters);
+  const { readChapters, showNSFW, setShowNSFW } = useLibraryStore();
   
   const handleLogout = async () => {
     await firebaseAuthService.logout();
@@ -103,8 +120,9 @@ const ProfilePage: React.FC = () => {
           </IonButtons>
           <IonTitle>Mi Perfil Pro</IonTitle>
           <IonButtons slot="end">
-            <IonButton onClick={handleLogout} color="danger">
-              <IonIcon icon={logOutOutline} slot="icon-only" />
+            <IonButton onClick={handleLogout} color="danger" fill="outline" className="logout-btn-header">
+              <IonIcon icon={logOutOutline} slot="start" />
+              SALIR
             </IonButton>
           </IonButtons>
         </IonToolbar>
@@ -146,6 +164,15 @@ const ProfilePage: React.FC = () => {
                 <div className="xp-progress-bar" style={{ width: `${Math.min(100, (currentXPProgress / xpNeededForThisLevel) * 100)}%` }}></div>
               </div>
             </div>
+
+            <IonButton 
+              expand="block" 
+              className="social-nav-btn animate-fade-in" 
+              onClick={() => router.push('/social')}
+            >
+              <IonIcon icon={peopleOutline} slot="start" />
+              Círculo Social
+            </IonButton>
           </div>
 
           {/* RIGHT MAIN CONTENT (Tabs & Scrollable on PC) */}
@@ -174,15 +201,15 @@ const ProfilePage: React.FC = () => {
                     <IonCardContent>
                        <div className="stats-grid">
                          <div className="stat-item">
-                           <span className="stat-value">Lv. {level}</span>
+                           {isStatsLoading ? <IonSkeletonText animated style={{ width: '60px', height: '28px', marginBottom: '8px' }} /> : <span className="stat-value">Lv. {level}</span>}
                            <span className="stat-label">Nivel Actual</span>
                          </div>
                          <div className="stat-item">
-                           <span className="stat-value">{stats.chaptersRead}</span>
+                           {isStatsLoading ? <IonSkeletonText animated style={{ width: '40px', height: '28px', marginBottom: '8px' }} /> : <span className="stat-value">{stats.chaptersRead}</span>}
                            <span className="stat-label">Capítulos Leídos</span>
                          </div>
                          <div className="stat-item">
-                           <span className="stat-value">{stats.commentsPosted}</span>
+                           {isStatsLoading ? <IonSkeletonText animated style={{ width: '40px', height: '28px', marginBottom: '8px' }} /> : <span className="stat-value">{stats.commentsPosted}</span>}
                            <span className="stat-label">Aportes Sociales</span>
                          </div>
                        </div>
@@ -209,12 +236,43 @@ const ProfilePage: React.FC = () => {
                 </div>
               )}
 
-              {/* TAB 2: HISTORIAL (Placeholder para la UI por ahora) */}
               {activeTab === 'historial' && (
-                <div className="animate-fade-in empty-state">
-                  <IonIcon icon={timeOutline} color="medium" style={{ fontSize: '4rem', marginBottom: '1rem', opacity: 0.5 }} />
-                  <h3>Tu Historial está aquí</h3>
-                  <p style={{ color: 'var(--text-muted)' }}>Módulo en construcción: Próximamente verás tu progreso exacto capítulo por capítulo.</p>
+                <div className="animate-fade-in">
+                  {Object.keys(readingHistory).length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {Object.entries(readingHistory)
+                        .sort(([, a], [, b]) => b.lastRead - a.lastRead)
+                        .slice(0, 15)
+                        .map(([mangaId, progress]) => {
+                          const fav = favorites.find(f => f.id === mangaId);
+                          const title = progress.mangaTitle || fav?.title || 'Manga';
+                          const cover = progress.mangaCover || fav?.cover;
+                          return (
+                            <div key={mangaId} className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px', cursor: 'pointer', margin: 0 }} onClick={() => router.push(`/manga/${mangaId}`)}>
+                              {cover ? (
+                                <img src={cover} alt={title} style={{ width: '48px', height: '68px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }} />
+                              ) : (
+                                <div style={{ width: '48px', height: '68px', borderRadius: '10px', background: 'linear-gradient(135deg, var(--ion-color-primary), var(--ion-color-secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>📖</div>
+                              )}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <h4 style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</h4>
+                                <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>Capítulo {progress.chapterNumber || '?'} · Pág. {progress.pageIndex}</p>
+                                <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)' }}>{new Date(progress.lastRead).toLocaleDateString()}</p>
+                              </div>
+                              <IonButton fill="clear" size="small" color="primary" onClick={(e) => { e.stopPropagation(); router.push(`/reader/${progress.chapterId}`); }}>
+                                <IonIcon icon={playOutline} slot="icon-only" />
+                              </IonButton>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  ) : (
+                    <div className="empty-state">
+                      <IonIcon icon={timeOutline} color="medium" style={{ fontSize: '4rem', marginBottom: '1rem', opacity: 0.5 }} />
+                      <h3>Sin historial de lectura</h3>
+                      <p style={{ color: 'var(--text-muted)' }}>Empieza a leer un manga y tu progreso aparecerá aquí.</p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -244,6 +302,33 @@ const ProfilePage: React.FC = () => {
                       <IonLabel>
                         <h2>Seguridad de Cuenta</h2>
                         <p>Gestionar tus datos en la nube</p>
+                      </IonLabel>
+                    </IonItem>
+
+                    <IonListHeader style={{ marginTop: '1rem' }}>Contenido</IonListHeader>
+                    
+                    <IonItem className="option-item">
+                      <IonIcon icon={eyeOutline} slot="start" color="danger" />
+                      <IonLabel>
+                        <h2>Mostrar contenido +18</h2>
+                        <p>Permitir obras con rating adulto</p>
+                      </IonLabel>
+                      <IonToggle 
+                        slot="end" 
+                        checked={showNSFW} 
+                        onIonChange={e => setShowNSFW(e.detail.checked)} 
+                      />
+                    </IonItem>
+                    <IonItem 
+                      className="option-item logout-premium-item" 
+                      button 
+                      onClick={handleLogout} 
+                      style={{ marginTop: '30px', '--background': 'rgba(235, 68, 90, 0.05)', borderRadius: '16px', border: '1px solid rgba(235, 68, 90, 0.2)' }}
+                    >
+                      <IonIcon icon={logOutOutline} slot="start" color="danger" />
+                      <IonLabel color="danger">
+                        <h2 style={{ color: 'var(--ion-color-danger)', fontWeight: '800' }}>Cerrar Sesión</h2>
+                        <p style={{ color: 'rgba(235, 68, 90, 0.7)' }}>Salir de tu cuenta de cazador</p>
                       </IonLabel>
                     </IonItem>
                   </IonList>

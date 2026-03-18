@@ -21,11 +21,13 @@ import {
   useIonViewWillEnter,
   useIonRouter
 } from '@ionic/react';
-import { playOutline, gridOutline, listOutline, bookOutline, refreshCircleOutline } from 'ionicons/icons';
+import { playOutline, gridOutline, listOutline, bookOutline, refreshCircleOutline, cloudDownloadOutline, trashOutline } from 'ionicons/icons';
 import MangaCard from '../components/MangaCard';
 import { mangadexService } from '../services/mangadexService';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { hapticsService } from '../services/hapticsService';
+import EmptyState from '../components/EmptyState';
+import { offlineService, DownloadedChapter } from '../services/offlineService';
 import './LibraryPage.css';
 
 const LibraryPage: React.FC = () => {
@@ -33,8 +35,10 @@ const LibraryPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [activeTab, setActiveTab] = useState<'favorites' | 'history'>('favorites');
+  const [activeTab, setActiveTab] = useState<'favorites' | 'history' | 'descargas'>('favorites');
   const [searchTerm, setSearchTerm] = useState('');
+  const [downloadedMangas, setDownloadedMangas] = useState<Record<string, { title: string; cover?: string; chapters: DownloadedChapter[] }>>({});
+  const [storageInfo, setStorageInfo] = useState({ totalMB: '0', chapterCount: 0 });
   
   const router = useIonRouter();
   const { favorites, history } = useLibraryStore();
@@ -72,6 +76,9 @@ const LibraryPage: React.FC = () => {
 
   useIonViewWillEnter(() => {
     fetchLibrary();
+    // Load downloads info
+    offlineService.getDownloadedMangas().then(setDownloadedMangas);
+    offlineService.getTotalStorageUsed().then(info => setStorageInfo({ totalMB: info.totalMB, chapterCount: info.chapterCount }));
   });
 
   const clearCache = () => {
@@ -102,6 +109,7 @@ const LibraryPage: React.FC = () => {
             }} mode="ios" style={{ width: '60%' }}>
               <IonSegmentButton value="favorites"><IonLabel>Favoritos</IonLabel></IonSegmentButton>
               <IonSegmentButton value="history"><IonLabel>Historial</IonLabel></IonSegmentButton>
+              <IonSegmentButton value="descargas"><IonLabel>Descargas</IonLabel></IonSegmentButton>
             </IonSegment>
             <div className="view-toggles" style={{ display: 'flex', gap: '8px' }}>
               <IonIcon 
@@ -144,7 +152,8 @@ const LibraryPage: React.FC = () => {
             <div className="history-carousel-container">
               {historyEntries.map((entry) => {
                 const fav = favorites.find(f => f.id === entry.mangaId);
-                const title = fav?.title || 'Manga';
+                const title = entry.mangaTitle || fav?.title || 'Sin título';
+                const cover = entry.mangaCover || fav?.cover;
                 return (
                   <div 
                     key={entry.mangaId} 
@@ -152,14 +161,18 @@ const LibraryPage: React.FC = () => {
                     onClick={() => router.push(`/reader/${entry.chapterId}`)}
                   >
                     <div className="history-hero-cover-wrapper">
-                      {fav?.cover && <img src={fav.cover} alt={title} className="history-hero-cover" />}
+                      {cover ? (
+                        <img src={cover} alt={title} className="history-hero-cover" />
+                      ) : (
+                        <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, var(--ion-color-primary), var(--ion-color-secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>📖</div>
+                      )}
                       <div className="history-hero-overlay">
                         <IonIcon icon={playOutline} />
                       </div>
                     </div>
                     <div className="history-hero-info">
                       <p className="hero-manga-title">{title}</p>
-                      <p className="hero-chapter-info">Cap. {entry.chapterNumber}</p>
+                      <p className="hero-chapter-info">Cap. {entry.chapterNumber || '?'}</p>
                     </div>
                   </div>
                 );
@@ -267,9 +280,11 @@ const LibraryPage: React.FC = () => {
                 )}
 
                 {filteredFavorites.length === 0 && filteredFollowed.length === 0 && searchTerm && (
-                  <div className="library-empty-state">
-                    <p>No se encontraron resultados para "{searchTerm}"</p>
-                  </div>
+                  <EmptyState 
+                    emoji="🔍"
+                    title={`Sin resultados para "${searchTerm}"`}
+                    subtitle="Prueba con otro nombre o revisa la ortografía"
+                  />
                 )}
               </>
             )}
@@ -280,14 +295,20 @@ const LibraryPage: React.FC = () => {
                   <div className="history-list-detailed">
                     {historyEntries.map((entry) => {
                       const fav = favorites.find(f => f.id === entry.mangaId);
-                      const title = fav?.title || 'Manga';
+                      const title = entry.mangaTitle || fav?.title || 'Sin título';
+                      const cover = entry.mangaCover || fav?.cover;
+                      const dateStr = entry.lastRead ? new Date(entry.lastRead).toLocaleDateString() : 'Fecha desconocida';
                       return (
                         <div key={entry.mangaId} className="history-detailed-item" onClick={() => router.push(`/manga/${entry.mangaId}`)}>
-                          <img src={fav?.cover} alt={title} className="history-detailed-cover" />
+                          {cover ? (
+                            <img src={cover} alt={title} className="history-detailed-cover" />
+                          ) : (
+                            <div className="history-detailed-cover" style={{ background: 'linear-gradient(135deg, var(--ion-color-primary), var(--ion-color-secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', borderRadius: '8px', width: '50px', height: '70px' }}>📖</div>
+                          )}
                           <div className="history-detailed-info">
                             <h4 className="history-detailed-title">{title}</h4>
-                            <p className="history-detailed-progress">Capítulo {entry.chapterNumber}</p>
-                            <p className="history-detailed-date">Leído el {new Date(entry.lastRead).toLocaleDateString()}</p>
+                            <p className="history-detailed-progress">Capítulo {entry.chapterNumber || '?'}</p>
+                            <p className="history-detailed-date">Leído el {dateStr}</p>
                           </div>
                           <IonButton fill="clear" color="primary" onClick={(e) => { e.stopPropagation(); router.push(`/reader/${entry.chapterId}`) }}>
                             <IonIcon icon={playOutline} slot="icon-only" />
@@ -297,22 +318,85 @@ const LibraryPage: React.FC = () => {
                     })}
                   </div>
                 ) : (
-                  <div className="library-empty-state">
-                    <p>Aún no has leído ningún manga.</p>
-                  </div>
+                  <EmptyState 
+                    emoji="📖"
+                    title="Sin historial de lectura"
+                    subtitle="Empieza a leer un manga y tu progreso aparecerá aquí"
+                    actionLabel="Explorar manga"
+                    onAction={() => router.push('/search')}
+                  />
+                )}
+              </div>
+            )}
+
+            {activeTab === 'descargas' && (
+              <div className="downloads-full-list animate-fade-in">
+                {Object.keys(downloadedMangas).length > 0 ? (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', padding: '0 5px' }}>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        <IonIcon icon={cloudDownloadOutline} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
+                        {storageInfo.chapterCount} capítulos · {storageInfo.totalMB} MB
+                      </span>
+                      <IonButton fill="clear" color="danger" size="small" onClick={async () => {
+                        if (window.confirm('¿Borrar todas las descargas?')) {
+                          await offlineService.clearAllDownloads();
+                          setDownloadedMangas({});
+                          setStorageInfo({ totalMB: '0', chapterCount: 0 });
+                        }
+                      }}>
+                        <IonIcon icon={trashOutline} slot="start" /> Borrar todo
+                      </IonButton>
+                    </div>
+                    {Object.entries(downloadedMangas).map(([mangaId, manga]) => (
+                      <div key={mangaId} className="download-manga-group" style={{ marginBottom: '20px', background: 'var(--bg-surface, #1a1a2e)', borderRadius: '14px', padding: '15px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '10px', cursor: 'pointer' }} onClick={() => router.push(`/manga/${mangaId}`)}>
+                          {manga.cover && <img src={manga.cover} alt="" style={{ width: '45px', height: '65px', borderRadius: '8px', objectFit: 'cover' }} />}
+                          <div>
+                            <h4 style={{ margin: 0, fontWeight: 700, fontSize: '1rem' }}>{manga.title}</h4>
+                            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{manga.chapters.length} capítulos descargados</p>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {manga.chapters.map(ch => (
+                            <IonChip key={ch.chapterId} outline color="primary" style={{ fontSize: '0.8rem' }}
+                              onClick={() => router.push(`/reader/${ch.chapterId}`)}
+                            >
+                              Cap. {ch.chapterNumber}
+                              <IonIcon icon={trashOutline} color="danger" style={{ marginLeft: '6px', fontSize: '0.9rem' }} onClick={async (e) => {
+                                e.stopPropagation();
+                                await offlineService.deleteChapter(ch.chapterId);
+                                const updated = await offlineService.getDownloadedMangas();
+                                setDownloadedMangas(updated);
+                                const info = await offlineService.getTotalStorageUsed();
+                                setStorageInfo({ totalMB: info.totalMB, chapterCount: info.chapterCount });
+                              }} />
+                            </IonChip>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <EmptyState 
+                    emoji="📥"
+                    title="Sin descargas"
+                    subtitle="Descarga capítulos desde la página del manga para leerlos sin conexión"
+                    actionLabel="Explorar manga"
+                    onAction={() => router.push('/search')}
+                  />
                 )}
               </div>
             )}
           </div>
         ) : (
-          <div className="library-empty-state">
-            <IonText color="medium">
-              <p>No tienes mangas en tu biblioteca todavía.</p>
-              {!isLoggedIn && (
-                <p className="login-hint">Inicia sesión con MangaDex para sincronizar tus suscripciones.</p>
-              )}
-            </IonText>
-          </div>
+          <EmptyState 
+            emoji="📚"
+            title="Tu biblioteca está vacía"
+            subtitle={!isLoggedIn ? 'Inicia sesión con MangaDex para sincronizar tus suscripciones' : 'Añade mangas a favoritos para verlos aquí'}
+            actionLabel="Explorar manga"
+            onAction={() => router.push('/search')}
+          />
         )}
       </IonContent>
     </IonPage>

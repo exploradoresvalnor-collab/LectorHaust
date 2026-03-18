@@ -29,6 +29,7 @@ import MangaCard from '../components/MangaCard';
 import { mangadexService } from '../services/mangadexService';
 import { firebaseAuthService } from '../services/firebaseAuthService';
 import LoadingScreen from '../components/LoadingScreen';
+import EmptyState from '../components/EmptyState';
 import { useHomeData } from '../hooks/useHomeData';
 import { hapticsService } from '../services/hapticsService';
 import './HomePage.css';
@@ -49,15 +50,19 @@ const HomePage: React.FC = () => {
     currentUser,
     showLoginHint,
     setShowLoginHint,
-    latestLang,
-    setLatestLang,
+    latestLang, setLatestLang,
+    latestType, setLatestType,
     completedMasterpieces,
     popularManga,
     featuredMasterpiece,
     unreadNotifications,
     fetchData,
-    loadMoreLatest
+    loadMoreLatest,
+    setLoading
   } = useHomeData();
+
+  const [showToast, setShowToast] = React.useState(false);
+  const [toastMsg, setToastMsg] = React.useState('');
 
   const handleRefreshFromBanner = () => {
     setShowNewBanner(false);
@@ -72,7 +77,7 @@ const HomePage: React.FC = () => {
     }
   };
 
-   const handleMangaClick = (manga: any) => {
+   const handleMangaClick = async (manga: any) => {
     hapticsService.lightImpact();
     router.push(`/manga/${manga.id}`);
   };
@@ -116,8 +121,8 @@ const HomePage: React.FC = () => {
         <IonToolbar className="main-header">
           <IonTitle slot="start">
             <div className="brand-container" onClick={() => fetchData(true)}>
-              <img src="/logo-premium.png" alt="Lector Haus Logo" className="brand-logo-img" />
-              <span className="brand-name-text">lector<span>Haus</span></span>
+              <img src="/logolh.webp" alt="Lector Haus Logo" className="brand-logo-img" />
+              <span className="brand-name-text">lector<span style={{ marginRight: '10px' }}>Haus</span></span>
             </div>
           </IonTitle>
           <IonButtons slot="end">
@@ -150,52 +155,69 @@ const HomePage: React.FC = () => {
       </IonHeader>
       <IonContent fullscreen className="ion-padding">
         {/* Modern Bottom Sheet Login Promt  */}
+        {/* Premium Entry Card / Login Prompt */}
         <IonModal 
-          isOpen={showLoginHint && !currentUser} 
+          isOpen={showLoginHint && (!currentUser || currentUser.isAnonymous)} 
           initialBreakpoint={0.45} 
           breakpoints={[0, 0.45, 0.6]} 
           onDidDismiss={() => setShowLoginHint(false)}
-          className="login-bottom-sheet"
+          className="premium-entry-modal"
+          backdropDismiss={true}
         >
-          <div className="glass-modal-content animate-fade-in">
-            <div className="login-modal-header">
-              <div className="header-icon-container">
-                <IonIcon icon={sparklesOutline} />
-              </div>
-              <h2>LectorHaus Premium</h2>
-              <p>Sincroniza tu progreso y únete a la comunidad oficial.</p>
+          <div className="premium-modal-content animate-fade-in">
+            <div className="modal-close-handle" onClick={() => setShowLoginHint(false)}>
+              <IonIcon icon={closeOutline} />
             </div>
             
-            <div className="login-perks-list">
-              <div className="login-perk-item">
-                <div className="perk-icon-wrapper"><IonIcon icon={cloudUploadOutline} /></div>
-                <p>Nube personal para nunca más perder por dónde ibas.</p>
+            <div className="login-modal-header">
+              <div className="header-glow-icon">
+                <IonIcon icon={sparklesOutline} />
               </div>
-              <div className="login-perk-item success">
-                <div className="perk-icon-wrapper"><IonIcon icon={chatbubblesOutline} /></div>
-                <p>Comenta e interactúa con otros lectores de LectorHaus.</p>
+              <h2 className="premium-title">Bienvenido a <span className="highlight">LectorHaus</span></h2>
+              <p className="premium-subtitle">Desbloquea el verdadero poder del Hunter</p>
+            </div>
+            
+            <div className="premium-perks-grid">
+              <div className="perk-card">
+                <IonIcon icon={cloudUploadOutline} className="perk-icon clouds" />
+                <div className="perk-info">
+                  <h4>Sincronización</h4>
+                  <p>Continúa en cualquier dispositivo</p>
+                </div>
               </div>
-              <div className="login-perk-item warning">
-                <div className="perk-icon-wrapper"><IonIcon icon={trophyOutline} /></div>
-                <p>Gana puntos de experiencia (XP) y sube tu Rango Hunter.</p>
+              <div className="perk-card">
+                <IonIcon icon={chatbubblesOutline} className="perk-icon chat" />
+                <div className="perk-info">
+                  <h4>Comunidad</h4>
+                  <p>Comenta y comparte teorías</p>
+                </div>
+              </div>
+              <div className="perk-card">
+                <IonIcon icon={trophyOutline} className="perk-icon xp" />
+                <div className="perk-info">
+                  <h4>Rango Hunter</h4>
+                  <p>Sube de nivel y gana XP</p>
+                </div>
               </div>
             </div>
 
-            <div className="login-actions">
-              <IonButton className="google-login-btn" expand="block" onClick={async () => {
+            <div className="premium-actions-stack">
+              <IonButton className="action-btn google" expand="block" onClick={async () => {
+                hapticsService.mediumImpact();
                 await firebaseAuthService.loginWithGoogle();
                 setShowLoginHint(false);
               }}>
                 <IonIcon icon={logoGoogle} slot="start" />
-                Continuar con Google
+                Entrar con Google
               </IonButton>
               
-              <IonButton fill="clear" className="anon-login-btn" expand="block" onClick={async () => {
+              <IonButton fill="clear" className="action-btn ghost" expand="block" onClick={async () => {
+                hapticsService.lightImpact();
                 await handleAnonymousLogin();
                 setShowLoginHint(false);
               }}>
                 <IonIcon icon={personOutline} slot="start" />
-                Continuar sin cuenta (Fantasma)
+                Modo Fantasma (Invitado)
               </IonButton>
             </div>
           </div>
@@ -245,13 +267,18 @@ const HomePage: React.FC = () => {
             >
               <div 
                 className="hero-img-layer"
-                style={{ backgroundImage: `url(${mangadexService.getCoverUrl(currentHero)})` }}
+                style={{ 
+                  backgroundImage: `url(${mangadexService.getCoverUrl(currentHero, '512')})`,
+                  backgroundPosition: 'center top'
+                }}
               />
               <div className="hero-gradient-overlay" />
               <div className="hero-info">
                 <span className="hero-badge">🔥 DESTACADO</span>
                 <h1>{mangadexService.getLocalizedTitle(currentHero)}</h1>
-                <p>{mangadexService.getLocalizedDescription(currentHero).substring(0, 150)}...</p>
+                <p>
+                  {mangadexService.getLocalizedDescription(currentHero).substring(0, 150)}...
+                </p>
                 <IonButton shape="round" color="primary" size="small">
                   Leer Ahora
                 </IonButton>
@@ -287,49 +314,6 @@ const HomePage: React.FC = () => {
           )}
         </div>
 
-        {/* --- MAIN CAROUSEL: Tendencias (MangaDex) --- */}
-        {(popularManga.length > 0 || loading) && (
-          <div className="animate-fade-in" style={{ marginTop: '1rem' }}>
-            <div className="section-header" style={{ paddingBottom: '0.5rem' }}>
-              <div className="accent-bar" style={{ background: '#ffca28' }}></div>
-              <h2>Tendencias 🔥</h2>
-            </div>
-            <div className="carousel-wrapper">
-              <IonButton fill="clear" className="carousel-scroll-btn left" onClick={(e) => { e.stopPropagation(); hapticsService.lightImpact(); scrollCarousel('popular-carousel', 'left'); }}>
-                <IonIcon icon={chevronBackOutline} />
-              </IonButton>
-              <div className="manga-carousel" id="popular-carousel">
-                {loading ? (
-                  [1,2,3,4,5].map(i => (
-                    <div key={`skel-${i}`} className="carousel-card">
-                      <IonSkeletonText animated style={{ width: '130px', height: '190px', borderRadius: '8px' }} />
-                    </div>
-                  ))
-                ) : (
-                  popularManga.map((manga: any) => (
-                    <div 
-                      key={manga.id} 
-                      className="carousel-card"
-                      onClick={() => router.push(`/manga/${manga.id}`)}
-                    >
-                      <img 
-                        src={mangadexService.getCoverUrl(manga)} 
-                        className="carousel-cover" 
-                        alt={mangadexService.getLocalizedTitle(manga) as string} 
-                        loading="lazy"
-                      />
-                      <div className="carousel-title">{mangadexService.getLocalizedTitle(manga)}</div>
-                    </div>
-                  ))
-                )}
-              </div>
-              <IonButton fill="clear" className="carousel-scroll-btn right" onClick={(e) => { e.stopPropagation(); scrollCarousel('popular-carousel', 'right'); }}>
-                <IonIcon icon={chevronForwardOutline} />
-              </IonButton>
-            </div>
-          </div>
-        )}
-
         {/* --- CAROUSEL: Joyas Finalizadas --- */}
         {(completedMasterpieces.length > 0 || loading) && (
           <div className="animate-fade-in" style={{ marginTop: '1.5rem' }}>
@@ -346,7 +330,7 @@ const HomePage: React.FC = () => {
               </IonButton>
               <div className="manga-carousel" id="completed-carousel">
                 {loading ? (
-                  [1,2,3,4,5].map(i => (
+                   [1,2,3,4,5].map(i => (
                     <div key={`skel-comp-${i}`} className="carousel-card">
                       <IonSkeletonText animated style={{ width: '130px', height: '190px', borderRadius: '8px' }} />
                     </div>
@@ -376,13 +360,14 @@ const HomePage: React.FC = () => {
           </div>
         )}
 
+
         {loading ? (
           <div className="animate-fade-in">
             {[1, 2, 3, 4].map(i => (
               <IonSkeletonText key={i} animated style={{ width: '100%', height: '80px', borderRadius: '14px', marginBottom: '10px' }} />
             ))}
           </div>
-        ) : (
+        ) : latest.length > 0 ? (
           <div className="animate-fade-in">
             {/* Latest Chapters Section */}
             <div id="latest-section" className="section-header" style={{ marginTop: '1.5rem', paddingTop: '1rem', paddingBottom: '0.5rem' }}>
@@ -390,24 +375,53 @@ const HomePage: React.FC = () => {
               <h2>Últimos Capítulos</h2>
             </div>
             
-            <div className="home-lang-filters" style={{ overflowX: 'auto', whiteSpace: 'nowrap', paddingBottom: '10px', marginBottom: '10px' }}>
-              {[
-                { code: 'es', label: '🇪🇸 Español (Todos)' },
-                { code: 'en', label: '🇺🇸 English' },
-                { code: 'ja', label: '🇯🇵 日本語' },
-                { code: 'ko', label: '🇰🇷 한국어' },
-                { code: 'zh', label: '🇨🇳 中文' }
-              ].map(lang => (
-                <IonChip 
-                  key={lang.code}
-                  color={latestLang === lang.code ? 'primary' : 'medium'}
-                  outline={latestLang !== lang.code}
-                  onClick={() => { hapticsService.lightImpact(); setLatestLang(lang.code); }}
-                >
-                  <IonLabel>{lang.label}</IonLabel>
-                </IonChip>
-              ))}
-            </div>
+            {/* Language Filters */}
+          <div className="home-lang-filters" style={{ overflowX: 'auto', whiteSpace: 'nowrap', paddingBottom: '8px' }}>
+            {[
+              { code: 'es', label: '🇪🇸 Español' },
+              { code: 'en', label: '🇺🇸 English' },
+              { code: 'pt-br', label: '🇧🇷 Português' },
+              { code: 'fr', label: '🇫🇷 Français' },
+              { code: 'it', label: '🇮🇹 Italiano' },
+              { code: 'de', label: '🇩🇪 Deutsch' },
+              { code: 'ru', label: '🇷🇺 Русский' },
+              { code: 'tr', label: '🇹🇷 Türkçe' },
+              { code: 'vi', label: '🇻🇳 Tiếng Việt' },
+              { code: 'th', label: '🇹🇭 ไทย' }
+            ].map(lang => (
+              <IonChip 
+                key={lang.code}
+                outline={latestLang !== lang.code}
+                color={latestLang === lang.code ? "primary" : "medium"}
+                onClick={() => setLatestLang(lang.code)}
+                style={{ fontSize: '11px' }}
+              >
+                <IonLabel>{lang.label}</IonLabel>
+              </IonChip>
+            ))}
+          </div>
+
+          {/* NEW: Type Filters (Global Expansion) */}
+          <div className="home-lang-filters type-filters" style={{ overflowX: 'auto', whiteSpace: 'nowrap', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px' }}>
+            {[
+              { id: 'all', label: '✨ Todos' },
+              { id: 'manga', label: '🇯🇵 Manga (JP)' },
+              { id: 'manhwa', label: '🇰🇷 Manhwa (KR)' },
+              { id: 'manhua', label: '🇨🇳 Manhua (CN)' },
+              { id: 'en', label: '🇺🇸 Western (OEL)' },
+              { id: 'fr', label: '🇫🇷 BD Française' }
+            ].map(type => (
+              <IonChip 
+                key={type.id}
+                outline={latestType !== type.id}
+                color={latestType === type.id ? "secondary" : "medium"}
+                onClick={() => setLatestType(type.id)}
+                style={{ fontSize: '10px', height: '28px' }}
+              >
+                <IonLabel>{type.label}</IonLabel>
+              </IonChip>
+            ))}
+          </div>
 
             {/* Content Logic */}
             {(() => {
@@ -423,9 +437,11 @@ const HomePage: React.FC = () => {
                       <div className="promo-badge">RECOMENDADO</div>
                       <div className="promo-content">
                         <img 
-                          src={mangadexService.getCoverUrl(featuredMasterpiece)} 
+                          src={mangadexService.getCoverUrl(featuredMasterpiece, '512')} 
                           alt="promo" 
                           className="promo-image" 
+                          fetchPriority="high"
+                          decoding="async"
                         />
                         <div className="promo-text">
                           <span className="promo-label">
@@ -469,7 +485,17 @@ const HomePage: React.FC = () => {
                             onClick={() => handleLatestClick(manga)}
                           >
                             <div className="list-item-cover-wrapper">
-                              <img src={coverUrl} alt={mangaTitle as string} className="list-item-cover" loading="lazy" />
+                              <img 
+                                src={mangadexService.getCoverUrl(manga, '256')} 
+                                alt={mangaTitle as string} 
+                                className="list-item-cover" 
+                                loading="lazy"
+                                decoding="async"
+                                fetchPriority="low"
+                                onError={(e: any) => {
+                                  e.target.src = 'https://placehold.co/256x384/222222/cccccc?text=Error';
+                                }}
+                              />
                               <div className="list-item-format-badge">{formatLabel}</div>
                             </div>
                             <div className="list-item-details">
@@ -509,11 +535,29 @@ const HomePage: React.FC = () => {
               );
             })()}
           </div>
+        ) : (
+          <EmptyState 
+            emoji="📵"
+            title="Estás fuera de línea"
+            subtitle="No se pudieron cargar novedades. Ve a tu biblioteca para leer tus capítulos descargados."
+            actionLabel="Ir a Descargas"
+            onAction={() => router.push('/library')}
+          />
         )}
 
         <IonInfiniteScroll threshold="100px" disabled={isDone} onIonInfinite={loadMoreLatest}>
           <IonInfiniteScrollContent loadingSpinner="bubbles" loadingText="Cargando más capítulos..." />
         </IonInfiniteScroll>
+
+        <IonToast
+          isOpen={showToast}
+          onDidDismiss={() => setShowToast(false)}
+          message={toastMsg}
+          duration={3000}
+          position="top"
+          className="custom-toast"
+          color="dark"
+        />
       </IonContent>
     </IonPage>
   );

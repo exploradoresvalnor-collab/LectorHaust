@@ -73,11 +73,11 @@ ion-tab-bar {
   -webkit-backdrop-filter: blur(25px);
   border: 1px solid rgba(255, 255, 255, 0.05) !important;
   border-radius: 30px;
-  margin: 0 20px calc(16px + env(safe-area-inset-bottom)); /* Dynamic margin for home indicator */
-  height: 62px; /* Slightly taller for icons + text air */
+  margin: 0 15px calc(15px + env(safe-area-inset-bottom)); /* Unified 15px margin */
+  height: 65px; /* Unified height */
   position: absolute;
   bottom: 0;
-  width: calc(100% - 40px);
+  width: calc(100% - 30px);
   box-shadow: 0 4px 30px rgba(0,0,0,0.3);
   overflow: visible; /* Allow glows */
   padding-bottom: env(safe-area-inset-bottom); /* Internal safety */

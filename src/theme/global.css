@@ -55,17 +55,130 @@ body {
   display: none; /* Chrome, Safari and Opera */
 }
 
-/* Header tweaks */
+/* Header tweaks & Safe Areas */
 ion-header ion-toolbar {
   --border-width: 0 0 1px;
   --border-color: var(--bg-elevated);
+  padding-top: env(safe-area-inset-top); /* Notch Support */
 }
 
-/* Tab Bar tweaks */
+/* Premium Floating Tab Bar (Safe Area protected) */
 ion-tab-bar {
-  --border-color: var(--bg-elevated);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  --background: rgba(22, 22, 25, 0.85); /* Dark premium glass */
+  --border: none;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  
+  /* Floating pill design for Mobile */
+  height: 65px;
+  border-radius: 35px;
+  margin: 0 15px calc(15px + env(safe-area-inset-bottom));
+  padding: 0 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  
+  /* Overrides Ionic defaults to make it float */
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: auto;
+}
+
+/* --- Adaptación Web/Desktop (Navegación PC) --- */
+@media (min-width: 768px) {
+  ion-tab-bar {
+    width: 450px !important;
+    max-width: none !important;
+    left: 50% !important;
+    right: auto !important;
+    /* margin: top right bottom left */
+    margin: 0 0 calc(20px + env(safe-area-inset-bottom)) -225px !important;
+    transform: none !important;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Custom Toast Fix for Safe Areas & Floating Bar */
+.custom-toast {
+  --background: rgba(40, 40, 45, 0.95);
+  --color: #fff;
+  --border-radius: 12px;
+  --box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+  /* Push up from the bottom to sit right above the floating TabBar */
+  margin-bottom: calc(85px + env(safe-area-inset-bottom)); 
+  padding: 0 10px;
+}
+
+/* Premium Tab Buttons */
+ion-tab-button {
+  --color: rgba(255, 255, 255, 0.4);
+  --color-selected: var(--ion-color-primary);
+  background: transparent;
+  position: relative;
+  transition: all 0.3s ease;
+  overflow: visible; /* To allow glow effects */
+}
+
+/* Active Indicator / Glow on selection */
+ion-tab-button.tab-selected::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 25px;
+  height: 4px;
+  background: var(--ion-color-primary);
+  border-radius: 0 0 4px 4px;
+  box-shadow: 0 2px 10px var(--ion-color-primary);
+}
+
+ion-tab-button.tab-selected ion-icon {
+  transform: translateY(-2px) scale(1.1);
+  filter: drop-shadow(0 2px 8px rgba(139, 92, 246, 0.6));
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+ion-tab-button ion-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+  transition: all 0.3s ease;
+}
+
+/* Unread Chat Badge Glow */
+.tab-badge {
+  position: absolute;
+  top: 6px;
+  right: calc(50% - 18px);
+  width: 10px;
+  height: 10px;
+  min-width: 10px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid #000;
+  background: #ff3b30;
+  box-shadow: 0 0 8px #ff3b30;
+  animation: badge-pulse 2s infinite;
+  z-index: 10;
+}
+
+@keyframes badge-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7);
+  }
+  70% {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 8px rgba(255, 59, 48, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 59, 48, 0);
+  }
 }
 
 /* Navigation Utility */
@@ -73,8 +186,8 @@ ion-tab-bar {
     display: none !important;
 }
 
-/* Safe Area Support */
+/* Base Safe Area Support for content */
 ion-content {
-  --padding-top: env(safe-area-inset-top);
-  --padding-bottom: env(safe-area-inset-bottom);
+  /* 65px (pill height) + 15px (margin) + 25px (extra breathing room) */
+  --padding-bottom: calc(105px + env(safe-area-inset-bottom));
 }

@@ -19,6 +19,8 @@ import { useMangaReader } from '../hooks/useMangaReader';
 import { hapticsService } from '../services/hapticsService';
 import './ReaderPage.css';
 
+import { gridOutline, listOutline, bookOutline, refreshCircleOutline, cloudDownloadOutline, trashOutline } from 'ionicons/icons';
+
 const ReaderPage: React.FC = () => {
   const { chapterId } = useParams<{ chapterId: string }>();
   const router = useIonRouter();
@@ -37,7 +39,8 @@ const ReaderPage: React.FC = () => {
     showUi,
     setShowUi,
     showEndSection,
-    handleMangaTap
+    handleMangaTap,
+    isOffline
   } = useMangaReader(chapterId);
 
   const toggleUi = () => {
@@ -88,7 +91,8 @@ const ReaderPage: React.FC = () => {
               <IonBackButton text="" defaultHref="/home" className="reader-back-btn" />
             </IonButtons>
             <div className="reader-title-container">
-              <span className="reader-chapter-badge">
+              <span className={`reader-chapter-badge ${isOffline ? 'is-offline' : ''}`}>
+                {isOffline && <IonIcon icon={cloudDownloadOutline} style={{ marginRight: '5px' }} />}
                 Cap. {chapterNum} {isWebtoon ? '' : `(${currentMangaPage + 1}/${pages.length})`}
               </span>
             </div>
@@ -124,12 +128,13 @@ const ReaderPage: React.FC = () => {
             {isWebtoon && (
               <div className="pages-container manhwa-container" onClick={toggleUi}>
                 {pages.map((page, index) => (
-                  <div key={index} className="page-wrapper" data-index={index}>
+                  <div key={index} className="page-wrapper" data-index={index} style={{ contentVisibility: 'auto' }}>
                     <img 
                       src={page.includes('mangadex') ? mangadexService.getProxiedUrl(page) : page} 
                       className="manga-page loaded" 
                       alt={`Página ${index + 1}`}
-                      loading={index < 2 ? "eager" : "lazy"}
+                      loading={index < 3 ? "eager" : "lazy"}
+                      decoding="async"
                     />
                   </div>
                 ))}
@@ -147,14 +152,15 @@ const ReaderPage: React.FC = () => {
                       src={pages[currentMangaPage].includes('mangadex') ? mangadexService.getProxiedUrl(pages[currentMangaPage]) : pages[currentMangaPage]} 
                       className="manga-page-single loaded fade-in" 
                       alt={`Página ${currentMangaPage + 1}`}
+                      decoding="async"
                     />
                     
-                    {/* Precargador silencioso de la siguiente página */}
+                    {/* Precargador de alta prioridad a nivel de red */}
                     {currentMangaPage + 1 < pages.length && (
-                      <img 
-                        src={pages[currentMangaPage + 1].includes('mangadex') ? mangadexService.getProxiedUrl(pages[currentMangaPage + 1]) : pages[currentMangaPage + 1]} 
-                        style={{ display: 'none' }} 
-                        alt="preload next" 
+                      <link 
+                        rel="preload" 
+                        as="image" 
+                        href={pages[currentMangaPage + 1].includes('mangadex') ? mangadexService.getProxiedUrl(pages[currentMangaPage + 1]) : pages[currentMangaPage + 1]} 
                       />
                     )}
                   </>

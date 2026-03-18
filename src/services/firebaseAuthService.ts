@@ -4,7 +4,8 @@ import {
   signOut, 
   onAuthStateChanged,
   User,
-  signInAnonymously
+  signInAnonymously,
+  updateProfile
 } from 'firebase/auth';
 import { auth } from './firebase';
 
@@ -27,10 +28,53 @@ export const firebaseAuthService = {
   /**
    * Login Anonymously (Lector Fantasma)
    */
+  /**
+   * Helper: Convert country code 'CO' to emoji flag
+   */
+  getFlagEmoji(countryCode: string) {
+    if (!countryCode || countryCode === 'UN') return '🏳️';
+    const offset = 127397;
+    return countryCode
+      .toUpperCase()
+      .split('')
+      .map(char => String.fromCodePoint(char.charCodeAt(0) + offset))
+      .join('');
+  },
+
+  /**
+   * Login Anonymously (Lector Fantasma) with International Flag
+   */
   async loginAnonymously() {
     try {
       const result = await signInAnonymously(auth);
-      return result.user;
+      const user = result.user;
+
+      // If user already has a display name, don't overwrite with new flag (optional)
+      if (user.displayName) return user;
+
+      // Fetch country by IP (Fast & Free API)
+      let flag = '🌍';
+      let countryCode = 'UN';
+      try {
+        const res = await fetch('https://ipapi.co/json/');
+        const data = await res.json();
+        countryCode = data.country_code || 'UN';
+        flag = this.getFlagEmoji(countryCode);
+      } catch (e) {
+        console.warn('Geolocation failed, using default flag');
+      }
+
+      // Generate Ghost Name: Lector [ShortID] [Flag]
+      const shortId = user.uid.substring(0, 4).toUpperCase();
+      const ghostName = `Lector ${shortId} ${flag}`;
+
+      // Update Firebase Profile so it persists
+      await updateProfile(user, {
+        displayName: ghostName,
+        photoURL: `https://api.dicebear.com/7.x/identicon/svg?seed=${user.uid}`
+      });
+
+      return user;
     } catch (error) {
       console.error('Error logging in anonymously:', error);
       throw error;

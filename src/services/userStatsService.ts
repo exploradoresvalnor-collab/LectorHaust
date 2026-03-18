@@ -13,12 +13,14 @@ export interface UserStats {
   level: number;
   chaptersRead: number;
   commentsPosted: number;
+  achievements: string[];
   lastUpdated: number;
 }
 
 const XP_PER_CHAPTER = 25;
 const XP_PER_COMMENT = 10;
 const XP_PER_REPLY = 15;
+const XP_PER_SHARE = 30;
 
 export const userStatsService = {
   /**
@@ -76,6 +78,7 @@ export const userStatsService = {
         level: 1,
         chaptersRead: 0,
         commentsPosted: 0,
+        achievements: [],
         lastUpdated: Date.now()
       };
       await setDoc(docRef, initialStats);
@@ -116,6 +119,17 @@ export const userStatsService = {
     await setDoc(docRef, {
       xp: increment(xp),
       commentsPosted: increment(1),
+      lastUpdated: Date.now()
+    }, { merge: true });
+  },
+
+  /**
+   * Award XP for sharing/recommending a manga
+   */
+  async awardRecommendationXP(userId: string) {
+    const docRef = doc(db, 'userStats', userId);
+    await setDoc(docRef, {
+      xp: increment(XP_PER_SHARE),
       lastUpdated: Date.now()
     }, { merge: true });
   }

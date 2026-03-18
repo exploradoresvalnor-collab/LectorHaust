@@ -35,7 +35,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ message }) => {
       <div className="modern-loading-content">
         <div className="spinner-wrapper">
           <div className="modern-spinner"></div>
-          <img src="/logo-premium.png" alt="Logo" className="spinner-center-logo" />
+          <img src="/logolh.webp" alt="Logo" className="spinner-center-logo" />
         </div>
         
         <div className="loading-info">

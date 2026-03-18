@@ -84,6 +84,8 @@
   margin-bottom: -1px; /* Adiós líneas blancas */
   display: flex;
   justify-content: center;
+  content-visibility: auto;
+  contain-intrinsic-size: 1000px; /* Tamaño aproximado para ayudar al scroll */
 }
 
 .manga-page {
@@ -170,4 +172,17 @@
   justify-content: center;
   height: 100vh;
   color: white;
+}
+
+.reader-chapter-badge.is-offline {
+  background: rgba(235, 68, 90, 0.4) !important;
+  border: 1px solid #eb445a !important;
+  color: #fff !important;
+  animation: pulse-offline 2s infinite ease-in-out;
+}
+
+@keyframes pulse-offline {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(235, 68, 90, 0.4); }
+  50% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(235, 68, 90, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(235, 68, 90, 0); }
 }

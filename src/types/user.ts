@@ -15,6 +15,8 @@ export interface ReadingProgress {
   chapterNumber: string;
   pageIndex: number;
   lastRead: number; // Timestamp
+  mangaTitle?: string;
+  mangaCover?: string;
 }
 
 export interface UserStats {

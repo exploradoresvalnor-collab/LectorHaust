@@ -6,7 +6,29 @@ export const FORMATS = [
   { label: 'Todos', value: null },
   { label: 'Manga 🇯🇵', value: 'ja' },
   { label: 'Manhwa 🇰🇷', value: 'ko' },
-  { label: 'Manhua 🇨🇳', value: 'zh' }
+  { label: 'Manhua 🇨🇳', value: 'zh' },
+  { label: 'Western 🇺🇸', value: 'en' },
+  { label: 'Francés 🇫🇷', value: 'fr' },
+  { label: 'Vietnamita 🇻🇳', value: 'vi' },
+  { label: 'Tailandés 🇹🇭', value: 'th' },
+  { label: 'Ruso 🇷🇺', value: 'ru' },
+  { label: 'Indonesio 🇮🇩', value: 'id' }
+];
+
+export const LANGUAGES = [
+  { label: 'Español', value: 'es' },
+  { label: 'Inglés', value: 'en' },
+  { label: 'Portugués (BR)', value: 'pt-br' },
+  { label: 'Francés', value: 'fr' },
+  { label: 'Italiano', value: 'it' },
+  { label: 'Alemán', value: 'de' },
+  { label: 'Ruso', value: 'ru' },
+  { label: 'Turco', value: 'tr' },
+  { label: 'Vietnamita', value: 'vi' },
+  { label: 'Tailandés', value: 'th' },
+  { label: 'Indonesio', value: 'id' },
+  { label: 'Polaco', value: 'pl' },
+  { label: 'Árabe', value: 'ar' }
 ];
 
 export const STATUSES = [
@@ -96,12 +118,12 @@ export function useSearch() {
   const [completedColor, setCompletedColor] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
 
-  const { favorites } = useLibraryStore();
+  const { favorites, showNSFW } = useLibraryStore();
 
   const loadDiscoveryData = useCallback(async () => {
     setLoading(true);
     try {
-      const trendingData = await mangadexService.getPopularManga(null, 'es', 24, 0);
+      const trendingData = await mangadexService.getPopularManga(null, 'es', 24, 0, null, false, showNSFW);
       setTrending(trendingData.data || []);
 
       if (favorites.length > 0) {
@@ -113,7 +135,7 @@ export function useSearch() {
     } finally {
       setLoading(false);
     }
-  }, [favorites]);
+  }, [favorites, showNSFW]);
 
   const fetchCompleted = useCallback(async (
     isLoadMore = false, 
@@ -130,7 +152,7 @@ export function useSearch() {
     
     try {
         const offsetToUse = isLoadMore ? completedOffset : 0;
-        const resp = await mangadexService.getFullyTranslatedMasterpieces(null, lang, 15, offsetToUse, genre || null, color);
+        const resp = await mangadexService.getFullyTranslatedMasterpieces(null, lang, 15, offsetToUse, genre || null, color, showNSFW);
         
         let newData = resp.data || [];
         
@@ -158,7 +180,7 @@ export function useSearch() {
     } finally {
         if (!isLoadMore) setCompletedLoading(false);
     }
-  }, [completedGenre, completedLang, completedDemographic, completedColor, completedOffset]);
+  }, [completedGenre, completedLang, completedDemographic, completedColor, completedOffset, showNSFW]);
 
   const loadMoreCompleted = async (e: any) => {
       await fetchCompleted(true);
@@ -206,7 +228,7 @@ export function useSearch() {
       const orderParam: any = {};
       orderParam[order || activeOrder] = 'desc';
 
-      const data = await mangadexService.searchManga(searchVal, filters, 20, currentOffset, orderParam);
+      const data = await mangadexService.searchManga(searchVal, filters, 20, currentOffset, orderParam, showNSFW);
       
       if (isMore) {
         setResults(prev => [...prev, ...(data.data || [])]);
@@ -221,7 +243,7 @@ export function useSearch() {
     } finally {
       if (!isMore) setLoading(false);
     }
-  }, [query, activeFormat, activeGenre, activeStatus, activeDemographic, activeOrder, activeColor, offset]);
+  }, [query, activeFormat, activeGenre, activeStatus, activeDemographic, activeOrder, activeColor, offset, showNSFW]);
 
   const setFormatFilter = (format: string | null) => {
     setActiveFormat(format);
