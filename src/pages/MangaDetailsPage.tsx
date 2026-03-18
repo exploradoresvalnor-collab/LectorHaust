@@ -107,10 +107,7 @@ const MangaDetailsPage: React.FC = () => {
       setLoadingRecs(true);
       const edges = aniData.recommendations.edges.slice(0, 10);
       const results: any[] = [];
-
-      // Process in parallel (3 at a time to avoid rate limiting)
       // Process more in parallel for speed, but keep a small batching to be safe
-      const results: any[] = [];
       const batchSize = 6; 
 
       for (let i = 0; i < edges.length; i += batchSize) {
