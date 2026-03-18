@@ -2,30 +2,30 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // 1. Favoritos e Historial (Solo el dueño puede tocar sus datos)
-    match /users/{userId}/{anyUserDocument=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // Chat Global
-    match /global_chat/{messageId} {
-      allow read: if true;
-      allow write: if request.auth != null;
-    }
-    
-    // User Profiles & Stats
+    // Helper functions
+    function isAuthenticated() { return request.auth != null; }
+    function isOwner(userId) { return isAuthenticated() && request.auth.uid == userId; }
+
+    // 1. User Profiles & Stats (Publicly readable, only owner can write)
     match /users/{userId} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow write: if isOwner(userId);
       
       // Allow adding friends (updating the 'friends' array only)
-      allow update: if request.auth != null;
-    }
-    
-    // Friend Requests
-    match /users/{userId}/friendRequests/{senderId} {
-      allow read, delete: if request.auth != null && (request.auth.uid == userId || request.auth.uid == senderId);
-      allow write: if request.auth != null;
+      allow update: if isAuthenticated();
+      
+      // Sub-collections: Specific rules for each to avoid greedy conflicts
+      
+      // Private data (Favorites, History, Settings)
+      match /favorites/{docId} { allow read, write: if isOwner(userId); }
+      match /history/{docId} { allow read, write: if isOwner(userId); }
+      match /readChapters/{docId} { allow read, write: if isOwner(userId); }
+      match /privateChats/{docId} { allow read, write: if isOwner(userId); }
+
+      // Friend Requests (Sender must be able to create/read/delete, Receiver must be able to read/delete)
+      match /friendRequests/{senderId} {
+        allow read, write: if isAuthenticated() && (request.auth.uid == userId || request.auth.uid == senderId);
+      }
     }
     
     // 2. Comentarios (Lectura pública, Escritura autenticada, Borrado solo de autor)
