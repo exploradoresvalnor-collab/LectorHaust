@@ -16,27 +16,35 @@ import {
   IonSegment,
   IonSegmentButton,
   IonBadge,
-  useIonToast
+  useIonToast,
+  IonActionSheet,
+  useIonRouter
 } from '@ionic/react';
 import { 
   closeOutline, 
   checkmarkOutline, 
   peopleOutline, 
   personAddOutline, 
-  chatbubbleEllipsesOutline 
+  chatbubbleEllipsesOutline,
+  ellipsisVerticalOutline,
+  trashOutline
 } from 'ionicons/icons';
 import { socialService, FriendRequest } from '../services/socialService';
 import { firebaseAuthService } from '../services/firebaseAuthService';
 import { db } from '../services/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
 import './SocialPage.css';
 
 const SocialPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'amigos' | 'solicitudes'>('amigos');
   const [requests, setRequests] = useState<any[]>([]);
   const [friends, setFriends] = useState<any[]>([]);
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [showActionSheet, setShowActionSheet] = useState(false);
+  const [selectedFriend, setSelectedFriend] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [presentToast] = useIonToast();
+  const router = useIonRouter();
 
   useEffect(() => {
     const unsubscribe = firebaseAuthService.subscribe(async (user) => {
@@ -69,8 +77,19 @@ const SocialPage: React.FC = () => {
           setFriends(detailedFriends);
         }
 
+        // Subscribe to unread counts
+        const chatsRef = collection(db, `users/${user.uid}/privateChats`);
+        const unsubChats = onSnapshot(chatsRef, (snapshot) => {
+          const counts: Record<string, number> = {};
+          snapshot.forEach(docSnap => {
+            counts[docSnap.id] = docSnap.data().unreadCount || 0;
+          });
+          setUnreadCounts(counts);
+        });
+
         return () => {
           unsubReq();
+          unsubChats();
         };
       }
     });
@@ -130,16 +149,33 @@ const SocialPage: React.FC = () => {
               <IonList className="social-list glass-list">
                 {friends.map(friend => (
                   <IonItem key={friend.id} className="social-item">
-                    <IonAvatar slot="start">
+                    <IonAvatar slot="start" onClick={() => router.push(`/chat/${friend.id}`)} className="clickable">
                       <img src={friend.avatarUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${friend.id}`} alt="avatar" />
                     </IonAvatar>
-                    <IonLabel>
+                    <IonLabel onClick={() => router.push(`/chat/${friend.id}`)} className="clickable">
                       <h2>{friend.name || friend.displayName || 'Lector'} {friend.flag || ''}</h2>
                       <p>{friend.rank || 'Explorador'}</p>
                     </IonLabel>
                     <IonButtons slot="end">
-                      <IonButton color="primary" fill="clear">
+                      <IonButton 
+                        color="primary" 
+                        fill="clear" 
+                        onClick={() => router.push(`/chat/${friend.id}`)}
+                        className="msg-btn-social"
+                        style={{ position: 'relative', overflow: 'visible' }}
+                      >
                         <IonIcon icon={chatbubbleEllipsesOutline} slot="icon-only" />
+                        {unreadCounts[friend.id] > 0 && (
+                          <IonBadge color="danger" style={{ position: 'absolute', top: '-5px', right: '-5px', fontSize: '10px' }}>
+                            {unreadCounts[friend.id]}
+                          </IonBadge>
+                        )}
+                      </IonButton>
+                      <IonButton color="medium" fill="clear" onClick={() => {
+                        setSelectedFriend(friend.id);
+                        setShowActionSheet(true);
+                      }}>
+                        <IonIcon icon={ellipsisVerticalOutline} slot="icon-only" />
                       </IonButton>
                     </IonButtons>
                   </IonItem>
@@ -189,6 +225,31 @@ const SocialPage: React.FC = () => {
           </div>
         )}
       </IonContent>
+
+      <IonActionSheet
+        isOpen={showActionSheet}
+        onDidDismiss={() => setShowActionSheet(false)}
+        header="Opciones de Nakama"
+        buttons={[
+          {
+            text: 'Eliminar Nakama',
+            role: 'destructive',
+            icon: trashOutline,
+            handler: async () => {
+              if (currentUser && selectedFriend) {
+                await socialService.removeFriend(currentUser.uid, selectedFriend);
+                setFriends(prev => prev.filter(f => f.id !== selectedFriend));
+                presentToast({ message: 'Nakama eliminado', duration: 2000 });
+              }
+            }
+          },
+          {
+            text: 'Cancelar',
+            role: 'cancel',
+            icon: closeOutline
+          }
+        ]}
+      />
     </IonPage>
   );
 };

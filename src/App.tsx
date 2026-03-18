@@ -10,13 +10,17 @@ import {
   IonTabs,
   setupIonicReact,
   useIonRouter,
+  useIonToast,
   IonToast,
   useIonViewWillEnter,
   IonBadge
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
 import { useLocation } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { home, search, library, chatbubbles } from 'ionicons/icons';
+import { getTranslation, Language, getDefaultLanguage } from './utils/translations';
+import LocalizationBanner from './components/LocalizationBanner';
 import HomePage from './pages/HomePage';
 import SearchPage from './pages/SearchPage';
 import LibraryPage from './pages/LibraryPage';
@@ -24,13 +28,16 @@ import MangaDetailsPage from './pages/MangaDetailsPage';
 import ReaderPage from './pages/ReaderPage';
 import ProfilePage from './pages/ProfilePage';
 import ChatPage from './pages/ChatPage';
+import PrivateChatPage from './pages/PrivateChatPage';
 import SocialPage from './pages/SocialPage';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLibraryStore } from './store/useLibraryStore';
 import { checkUpdatesForLibrary, MangaUpdate } from './services/updateService';
 import { hapticsService } from './services/hapticsService';
 import { db } from './services/firebase';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { firebaseAuthService } from './services/firebaseAuthService';
+import { socialService } from './services/socialService';
 
 /* Core CSS required for Ionic components to work properly */
 import '@ionic/react/css/core.css';
@@ -72,8 +79,13 @@ const AppContent: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<MangaUpdate | null>(null);
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
+  const [currentLang, setCurrentLang] = useState<Language>(getDefaultLanguage());
+  const [pendingRequests, setPendingRequests] = useState(0);
+  const [privateUnread, setPrivateUnread] = useState(0);
   const router = useIonRouter();
   const location = useLocation();
+  const [presentToast] = useIonToast();
+  const lastPendingRef = useRef(0);
 
   // Paths where we want to HIDE the bottom tab bar
   const shouldHideTabs = 
@@ -95,7 +107,64 @@ const AppContent: React.FC = () => {
     return () => clearInterval(interval);
   }, [favorites]);
 
-  // Chat Notifications Logic
+  // Social & Private Chat Notifications
+  useEffect(() => {
+    let unsubReq: (() => void) | null = null;
+    let unsubPriv: (() => void) | null = null;
+
+    const unsubscribeAuth = firebaseAuthService.subscribe((user) => {
+      if (unsubReq) unsubReq();
+      if (unsubPriv) unsubPriv();
+
+      if (user && !user.isAnonymous) {
+        unsubReq = socialService.subscribeToFriendRequests(user.uid, (reqs) => {
+          setPendingRequests(reqs.length);
+        });
+        unsubPriv = socialService.subscribeToAllUnreadCount(user.uid, (total) => {
+          setPrivateUnread(total);
+        });
+      } else {
+        setPendingRequests(0);
+        setPrivateUnread(0);
+      }
+    });
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubReq) unsubReq();
+      if (unsubPriv) unsubPriv();
+    };
+  }, []);
+
+  // Listen for language changes from storage
+  useEffect(() => {
+    const checkLang = () => {
+      setCurrentLang(getDefaultLanguage());
+    };
+
+    window.addEventListener('storage', checkLang);
+    return () => window.removeEventListener('storage', checkLang);
+  }, []);
+
+  // Global Chat Notifications Logic
+  useEffect(() => {
+    if (pendingRequests > lastPendingRef.current && lastPendingRef.current !== 0) {
+      if (Capacitor.isNativePlatform()) {
+        hapticsService.lightImpact();
+      }
+      presentToast({
+        message: '¡Tienes una nueva solicitud de Nakama! 🤝',
+        duration: 3000,
+        position: 'top',
+        color: 'primary',
+        buttons: [{ text: 'Ver', handler: () => router.push('/social') }]
+      });
+    }
+    if (pendingRequests !== lastPendingRef.current) {
+      lastPendingRef.current = pendingRequests;
+    }
+  }, [pendingRequests, presentToast, router]);
+
   useEffect(() => {
     const chatRef = collection(db, 'global_chat');
     const q = query(chatRef, orderBy('timestamp', 'desc'), limit(1));
@@ -110,6 +179,8 @@ const AppContent: React.FC = () => {
           setHasUnreadChat(true);
         }
       }
+    }, (error) => {
+      console.warn('Firebase: Chat listener issue (ignoring)', error.message);
     });
 
     return () => unsubscribe();
@@ -125,6 +196,7 @@ const AppContent: React.FC = () => {
 
   return (
     <>
+      <LocalizationBanner lang={currentLang} onClose={() => {}} />
       <OfflineBanner />
       <IonTabs>
         <IonRouterOutlet>
@@ -137,6 +209,7 @@ const AppContent: React.FC = () => {
           <Route exact path="/chat">
             <ChatPage />
           </Route>
+          <Route exact path="/chat/:friendId" component={PrivateChatPage} />
           <Route exact path="/social" component={SocialPage} />
           <Route exact path="/">
             <Redirect to="/home" />
@@ -148,22 +221,24 @@ const AppContent: React.FC = () => {
         >
           <IonTabButton tab="home" href="/home" onClick={() => hapticsService.lightImpact()}>
             <IonIcon aria-hidden="true" icon={home} />
-            <IonLabel>Inicio</IonLabel>
+            <IonLabel>{getTranslation('tabs.home', currentLang)}</IonLabel>
           </IonTabButton>
           <IonTabButton tab="search" href="/search" onClick={() => hapticsService.lightImpact()}>
             <IonIcon aria-hidden="true" icon={search} />
-            <IonLabel>Explorar</IonLabel>
+            <IonLabel>{getTranslation('tabs.explore', currentLang)}</IonLabel>
           </IonTabButton>
           <IonTabButton tab="chat" href="/chat" onClick={() => hapticsService.lightImpact()}>
             <IonIcon aria-hidden="true" icon={chatbubbles} />
-            {hasUnreadChat && (
-              <IonBadge color="danger" className="tab-badge"> </IonBadge>
+            {(pendingRequests > 0 || privateUnread > 0 || hasUnreadChat) && (
+              <IonBadge color="danger" className="tab-badge">
+                {(pendingRequests + privateUnread) > 0 ? (pendingRequests + privateUnread) : ' '}
+              </IonBadge>
             )}
-            <IonLabel>Chat</IonLabel>
+            <IonLabel>{getTranslation('tabs.chat', currentLang)}</IonLabel>
           </IonTabButton>
           <IonTabButton tab="library" href="/library" onClick={() => hapticsService.lightImpact()}>
             <IonIcon aria-hidden="true" icon={library} />
-            <IonLabel>Biblioteca</IonLabel>
+            <IonLabel>{getTranslation('tabs.library', currentLang)}</IonLabel>
           </IonTabButton>
         </IonTabBar>
       </IonTabs>

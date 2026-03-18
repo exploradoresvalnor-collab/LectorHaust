@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { mangadexService } from '../services/mangadexService';
 import { useLibraryStore } from '../store/useLibraryStore';
+import { getDefaultLanguage } from '../utils/translations';
 
 export const FORMATS = [
   { label: 'Todos', value: null },
@@ -103,7 +104,7 @@ export function useSearch() {
   const [completedLoading, setCompletedLoading] = useState(false);
   const [completedOffset, setCompletedOffset] = useState(0);
   const [completedGenre, setCompletedGenre] = useState<string>('');
-  const [completedLang, setCompletedLang] = useState<string>('es');
+  const [completedLang, setCompletedLang] = useState<string>(getDefaultLanguage());
   const [completedDemographic, setCompletedDemographic] = useState<string | null>(null);
   const [completedStatus, setCompletedStatus] = useState<string>('completed');
   const [isCompletedDone, setIsCompletedDone] = useState(false);
@@ -152,7 +153,7 @@ export function useSearch() {
     
     try {
         const offsetToUse = isLoadMore ? completedOffset : 0;
-        const resp = await mangadexService.getFullyTranslatedMasterpieces(null, lang, 15, offsetToUse, genre || null, color, showNSFW);
+        const resp = await mangadexService.getFullyTranslatedMasterpieces(null, lang, 10, offsetToUse, genre || null, color, showNSFW);
         
         let newData = resp.data || [];
         
@@ -163,7 +164,7 @@ export function useSearch() {
         if (!newData.length) {
             setIsCompletedDone(true);
         } else {
-            setCompletedOffset(resp.rawOffsetNext !== undefined ? resp.rawOffsetNext : offsetToUse + 45); 
+            setCompletedOffset(resp.rawOffsetNext !== undefined ? resp.rawOffsetNext : offsetToUse + 10); 
         }
 
         if (isLoadMore) {

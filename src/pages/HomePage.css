@@ -305,6 +305,21 @@
     z-index: 1;
 }
 
+/* Tablet Optimizations (768px - 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+    .hero-card {
+        padding: 60px 40px calc(120px + env(safe-area-inset-bottom));
+    }
+    .hero-info h1 {
+        font-size: 3.2rem;
+        max-width: 80%;
+    }
+    .hero-info p {
+        font-size: 1.1rem;
+        max-width: 70%;
+    }
+}
+
 @media (min-width: 1024px) {
     /* Side-By-Side Layout for Desktop */
     .hero-container {
@@ -861,17 +876,24 @@
     display: flex;
     background: rgba(30, 30, 30, 0.6);
     border-radius: 12px;
-    padding: 10px;
-    gap: 14px;
+    gap: 15px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-    cursor: pointer;
-    transition: all 0.2s ease;
+    margin-bottom: 12px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.manga-list-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--ion-color-primary);
+    transform: translateX(5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
 }
 
 .manga-list-item:active {
     transform: scale(0.98);
-    background: rgba(40, 40, 40, 0.8);
 }
 
 .list-item-cover-wrapper {

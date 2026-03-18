@@ -43,6 +43,22 @@ const ReaderPage: React.FC = () => {
     isOffline
   } = useMangaReader(chapterId);
 
+  // Keyboard navigation for Desktop
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isWebtoon) return;
+      if (e.key === 'ArrowRight') {
+        const tapEvent = { clientX: window.innerWidth * 0.1 } as any; // Simula tap en zona "atrás" (RTL)
+        handleMangaTap(tapEvent);
+      } else if (e.key === 'ArrowLeft') {
+        const tapEvent = { clientX: window.innerWidth * 0.9 } as any; // Simula tap en zona "adelante" (RTL)
+        handleMangaTap(tapEvent);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isWebtoon, handleMangaTap]);
+
   const toggleUi = () => {
     hapticsService.lightImpact();
     setShowUi(u => !u);

@@ -22,7 +22,9 @@ import {
   IonProgressBar,
   IonText,
   useIonRouter,
-  getPlatforms
+  getPlatforms,
+  IonInfiniteScroll,
+  IonInfiniteScrollContent
 } from '@ionic/react';
 import { 
   send, 
@@ -112,6 +114,8 @@ const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const currentUserIdRef = useRef<string | null>(null);
+  const [limitCount, setLimitCount] = useState(30);
   const contentRef = useRef<HTMLIonContentElement | null>(null);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
@@ -127,38 +131,27 @@ const ChatPage: React.FC = () => {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isStatsLoading, setIsStatsLoading] = useState(false);
+  const [friendshipStatus, setFriendshipStatus] = useState<'friends' | 'pending_sent' | 'pending_received' | 'none' | 'loading'>('loading');
 
   useEffect(() => {
     // 1. Subscribe to auth state (and handle Ghost Mode login)
     const unsubscribeAuth = firebaseAuthService.subscribe(async (user) => {
       if (user) {
         setCurrentUser(user);
+        currentUserIdRef.current = user.uid;
       } else {
         // Ghost Mode Auto-Login
         try {
           const anonUser = await firebaseAuthService.loginAnonymously();
           setCurrentUser(anonUser);
+          currentUserIdRef.current = anonUser.uid;
         } catch (error) {
           console.error("Failed to automatically sign in anonymously", error);
         }
       }
     });
 
-    // 2. Subscribe to Firebase Global Chat
-    const chatRef = collection(db, 'global_chat');
-    const q = query(chatRef, orderBy('timestamp', 'desc'), limit(50));
-
-    const unsubscribeChat = onSnapshot(q, (snapshot) => {
-      const fetchedMessages: ChatMessage[] = [];
-      snapshot.forEach((doc) => {
-        fetchedMessages.push({ id: doc.id, ...doc.data() } as ChatMessage);
-      });
-      // Reverse to render oldest top to newest bottom
-      setMessages(fetchedMessages.reverse());
-      scrollToBottom(300);
-    });
-
-    // 3. Listen to Native Keyboard for smooth UX (Ignore on Web)
+    // 2. Listen to Native Keyboard for smooth UX (Ignore on Web)
     const setupKeyboard = async () => {
       if (!Capacitor.isNativePlatform()) return;
       
@@ -176,14 +169,14 @@ const ChatPage: React.FC = () => {
     };
     setupKeyboard();
 
-    // 4. Subscribe to Typing Metadata
+    // 3. Subscribe to Typing Metadata
     const metaRef = doc(db, 'global_chat', '_meta_typing');
     const unsubscribeTyping = onSnapshot(metaRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data() as Record<string, string>;
         const activeTypers = Object.keys(data).filter(uid => {
-          // Filter out our own typing status
-          return currentUser ? uid !== currentUser.uid && data[uid] : data[uid];
+          // Filter out our own typing status using the ref to avoid stale closure
+          return currentUserIdRef.current ? uid !== currentUserIdRef.current && data[uid] : data[uid];
         });
         setTypingUsers(activeTypers.map(uid => data[uid] as string));
         // Auto-scroll slightly if someone starts typing at bottom
@@ -193,13 +186,34 @@ const ChatPage: React.FC = () => {
 
     return () => {
       unsubscribeAuth();
-      unsubscribeChat();
       unsubscribeTyping();
       if (Capacitor.isNativePlatform()) {
         Keyboard.removeAllListeners();
       }
     };
   }, []);
+
+  // Separate useEffect for Chat messages to handle limitCount changes for pagination
+  useEffect(() => {
+    const chatRef = collection(db, 'global_chat');
+    const q = query(chatRef, orderBy('timestamp', 'desc'), limit(limitCount));
+
+    const unsubscribeChat = onSnapshot(q, (snapshot) => {
+      const fetchedMessages: ChatMessage[] = [];
+      snapshot.forEach((doc) => {
+        fetchedMessages.push({ id: doc.id, ...doc.data({ serverTimestamps: 'estimate' }) } as ChatMessage);
+      });
+      // Reverse to render oldest top to newest bottom
+      setMessages(fetchedMessages.reverse());
+      
+      // Only scroll to bottom on initial load, not when paginating
+      if (limitCount === 30) {
+        scrollToBottom(300);
+      }
+    });
+
+    return () => unsubscribeChat();
+  }, [limitCount]);
 
   useIonViewWillLeave(() => {
     if (Capacitor.isNativePlatform()) {
@@ -322,9 +336,14 @@ const ChatPage: React.FC = () => {
     
     if (!isGuest) {
       setIsStatsLoading(true);
+      setFriendshipStatus('loading');
       try {
         const userStats = await userStatsService.getOrInitStats(msg.userId);
         setStats(userStats);
+        if (currentUser && !currentUser.isAnonymous) {
+           const status = await socialService.getFriendshipStatus(currentUser.uid, msg.userId);
+           setFriendshipStatus(status);
+        }
       } catch (error) {
         console.error("Error loading user stats:", error);
       } finally {
@@ -332,6 +351,7 @@ const ChatPage: React.FC = () => {
       }
     } else {
       setStats(null);
+      setFriendshipStatus('none');
     }
   };
 
@@ -365,6 +385,13 @@ const ChatPage: React.FC = () => {
       <IonContent ref={contentRef} className="chat-content ion-padding">
         {/* We no longer show the login prompt because Ghost Mode logs them in silently! */}
         
+        <IonInfiniteScroll position="top" onIonInfinite={(e) => {
+          setLimitCount(prev => prev + 30);
+          setTimeout(() => e.target.complete(), 500);
+        }}>
+          <IonInfiniteScrollContent loadingSpinner="bubbles" loadingText="Cargando más mensajes..."></IonInfiniteScrollContent>
+        </IonInfiniteScroll>
+
         <div className="messages-container">
           {messages.map((msg, index) => {
             const mine = isMyMessage(msg.userId);
@@ -574,31 +601,59 @@ const ChatPage: React.FC = () => {
               )}
               
               <div className="player-card-footer">
-                {!selectedProfileUser.isGuest && !isMyMessage(selectedProfileUser.uid) && (
+                {!selectedProfileUser.isGuest && !isMyMessage(selectedProfileUser.uid) && currentUser && !currentUser.isAnonymous && (
                   <div className="social-actions-grid">
+                    {friendshipStatus === 'friends' ? (
+                      <IonButton expand="block" color="medium" disabled>
+                        <IonIcon icon={checkmarkOutline} slot="start" />
+                        AMIGOS
+                      </IonButton>
+                    ) : friendshipStatus === 'pending_sent' ? (
+                      <IonButton expand="block" color="medium" disabled>
+                        <IonIcon icon={personAddOutline} slot="start" />
+                        SOLICITUD ENVIADA
+                      </IonButton>
+                    ) : friendshipStatus === 'pending_received' ? (
+                      <IonButton expand="block" color="success" onClick={async () => {
+                          await socialService.acceptFriendRequest(currentUser.uid, selectedProfileUser.uid);
+                          setFriendshipStatus('friends');
+                          presentToast({ message: '¡Nuevo Nakama agregado! 🤝', duration: 2000, color: 'success' });
+                      }}>
+                        <IonIcon icon={checkmarkOutline} slot="start" />
+                        ACEPTAR SOLICITUD
+                      </IonButton>
+                    ) : (
+                      <IonButton 
+                        expand="block" 
+                        color="primary" 
+                        disabled={friendshipStatus === 'loading'}
+                        onClick={async () => {
+                          if (currentUser) {
+                            await socialService.sendFriendRequest(currentUser.uid, selectedProfileUser.uid);
+                            setFriendshipStatus('pending_sent');
+                            presentToast({ message: 'Solicitud enviada 🤝', duration: 2000, color: 'success' });
+                          }
+                        }}
+                      >
+                        <IonIcon icon={personAddOutline} slot="start" />
+                        AGREGAR
+                      </IonButton>
+                    )}
+
                     <IonButton 
                       expand="block" 
-                      color="primary" 
+                      color={friendshipStatus === 'friends' ? "secondary" : "medium"}
                       onClick={() => {
-                        if (currentUser) {
-                          socialService.sendFriendRequest(currentUser.uid, selectedProfileUser.uid);
-                          presentToast({ message: 'Solicitud enviada 🤝', duration: 2000, color: 'success' });
+                        if (friendshipStatus === 'friends') {
+                          setShowProfileModal(false);
+                          router.push(`/chat/${selectedProfileUser.uid}`);
+                        } else {
+                          presentToast({ message: 'Requiere ser Nakama para enviar mensaje privado', duration: 2000, color: 'warning' });
                         }
                       }}
                     >
-                      <IonIcon icon={personAddOutline} slot="start" />
-                      AGREGAR
-                    </IonButton>
-                    <IonButton 
-                      expand="block" 
-                      color="secondary"
-                      onClick={() => {
-                        // Future: Navigate to private chat
-                        presentToast({ message: 'Chat privado (Próximamente)', duration: 2000 });
-                      }}
-                    >
                       <IonIcon icon={chatbubbleEllipsesOutline} slot="start" />
-                      MENSAJE
+                      MENSAJE {friendshipStatus !== 'friends' && '🔒'}
                     </IonButton>
                   </div>
                 )}

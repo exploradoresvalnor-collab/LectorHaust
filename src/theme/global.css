@@ -32,9 +32,20 @@ body {
 }
 
 .manga-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-8px) scale(1.02);
   border-color: var(--ion-color-primary);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5), 0 0 15px rgba(var(--ion-color-primary-rgb), 0.2);
+}
+
+/* Global Hover for Buttons on Desktop */
+@media (min-width: 1024px) {
+  ion-button {
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  ion-button:hover {
+    filter: brightness(1.1) saturate(1.1);
+    transform: translateY(-1px);
+  }
 }
 
 /* Skeleton Loading */
@@ -136,9 +147,16 @@ ion-tab-button.tab-selected::before {
 }
 
 ion-tab-button.tab-selected ion-icon {
-  transform: translateY(-2px) scale(1.1);
-  filter: drop-shadow(0 2px 8px rgba(139, 92, 246, 0.6));
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transform: translateY(-2px) scale(1.15);
+  filter: drop-shadow(0 4px 12px rgba(var(--ion-color-primary-rgb), 0.8));
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@media (min-width: 1024px) {
+  ion-tab-button:hover ion-icon {
+    color: var(--ion-color-primary);
+    transform: translateY(-2px);
+  }
 }
 
 ion-tab-button ion-label {

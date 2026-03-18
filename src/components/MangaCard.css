@@ -86,11 +86,19 @@
     color: white;
     font-size: 0.75rem;
     font-weight: 600;
-    line-height: 1.1;
+    line-height: 1.15;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    word-break: break-all;
+    word-break: break-word;
+}
+
+@media (min-width: 1024px) {
+    .card-title-pro {
+        font-size: 0.95rem;
+        font-weight: 700;
+        line-height: 1.25;
+    }
 }

@@ -32,6 +32,7 @@ import LoadingScreen from '../components/LoadingScreen';
 import EmptyState from '../components/EmptyState';
 import { useHomeData } from '../hooks/useHomeData';
 import { hapticsService } from '../services/hapticsService';
+import { getTranslation, Language } from '../utils/translations';
 import './HomePage.css';
 
 const HomePage: React.FC = () => {
@@ -320,7 +321,7 @@ const HomePage: React.FC = () => {
             <div className="section-header" style={{ paddingBottom: '0.5rem' }}>
               <div className="accent-bar" style={{ background: '#4caf50' }}></div>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <h2 style={{ marginBottom: 0 }}>Joyas Finalizadas 🏆</h2>
+                <h2>{getTranslation('home.masterpieces', latestLang as Language)} 🏆</h2>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Obras 100% traducidas</span>
               </div>
             </div>
@@ -372,7 +373,7 @@ const HomePage: React.FC = () => {
             {/* Latest Chapters Section */}
             <div id="latest-section" className="section-header" style={{ marginTop: '1.5rem', paddingTop: '1rem', paddingBottom: '0.5rem' }}>
               <div className="accent-bar" style={{ background: 'var(--ion-color-secondary)' }}></div>
-              <h2>Últimos Capítulos</h2>
+              <h2>{getTranslation('home.latest', latestLang as Language)}</h2>
             </div>
             
             {/* Language Filters */}
@@ -393,7 +394,7 @@ const HomePage: React.FC = () => {
                 key={lang.code}
                 outline={latestLang !== lang.code}
                 color={latestLang === lang.code ? "primary" : "medium"}
-                onClick={() => setLatestLang(lang.code)}
+                onClick={() => setLatestLang(lang.code as any)}
                 style={{ fontSize: '11px' }}
               >
                 <IonLabel>{lang.label}</IonLabel>

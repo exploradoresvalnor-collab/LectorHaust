@@ -3,13 +3,16 @@ import {
   setDoc, 
   updateDoc, 
   arrayUnion, 
+  arrayRemove,
   writeBatch, 
   collection, 
   query, 
   where, 
   onSnapshot,
   deleteDoc,
-  serverTimestamp
+  serverTimestamp,
+  getDoc,
+  increment
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -81,6 +84,71 @@ export const socialService = {
     return onSnapshot(q, (snapshot) => {
       const requests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FriendRequest));
       callback(requests);
+    });
+  },
+
+  /**
+   * Remove a friend
+   */
+  async removeFriend(myUid: string, friendUid: string) {
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'users', myUid), { friends: arrayRemove(friendUid) });
+    batch.update(doc(db, 'users', friendUid), { friends: arrayRemove(myUid) });
+    await batch.commit();
+  },
+
+  /**
+   * Check full friendship status
+   */
+  async getFriendshipStatus(myUid: string, targetUid: string): Promise<'friends' | 'pending_sent' | 'pending_received' | 'none'> {
+    const myDoc = await getDoc(doc(db, 'users', myUid));
+    if (myDoc.exists() && myDoc.data().friends?.includes(targetUid)) {
+      return 'friends';
+    }
+    const sentReq = await getDoc(doc(db, `users/${targetUid}/friendRequests`, myUid));
+    if (sentReq.exists()) return 'pending_sent';
+
+    const receivedReq = await getDoc(doc(db, `users/${myUid}/friendRequests`, targetUid));
+    if (receivedReq.exists()) return 'pending_received';
+
+    return 'none';
+  },
+
+  /**
+   * Manage Private Chat Unread Counts
+   */
+  async markPrivateMessagesRead(myUid: string, friendUid: string) {
+    const chatStatusRef = doc(db, `users/${myUid}/privateChats`, friendUid);
+    await setDoc(chatStatusRef, { unreadCount: 0 }, { merge: true });
+  },
+
+  async incrementUnreadCount(receiverUid: string, senderUid: string) {
+    const chatStatusRef = doc(db, `users/${receiverUid}/privateChats`, senderUid);
+    await setDoc(chatStatusRef, { 
+      unreadCount: increment(1),
+      lastMessageTime: serverTimestamp()
+    }, { merge: true });
+  },
+
+  subscribeToUnreadCount(myUid: string, friendUid: string, callback: (count: number) => void) {
+    const chatStatusRef = doc(db, `users/${myUid}/privateChats`, friendUid);
+    return onSnapshot(chatStatusRef, (docSnap) => {
+      if (docSnap.exists()) {
+        callback(docSnap.data().unreadCount || 0);
+      } else {
+        callback(0);
+      }
+    });
+  },
+
+  subscribeToAllUnreadCount(myUid: string, callback: (count: number) => void) {
+    const q = collection(db, `users/${myUid}/privateChats`);
+    return onSnapshot(q, (snapshot) => {
+      let total = 0;
+      snapshot.forEach(doc => {
+        total += doc.data().unreadCount || 0;
+      });
+      callback(total);
     });
   }
 };

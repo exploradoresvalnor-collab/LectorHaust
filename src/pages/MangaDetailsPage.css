@@ -105,9 +105,19 @@
 .action-buttons-container {
     display: flex;
     gap: 12px;
-    margin-bottom: 30px;
+    margin-bottom: 25px;
+    padding: 0 5px;
 }
 
+@media (min-width: 1024px) {
+    .action-buttons-container {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 20px;
+        padding-left: 240px; /* Offset for larger cover on desktop */
+        margin-top: 5px;
+    }
+}
 .read-now-btn {
     flex: 1;
     --border-radius: 14px;
@@ -461,6 +471,16 @@
 
 .pro-page-btn[disabled] {
     opacity: 0.2;
+}
+
+.details-header-content {
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+    padding: 0 20px;
+    position: absolute;
+    bottom: -40px;
+    width: 100%;
 }
 
 .pro-page-indicator {

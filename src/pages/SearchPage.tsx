@@ -38,6 +38,7 @@ import {
   GENRES 
 } from '../hooks/useSearch';
 import { hapticsService } from '../services/hapticsService';
+import { getTranslation, Language } from '../utils/translations';
 import './SearchPage.css';
 
 const SearchPage: React.FC = () => {
@@ -100,7 +101,7 @@ const SearchPage: React.FC = () => {
             <div className="search-header-container">
               <div className="search-bar-row">
                 <IonSearchbar 
-                  placeholder={'¿Qué quieres leer hoy?'}
+                  placeholder={getTranslation('search.placeholder', completedLang as Language)}
                   onIonInput={(e) => handleSearch(e.detail.value!)}
                   debounce={500}
                   className="custom-searchbar floating-search"
@@ -204,7 +205,7 @@ const SearchPage: React.FC = () => {
                   <div className="filter-action-item">
                     <IonButton expand="block" className="brand-filter-btn" onClick={() => handleSearch(query)}>
                       <IonIcon icon={searchOutline} slot="start" />
-                      FILTRAR
+                      {getTranslation('search.filter', completedLang as Language)}
                     </IonButton>
                   </div>
                 </div>
@@ -218,7 +219,7 @@ const SearchPage: React.FC = () => {
                 <IonGrid className="search-results-grid">
                   <IonRow>
                     {results.map((manga: any) => (
-                      <IonCol size="6" sizeSm="4" sizeMd="3" key={manga.id}>
+                      <IonCol size="6" sizeSm="4" sizeMd="3" sizeLg="2" key={manga.id}>
                         <MangaCard 
                           title={manga.attributes.title.en || Object.values(manga.attributes.title)[0]}
                           coverUrl={mangadexService.getCoverUrl(manga)}
@@ -269,7 +270,7 @@ const SearchPage: React.FC = () => {
               <IonGrid>
                 <IonRow>
                   {trending.map(m => (
-                    <IonCol size="6" sizeSm="4" sizeMd="3" key={m.id}>
+                    <IonCol size="6" sizeSm="4" sizeMd="3" sizeLg="2" key={m.id}>
                       <MangaCard 
                         title={m.attributes.title.en || Object.values(m.attributes.title)[0]}
                         coverUrl={mangadexService.getCoverUrl(m)}
@@ -303,7 +304,7 @@ const SearchPage: React.FC = () => {
               <IonGrid>
                 <IonRow>
                   {suggestions.map(m => (
-                    <IonCol size="6" sizeSm="4" sizeMd="3" key={m.id}>
+                    <IonCol size="6" sizeSm="4" sizeMd="3" sizeLg="2" key={m.id}>
                       <MangaCard 
                         title={m.attributes.title.en || Object.values(m.attributes.title)[0]}
                         coverUrl={mangadexService.getCoverUrl(m)}
