@@ -6,6 +6,12 @@ service cloud.firestore {
     function isAuthenticated() { return request.auth != null; }
     function isOwner(userId) { return isAuthenticated() && request.auth.uid == userId; }
 
+    // Chat Global
+    match /global_chat/{messageId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
     // 1. User Profiles & Stats (Publicly readable, only owner can write)
     match /users/{userId} {
       allow read: if true;
