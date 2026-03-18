@@ -338,14 +338,14 @@ const ChatPage: React.FC = () => {
       setIsStatsLoading(true);
       setFriendshipStatus('loading');
       try {
-        const userStats = await userStatsService.getOrInitStats(msg.userId);
+        const userStats = await userStatsService.getStats(msg.userId);
         setStats(userStats);
         if (currentUser && !currentUser.isAnonymous) {
            const status = await socialService.getFriendshipStatus(currentUser.uid, msg.userId);
            setFriendshipStatus(status);
         }
       } catch (error) {
-        console.error("Error loading user stats:", error);
+        console.warn("Silent: Error loading public profile meta:", error);
       } finally {
         setIsStatsLoading(false);
       }

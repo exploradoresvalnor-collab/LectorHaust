@@ -87,6 +87,20 @@ export const userStatsService = {
   },
 
   /**
+   * Get stats (Read Only - for public profiles)
+   */
+  async getStats(userId: string): Promise<UserStats | null> {
+    try {
+      const docRef = doc(db, 'userStats', userId);
+      const docSnap = await getDoc(docRef);
+      return docSnap.exists() ? docSnap.data() as UserStats : null;
+    } catch (e) {
+      console.warn('Silent: Could not fetch public stats', e);
+      return null;
+    }
+  },
+
+  /**
    * Subscribe to real-time stats
    */
   subscribe(userId: string, callback: (stats: UserStats) => void) {
