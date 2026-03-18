@@ -49,51 +49,51 @@ export function useMangaDetails(id?: string) {
         const mangaObj = data.data;
         setManga(mangaObj);
         
-        // Fetch MangaDex native statistics (rating, follows)
-        mangadexService.getMangaStatistics(id).then(stats => {
-          if (isMounted.current) setMdStats(stats);
-        }).catch(() => {});
-        
-        // Try to fetch AniList data using title
+        // --- PARALLEL BLOCK FOR NON-CRITICAL INFO ---
         const title = mangaObj.attributes?.title?.en || Object.values(mangaObj.attributes?.title || {})[0];
-        if (title) {
-          try {
-            const aniListResults = await anilistService.searchManga(title as string);
-            if (isMounted.current && aniListResults && aniListResults.length > 0) {
-              const detail = await anilistService.getMangaDetails(aniListResults[0].id);
-              if (isMounted.current) setAniData(detail);
+        
+        // Let non-essential data fetch in background without 'await' blocks
+        Promise.all([
+          // Statistics
+          mangadexService.getMangaStatistics(id).then(stats => {
+            if (isMounted.current) setMdStats(stats);
+          }).catch(() => {}),
+
+          // AniList Metadata
+          (async () => {
+            if (!title) return;
+            try {
+              const aniListResults = await anilistService.searchManga(title as string);
+              if (isMounted.current && aniListResults && aniListResults.length > 0) {
+                const detail = await anilistService.getMangaDetails(aniListResults[0].id);
+                if (isMounted.current) setAniData(detail);
+              }
+            } catch (err) { console.warn('AniList fetch failed', err); }
+          })(),
+
+          // Available Languages (Limited to 100 for speed)
+          mangadexService.getMangaChapters(id, null as any, 100).then(allChaptersData => {
+            if (isMounted.current && allChaptersData.data) {
+              const langs = [...new Set(allChaptersData.data.map((c: any) => c.attributes?.translatedLanguage))] as string[];
+              setAvailableLangs(prev => prev.length > 0 ? prev : langs.filter(l => !!l));
             }
-          } catch (aniErr) {
-            console.warn('AniList data not found for this manga:', aniErr);
-          }
-        }
+          }).catch(() => {})
+        ]);
 
         if (isMounted.current) {
           setCurrentPage(1);
           setHasMoreChapters(true);
         }
         
+        // Essential: First page of chapters
         const chaptersData = await mangadexService.getMangaChapters(id, chapterLang, 20, 0, chapterOrder);
         
         if (isMounted.current) {
           const newChapters = deduplicateChapters(chaptersData.data || []);
-          
           setTotalChapters(chaptersData.total || 0);
           setTotalPages(Math.ceil((chaptersData.total || 0) / 20));
           setChapters(newChapters);
-          if ((chaptersData.data || []).length < 20) setHasMoreChapters(false);
-          else setHasMoreChapters(true);
-        }
-
-        // Fetch all available languages for this manga
-        try {
-          const allChaptersData = await mangadexService.getMangaChapters(id, null as any, 500);
-          if (isMounted.current && allChaptersData.data) {
-            const langs = [...new Set(allChaptersData.data.map((c: any) => c.attributes?.translatedLanguage))] as string[];
-            setAvailableLangs(prev => prev.length > 0 ? prev : langs.filter(l => !!l));
-          }
-        } catch (langErr) {
-          console.warn('Failed to detect available languages:', langErr);
+          setHasMoreChapters((chaptersData.data || []).length >= 20);
         }
 
       } catch (error: any) {

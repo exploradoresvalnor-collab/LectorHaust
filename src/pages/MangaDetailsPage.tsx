@@ -109,30 +109,37 @@ const MangaDetailsPage: React.FC = () => {
       const results: any[] = [];
 
       // Process in parallel (3 at a time to avoid rate limiting)
-      for (let i = 0; i < edges.length; i += 3) {
-        const batch = edges.slice(i, i + 3);
+      // Process more in parallel for speed, but keep a small batching to be safe
+      const results: any[] = [];
+      const batchSize = 6; 
+
+      for (let i = 0; i < edges.length; i += batchSize) {
+        const batch = edges.slice(i, i + batchSize);
         const batchResults = await Promise.all(
           batch.map(async (edge: any) => {
             const rec = edge.node.mediaRecommendation;
-            const title = rec.title.english || rec.title.romaji;
+            if (!rec) return null;
+            const title = rec.title.english || rec.title.romaji || rec.title.native;
             try {
               const verified = await mangadexService.fetchVerifiedRecommendation(title);
-              if (verified && verified.hasChapters) {
+              if (verified && verified.hasChapters && !cancelled) {
                 return {
                   aniId: rec.id,
                   mdId: verified.id,
-                  title: rec.title.romaji || rec.title.english,
+                  title: title,
                   coverImage: rec.coverImage.large,
                   score: rec.averageScore
                 };
               }
-            } catch { /* skip failed */ }
+            } catch { return null; }
             return null;
           })
         );
+        
         if (cancelled) return;
-        results.push(...batchResults.filter(Boolean));
-        // Update progressively so user sees results appear
+        const filtered = batchResults.filter(Boolean);
+        results.push(...filtered);
+        
         if (results.length > 0) {
           setVerifiedRecs([...results]);
           setLoadingRecs(false);

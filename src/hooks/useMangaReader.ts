@@ -118,8 +118,15 @@ export function useMangaReader(chapterId?: string) {
           }
         }
 
-        // Always fetch chapter metadata for navigation (prev/next)
-        const chapterInfo = await mangadexService.getChapter(chapterId);
+        // Always fetch chapter metadata for navigation (prev/next) in parallel with details
+        const [chapterInfo, _] = await Promise.all([
+          mangadexService.getChapter(chapterId),
+          (async () => {
+             // award XP if online
+             if (!downloaded && auth.currentUser) userStatsService.awardChapterXP(auth.currentUser.uid);
+          })()
+        ]);
+
         if (!isMounted) return;
 
         setChapterNum(chapterInfo.data.attributes.chapter || '1');
@@ -130,31 +137,32 @@ export function useMangaReader(chapterId?: string) {
           const format = mangaRel.attributes?.originalLanguage;
           setIsWebtoon(format === 'ko' || format === 'zh');
 
-          // Fetch manga details to get title and cover for progress tracking
-          try {
-            const mangaData = await mangadexService.getMangaById(mangaRel.id);
-            if (mangaData?.data && isMounted) {
-              setMangaTitle(mangadexService.getLocalizedTitle(mangaData.data));
-              setMangaCover(mangadexService.getCoverUrl(mangaData.data));
-            }
-          } catch { /* non-critical */ }
-
-          const chaptersData = await mangadexService.getMangaChapters(
-            mangaRel.id, 
-            chapterInfo.data.attributes.translatedLanguage || 'es',
-            100, 0
-          );
-          if (!isMounted) return;
-
-          if (chaptersData.data) {
-            const sorted = chaptersData.data
-              .filter((c: any) => c.attributes.chapter)
-              .sort((a: any, b: any) => parseFloat(a.attributes.chapter) - parseFloat(b.attributes.chapter));
-            
-            const currentIdx = sorted.findIndex((c: any) => c.id === chapterId);
-            setPrevChapterId(currentIdx > 0 ? sorted[currentIdx - 1].id : null);
-            setNextChapterId(currentIdx < sorted.length - 1 ? sorted[currentIdx + 1].id : null);
-          }
+          // Parallelize manga info and chapters scan
+          Promise.all([
+            // Manga details (for title/cover)
+            mangadexService.getMangaById(mangaRel.id).then(mangaData => {
+              if (mangaData?.data && isMounted) {
+                setMangaTitle(mangadexService.getLocalizedTitle(mangaData.data));
+                setMangaCover(mangadexService.getCoverUrl(mangaData.data));
+              }
+            }),
+            // Chapters feed (for Nav)
+            mangadexService.getMangaChapters(
+              mangaRel.id, 
+              chapterInfo.data.attributes.translatedLanguage || 'es',
+              100, 0
+            ).then(chaptersData => {
+              if (chaptersData.data && isMounted) {
+                const sorted = chaptersData.data
+                  .filter((c: any) => c.attributes.chapter)
+                  .sort((a: any, b: any) => parseFloat(a.attributes.chapter) - parseFloat(b.attributes.chapter));
+                
+                const currentIdx = sorted.findIndex((c: any) => c.id === chapterId);
+                setPrevChapterId(currentIdx > 0 ? sorted[currentIdx - 1].id : null);
+                setNextChapterId(currentIdx < sorted.length - 1 ? sorted[currentIdx + 1].id : null);
+              }
+            })
+          ]).catch(err => console.warn('Reader background tasks failed', err));
         }
       } catch (err: any) {
         if (isMounted) setError(err.message || 'Error al cargar las páginas.');

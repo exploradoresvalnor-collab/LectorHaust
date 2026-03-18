@@ -830,14 +830,28 @@ export const mangadexService = {
     },
 
     /**
-     * Get optimized URL via Cloudinary Fetch
+     * Get optimized URL via Cloudinary Fetch with WordPress Photon fallback
      */
     getOptimizedUrl(url: string, params = 'f_auto,q_auto:best') {
-        if (!CLOUDINARY_CLOUD_NAME || !url) return url;
-        // Avoid double-prefixing if already optimized
-        if (url.includes('res.cloudinary.com')) return url;
+        if (!url) return '';
         
-        // Use custom params (defaulting to best quality auto format)
+        // Avoid double-prefixing
+        if (url.includes('res.cloudinary.com') || url.includes('i0.wp.com')) return url;
+
+        // On Native/Mobile Web, if Cloudinary fails, we can use Photon (wp.com) as a very stable fallback
+        // For now, let's use a dual strategy: 
+        // 1. If it's a cover, use Cloudinary (good for quality)
+        // 2. If it's a chapter page from a .network node, use Photon (more permissive CORS)
+        
+        if (url.includes('mangadex.network')) {
+            // WordPress Photon proxy (i0.wp.com) is excellent for CORS and very fast
+            return `https://i0.wp.com/${url.replace(/^https?:\/\//, '')}`;
+        }
+
+        if (!CLOUDINARY_CLOUD_NAME) {
+            return `https://i0.wp.com/${url.replace(/^https?:\/\//, '')}`;
+        }
+
         return `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/fetch/${params}/${encodeURIComponent(url)}`;
     },
 
