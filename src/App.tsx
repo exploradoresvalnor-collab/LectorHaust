@@ -35,7 +35,7 @@ import { useLibraryStore } from './store/useLibraryStore';
 import { checkUpdatesForLibrary, MangaUpdate } from './services/updateService';
 import { hapticsService } from './services/hapticsService';
 import { db } from './services/firebase';
-import { collection, query, orderBy, limit, onSnapshot, doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, doc, getDoc, setDoc, where, updateDoc } from 'firebase/firestore';
 import { firebaseAuthService } from './services/firebaseAuthService';
 import { socialService } from './services/socialService';
 
@@ -129,8 +129,12 @@ const AppContent: React.FC = () => {
               avatar: user.photoURL || '',
               email: user.email || '',
               friends: [],
+              lastActive: Date.now(), // INITIAL ACTIVE
               createdAt: Date.now()
             });
+          } else {
+            // Update presence on mount/login
+            await socialService.updateUserPresence(user.uid);
           }
         } catch (err) { console.warn("User init failed", err); }
 
@@ -141,6 +145,8 @@ const AppContent: React.FC = () => {
           unsubPriv = socialService.subscribeToAllUnreadCount(user.uid, (total) => {
             setPrivateUnread(total);
           });
+          // Presence Update Interval (Every 2 minutes)
+          const interval = setInterval(() => socialService.updateUserPresence(user.uid), 120000);
 
           // Monitor general notifications (Friendships, etc)
           const unsubNotif = onSnapshot(
@@ -163,9 +169,13 @@ const AppContent: React.FC = () => {
               });
             }
           );
-          // Chain cleanup
+          // Chain cleanup (Updated to include interval)
           const oldUnsubReq = unsubReq;
-          unsubReq = () => { if (oldUnsubReq) oldUnsubReq(); unsubNotif(); };
+          unsubReq = () => { 
+            if (oldUnsubReq) oldUnsubReq(); 
+            unsubNotif(); 
+            clearInterval(interval); 
+          };
         }
       } else {
         setPendingRequests(0);

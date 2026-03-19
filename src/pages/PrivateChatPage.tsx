@@ -13,7 +13,8 @@ import {
   IonButtons,
   useIonViewWillLeave,
   IonInfiniteScroll,
-  IonInfiniteScrollContent
+  IonInfiniteScrollContent,
+  useIonRouter
 } from '@ionic/react';
 import { useParams } from 'react-router-dom';
 import { send, happyOutline, attachOutline } from 'ionicons/icons';
@@ -44,6 +45,7 @@ interface ChatMessage {
 }
 
 const PrivateChatPage: React.FC = () => {
+  const router = useIonRouter();
   const { friendId } = useParams<{ friendId: string }>();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -67,14 +69,22 @@ const PrivateChatPage: React.FC = () => {
       }
     });
 
-    // 2. Fetch Friend Data
-    const fetchFriend = async () => {
-      if (friendId) {
-        const snap = await getDoc(doc(db, 'users', friendId));
-        if (snap.exists()) setFriendData(snap.data());
-      }
-    };
-    fetchFriend();
+    // 2. Fetch Friend Data & Presence (Real-time)
+    let unsubFriend: (() => void) | null = null;
+    if (friendId) {
+      unsubFriend = onSnapshot(doc(db, 'users', friendId), (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          const lastActive = data.lastActive || 0;
+          const isOnline = Date.now() - lastActive < 300000;
+          setFriendData({
+            ...data,
+            isOnline,
+            statusText: isOnline ? 'En línea' : formatLastSeen(lastActive)
+          });
+        }
+      });
+    }
 
     // 3. Setup Keyboard
     const setupKeyboard = async () => {
@@ -90,9 +100,19 @@ const PrivateChatPage: React.FC = () => {
 
     return () => {
       unsubscribeAuth();
+      if (unsubFriend) unsubFriend();
       if (Capacitor.isNativePlatform()) Keyboard.removeAllListeners();
     };
   }, [friendId]);
+
+const formatLastSeen = (timestamp: number) => {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return isToday ? `últ. vez hoy a las ${timeStr}` : `últ. vez el ${date.toLocaleDateString()}`;
+};
 
   // Messages Subscription
   useEffect(() => {
@@ -221,11 +241,17 @@ const PrivateChatPage: React.FC = () => {
             <IonBackButton defaultHref="/social" />
           </IonButtons>
           {friendData && (
-            <div slot="start" style={{ display: 'flex', alignItems: 'center', marginLeft: '10px' }}>
-              <IonAvatar style={{ width: '32px', height: '32px', marginRight: '10px' }}>
+            <div className="whatsapp-header-content" onClick={() => router.push('/social')}>
+              <IonAvatar className="whatsapp-header-avatar">
                 <img src={friendData.avatarUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${friendId}`} alt="avatar" />
+                {friendData.isOnline && <div className="online-dot-header"></div>}
               </IonAvatar>
-              <IonTitle style={{ padding: 0 }}>{friendData.name || friendData.displayName || 'Nakama'}</IonTitle>
+              <div className="whatsapp-header-text">
+                <div className="whatsapp-header-name">{friendData.name || friendData.displayName || 'Nakama'}</div>
+                <div className={`whatsapp-header-status ${friendData.isOnline ? 'online' : ''}`}>
+                  {friendData.statusText}
+                </div>
+              </div>
             </div>
           )}
         </IonToolbar>

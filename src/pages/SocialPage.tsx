@@ -38,6 +38,17 @@ import { db } from '../services/firebase';
 import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
 import './SocialPage.css';
 
+const formatLastActive = (timestamp: number) => {
+  if (!timestamp) return 'Desconectado';
+  const diff = Date.now() - timestamp;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Hace un momento';
+  if (mins < 60) return `Hace ${mins} min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `Hace ${hours} h`;
+  return 'Fuera de línea';
+};
+
 const SocialPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'amigos' | 'solicitudes'>('amigos');
   const [requests, setRequests] = useState<any[]>([]);
@@ -94,13 +105,17 @@ const SocialPage: React.FC = () => {
                   const fRef = doc(db, 'users', fId);
                   const fSnap = await getDoc(fRef);
                   const data = fSnap.exists() ? fSnap.data() : {};
+                  const lastActive = data.lastActive || 0;
+                  const isOnline = Date.now() - lastActive < 300000; // 5 min
                   return { 
                     id: fId, 
                     ...data,
-                    name: data.name || data.displayName || `Explorador ${fId.substring(0, 4)}` 
+                    name: data.name || data.displayName || `Explorador ${fId.substring(0, 4)}`,
+                    isOnline,
+                    lastActiveStatus: isOnline ? 'En línea' : formatLastActive(lastActive)
                   };
                 } catch (e) {
-                  return { id: fId, name: `Usuario ${fId.substring(0, 4)}` };
+                  return { id: fId, name: `Usuario ${fId.substring(0, 4)}`, isOnline: false };
                 }
               })
             );
@@ -210,12 +225,15 @@ const SocialPage: React.FC = () => {
               <IonList className="social-list glass-list">
                 {friends.map(friend => (
                   <IonItem key={friend.id} className="social-item">
-                    <IonAvatar slot="start" onClick={() => router.push(`/chat/${friend.id}`)} className="clickable">
+                    <IonAvatar slot="start" onClick={() => router.push(`/chat/${friend.id}`)} className="clickable" style={{ position: 'relative' }}>
                       <img src={friend.avatarUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${friend.id}`} alt="avatar" />
+                      {friend.isOnline && <div className="online-dot-badge"></div>}
                     </IonAvatar>
                     <IonLabel onClick={() => router.push(`/chat/${friend.id}`)} className="clickable">
                       <h2>{friend.name || friend.displayName || 'Lector'} {friend.flag || ''}</h2>
-                      <p>{friend.rank || 'Explorador'}</p>
+                      <p className={friend.isOnline ? 'status-online' : 'status-offline'}>
+                        {friend.lastActiveStatus}
+                      </p>
                     </IonLabel>
                     <IonButtons slot="end">
                       <IonButton 

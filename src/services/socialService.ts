@@ -179,5 +179,16 @@ export const socialService = {
       });
       callback(total);
     });
+  },
+
+  /**
+   * Update the user's presence/lastActive timestamp
+   */
+  async updateUserPresence(uid: string) {
+    if (!uid) return;
+    const userRef = doc(db, 'users', uid);
+    await updateDoc(userRef, {
+      lastActive: Date.now()
+    });
   }
 };
