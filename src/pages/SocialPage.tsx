@@ -30,7 +30,9 @@ import {
   personAddOutline, 
   chatbubbleEllipsesOutline,
   ellipsisVerticalOutline,
-  trashOutline
+  trashOutline,
+  planetOutline,
+  chevronForwardOutline
 } from 'ionicons/icons';
 import { socialService, FriendRequest } from '../services/socialService';
 import { firebaseAuthService } from '../services/firebaseAuthService';
@@ -220,7 +222,27 @@ const SocialPage: React.FC = () => {
 
       <IonContent fullscreen className="social-content ion-padding">
         {activeTab === 'amigos' && (
-          <div className="tab-container animate-fade-in">
+          <div className="tab-container animate-fade-in social-hub-container">
+            
+            {/* TAERNA GLOBAL BANNER */}
+            <div 
+              className="global-chat-banner glass-card" 
+              onClick={() => router.push('/chat')}
+            >
+              <div className="banner-icon-wrapper">
+                <IonIcon icon={planetOutline} />
+              </div>
+              <div className="banner-text">
+                <h2>Taverna Global</h2>
+                <p>Habla con todos los lectores del mundo</p>
+              </div>
+              <IonIcon icon={chevronForwardOutline} className="chevron-icon" />
+            </div>
+
+            <h3 className="section-title-social">
+              TUS MENSAJES DIRECTOS
+            </h3>
+
             {friends.length > 0 ? (
               <IonList className="social-list glass-list">
                 {friends.map(friend => (

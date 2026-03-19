@@ -102,6 +102,84 @@
   opacity: 0.7;
 }
 
+/* =========================================
+   EFECTOS DEL SOCIAL HUB (TAVERNA GLOBAL)
+   ========================================= */
+
+.global-chat-banner {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  margin: 15px 5px 25px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, var(--ion-color-primary) 0%, #8a2be2 100%);
+  color: white;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  animation: pulse-glow 3s infinite alternate;
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.global-chat-banner:active {
+  transform: scale(0.96);
+}
+
+.banner-icon-wrapper {
+  background: rgba(255, 255, 255, 0.2);
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 16px;
+  backdrop-filter: blur(5px);
+}
+
+.banner-icon-wrapper ion-icon {
+  font-size: 2.2rem;
+}
+
+.banner-text h2 {
+  margin: 0 0 4px 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.banner-text p {
+  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+.chevron-icon {
+  font-size: 1.5rem;
+  margin-left: auto;
+  opacity: 0.7;
+}
+
+.section-title-social {
+  padding: 0 10px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 4px 15px rgba(138, 43, 226, 0.3);
+  }
+  100% {
+    box-shadow: 0 4px 30px rgba(138, 43, 226, 0.7), 0 0 20px rgba(255, 255, 255, 0.1) inset;
+  }
+}
+
 .empty-state h3 {
   font-weight: 800;
   color: white;

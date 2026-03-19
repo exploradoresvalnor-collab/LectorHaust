@@ -31,10 +31,17 @@ service cloud.firestore {
       }
     }
     
-    // 2. Chats (Global y Privado)
+    // 2. Chats (Global)
     match /global_chat/{messageId} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      // Solo puede crear mensajes si está logueado y no está falsificando su UID
+      allow create: if isAuthenticated() 
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.text.size() < 1000;
+      
+      // Solo puede borrar sus mensajes
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow update: if false; // No se permite editar mensajes globales por ahora
     }
     
     // 3. Comentarios (Lectura pública, Escritura protegida)
@@ -70,8 +77,18 @@ service cloud.firestore {
 
     // 7. Chats Privados (Colección superior para mensajes directos)
     match /private_chats/{chatId}/{anyDocument=**} {
-      // Permite acceso solo si el UID del usuario logueado es parte del ID del chat (uid1_uid2)
-      allow read, write: if isAuthenticated() && chatId.contains(request.auth.uid);
+      // Usamos .matches() para mayor seguridad al buscar el UID dentro del ID del chat (uid1_uid2)
+      allow read: if isAuthenticated() && chatId.matches('.*' + request.auth.uid + '.*');
+                  
+      // Solo puede enviar mensajes si es parte del chat Y no falsifica su identidad
+      allow create: if isAuthenticated() 
+                    && chatId.matches('.*' + request.auth.uid + '.*')
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.text.size() < 1000;
+                    
+      // Solo puede borrar sus propios mensajes
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow update: if false; // No se permite editar privados
     }
   }
 }
