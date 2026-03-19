@@ -58,6 +58,7 @@ const PrivateChatPage: React.FC = () => {
   const isTypingRef = useRef<boolean>(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [friendData, setFriendData] = useState<any>(null);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
   const privateChatId = currentUser ? socialService.getPrivateChatId(currentUser.uid, friendId) : null;
 
@@ -88,11 +89,19 @@ const PrivateChatPage: React.FC = () => {
     }
 
     // 3. Setup Keyboard
+    let keyboardShowListener: any = null;
+    let keyboardHideListener: any = null;
+
     const setupKeyboard = async () => {
       if (!Capacitor.isNativePlatform()) return;
       try {
-        await Keyboard.addListener('keyboardWillShow', () => { setTimeout(() => scrollToBottom(100), 50); });
-        await Keyboard.addListener('keyboardWillHide', () => {});
+        keyboardShowListener = await Keyboard.addListener('keyboardWillShow', () => { 
+          setIsKeyboardOpen(true);
+          setTimeout(() => scrollToBottom(100), 50); 
+        });
+        keyboardHideListener = await Keyboard.addListener('keyboardWillHide', () => {
+          setIsKeyboardOpen(false);
+        });
       } catch (e) {
         console.warn('Keyboard not available');
       }
@@ -102,7 +111,8 @@ const PrivateChatPage: React.FC = () => {
     return () => {
       unsubscribeAuth();
       if (unsubFriend) unsubFriend();
-      if (Capacitor.isNativePlatform()) Keyboard.removeAllListeners();
+      if (keyboardShowListener) keyboardShowListener.remove();
+      if (keyboardHideListener) keyboardHideListener.remove();
     };
   }, [friendId]);
 
@@ -331,7 +341,7 @@ const formatLastSeen = (timestamp: number) => {
         </div>
       </IonContent>
 
-      <IonFooter className="chat-footer ion-no-border">
+      <IonFooter className={`chat-footer ion-no-border ${isKeyboardOpen ? 'keyboard-open' : ''}`}>
         <IonToolbar className="chat-input-toolbar">
           <div className="input-container">
             <div className="text-input-wrapper">

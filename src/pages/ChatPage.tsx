@@ -159,19 +159,21 @@ const ChatPage: React.FC = () => {
     });
 
     // 2. Listen to Native Keyboard for smooth UX (Ignore on Web)
+    let keyboardShowListener: any = null;
+    let keyboardHideListener: any = null;
+
     const setupKeyboard = async () => {
       if (!Capacitor.isNativePlatform()) return;
-      
       try {
-        await Keyboard.addListener('keyboardWillShow', info => {
+        keyboardShowListener = await Keyboard.addListener('keyboardWillShow', info => {
           setIsKeyboardOpen(true);
           setTimeout(() => scrollToBottom(100), 50);
         });
-        await Keyboard.addListener('keyboardWillHide', () => {
+        keyboardHideListener = await Keyboard.addListener('keyboardWillHide', () => {
           setIsKeyboardOpen(false);
         });
       } catch (e) {
-        console.warn('Keyboard plugin not available');
+        console.warn('Keyboard status fail');
       }
     };
     setupKeyboard();
@@ -489,7 +491,7 @@ const ChatPage: React.FC = () => {
           )}
         </div>
       </IonContent>
-      <IonFooter className="chat-footer ion-no-border">
+      <IonFooter className={`chat-footer ion-no-border ${isKeyboardOpen ? 'keyboard-open' : ''}`}>
         <IonToolbar className="chat-input-toolbar">
           <div className="input-container">
             <div className="text-input-wrapper">
