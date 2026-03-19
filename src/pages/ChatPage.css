@@ -25,20 +25,22 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.messages-list {
-  padding: 16px;
+.messages-list, .messages-container {
+  padding: 12px 10px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   position: relative;
   z-index: 1;
+  overflow-x: hidden;
 }
 
 .message-wrapper {
   display: flex;
   flex-direction: column;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   max-width: 85%;
+  position: relative;
   animation: slideInUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
@@ -51,6 +53,7 @@
   background: linear-gradient(135deg, #8c52ff, #7038ff);
   color: white;
   border-bottom-right-radius: 4px;
+  border-bottom-left-radius: 16px;
 }
 
 .player-card-name {
@@ -69,6 +72,7 @@
   background: rgba(45, 45, 55, 0.8);
   color: #e0e0e0;
   border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
@@ -99,18 +103,47 @@
 }
 
 .message-bubble {
-  min-width: 90px;
-  max-width: 80%;
-  padding: 8px 12px 22px;
-  border-radius: 16px;
+  min-width: 60px;
+  max-width: 100%;
+  padding: 6px 10px 14px;
+  border-radius: 12px;
   position: relative;
-  font-size: 0.95rem;
-  line-height: 1.4;
+  font-size: 0.92rem;
+  line-height: 1.35;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
   animation: bubble-appear 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
   transform-origin: bottom;
+}
+
+/* WhatsApp Tails */
+.message-bubble::after {
+  content: "";
+  position: absolute;
+  bottom: 0px;
+  width: 0;
+  height: 0;
+  border: 10px solid transparent;
+}
+
+.message-wrapper.mine .message-bubble::after {
+  right: -8px;
+  border-left-color: #8c52ff;
+  border-bottom-color: #8c52ff;
+  border-bottom-left-radius: 4px;
+  display: none; /* Optional: hide tails if preferred cleaner look, but let's try with subtle ones */
+}
+
+/* More refined bubble corners like WhatsApp */
+.message-wrapper.mine .message-bubble {
+  border-radius: 16px 16px 4px 16px;
+  background: linear-gradient(135deg, #8c52ff, #7038ff) !important;
+}
+
+.message-wrapper.theirs .message-bubble {
+  border-radius: 16px 16px 16px 4px;
+  background: rgba(45, 45, 55, 0.95) !important;
 }
 
 @keyframes bubble-appear {
@@ -131,16 +164,17 @@
 
 /* Timestamp integration */
 .timestamp-inline {
-  position: absolute;
-  bottom: 4px;
-  right: 10px;
-  font-size: 0.62rem;
-  opacity: 0.6;
+  align-self: flex-end;
+  margin-top: -10px;
+  margin-right: -4px;
+  font-size: 0.6rem;
+  opacity: 0.5;
   font-weight: 500;
   display: flex;
   align-items: center;
   gap: 2px;
   pointer-events: none;
+  min-height: 14px;
 }
 
 .received .message-bubble {
@@ -168,22 +202,23 @@
 
 .message-text {
   font-size: 0.95rem;
-  line-height: 1.4;
+  line-height: 1.35;
   word-wrap: break-word;
   white-space: pre-wrap;
+  margin-bottom: 2px;
 }
 
 .message-bubble.mine {
   background: var(--ion-color-primary);
   color: white;
-  border-radius: 20px 20px 4px 20px;
-  box-shadow: 0 4px 15px rgba(var(--ion-color-primary-rgb), 0.3);
+  border-radius: 16px 16px 4px 16px;
+  box-shadow: 0 2px 8px rgba(var(--ion-color-primary-rgb), 0.2);
 }
 
 .message-bubble.theirs {
   background: rgba(255, 255, 255, 0.1);
-  color: var(--text-primary);
-  border-radius: 20px 20px 20px 4px;
+  color: #fff;
+  border-radius: 16px 16px 16px 4px;
 }
 
 /* Consecutive bubbles lose some rounding */
