@@ -62,6 +62,17 @@ const HomePage: React.FC = () => {
     setLoading
   } = useHomeData();
 
+  const [previewData, setPreviewData] = React.useState<{ 
+    url: string, 
+    title: string, 
+    desc: string,
+    id: string,
+    tags: string[],
+    author: string,
+    status: string,
+    format: string
+  } | null>(null);
+
   const [showToast, setShowToast] = React.useState(false);
   const [toastMsg, setToastMsg] = React.useState('');
 
@@ -104,16 +115,18 @@ const HomePage: React.FC = () => {
     }
   };
 
-  const handleProfileClick = async () => {
-    if (currentUser) {
-      router.push('/profile');
+  // Hide TabBar when preview is active
+  React.useEffect(() => {
+    if (previewData) {
+      document.body.classList.add('hide-tabs');
     } else {
-      try {
-        await firebaseAuthService.loginWithGoogle();
-      } catch (err) {
-        console.error('Login failed:', err);
-      }
+      document.body.classList.remove('hide-tabs');
     }
+    return () => document.body.classList.remove('hide-tabs');
+  }, [previewData]);
+
+  const handleProfileClick = async () => {
+    router.push('/profile');
   };
 
   return (
@@ -138,7 +151,7 @@ const HomePage: React.FC = () => {
                     <div className="user-ghost-icon animate-pop-in">👻</div>
                   ) : (
                     <div className="user-mascot-golden animate-pop-in">
-                      <img src="/mascot.png" alt="pro" />
+                      <img src="/Buho.png" alt="pro" />
                     </div>
                   )}
                   {unreadNotifications > 0 && (
@@ -146,8 +159,13 @@ const HomePage: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <div className="user-icon-blank">
-                  <IonIcon icon={personCircleOutline} />
+                <div className="user-icon-blank animate-pop-in">
+                  <img 
+                    src="/Buho.png" 
+                    alt="guest" 
+                    style={{ width: '32px', height: '32px', objectFit: 'contain', filter: 'drop-shadow(0 0 5px rgba(140, 82, 255, 0.4))' }}
+                    onError={(e) => (e.currentTarget.src = '/logolh.webp')} 
+                  />
                 </div>
               )}
             </IonButton>
@@ -159,8 +177,8 @@ const HomePage: React.FC = () => {
         {/* Premium Entry Card / Login Prompt */}
         <IonModal 
           isOpen={showLoginHint && (!currentUser || currentUser.isAnonymous)} 
-          initialBreakpoint={0.45} 
-          breakpoints={[0, 0.45, 0.6]} 
+          initialBreakpoint={0.55} 
+          breakpoints={[0, 0.55, 0.75, 1]} 
           onDidDismiss={() => setShowLoginHint(false)}
           className="premium-entry-modal"
           backdropDismiss={true}
@@ -170,35 +188,23 @@ const HomePage: React.FC = () => {
               <IonIcon icon={closeOutline} />
             </div>
             
-            <div className="login-modal-header">
-              <div className="header-glow-icon">
-                <IonIcon icon={sparklesOutline} />
-              </div>
-              <h2 className="premium-title">Bienvenido a <span className="highlight">LectorHaus</span></h2>
-              <p className="premium-subtitle">Desbloquea el verdadero poder del Hunter</p>
+            <div className="login-modal-header minimal">
+              <h2 className="premium-title">Tu Aventura <span className="highlight">Nakama</span></h2>
+              <p className="premium-subtitle">Desbloquea el nivel Hunter</p>
             </div>
             
-            <div className="premium-perks-grid">
-              <div className="perk-card">
-                <IonIcon icon={cloudUploadOutline} className="perk-icon clouds" />
-                <div className="perk-info">
-                  <h4>Sincronización</h4>
-                  <p>Continúa en cualquier dispositivo</p>
-                </div>
+            <div className="premium-perks-grid minimal">
+              <div className="perk-item-compact">
+                <IonIcon icon={cloudUploadOutline} className="perk-tiny-icon sync" />
+                <span>Sincronización Total</span>
               </div>
-              <div className="perk-card">
-                <IonIcon icon={chatbubblesOutline} className="perk-icon chat" />
-                <div className="perk-info">
-                  <h4>Comunidad</h4>
-                  <p>Comenta y comparte teorías</p>
-                </div>
+              <div className="perk-item-compact">
+                <IonIcon icon={chatbubblesOutline} className="perk-tiny-icon social" />
+                <span>Muro Nakama</span>
               </div>
-              <div className="perk-card">
-                <IonIcon icon={trophyOutline} className="perk-icon xp" />
-                <div className="perk-info">
-                  <h4>Rango Hunter</h4>
-                  <p>Sube de nivel y gana XP</p>
-                </div>
+              <div className="perk-item-compact">
+                <IonIcon icon={trophyOutline} className="perk-tiny-icon rank" />
+                <span>Progreso Hunter</span>
               </div>
             </div>
 
@@ -377,8 +383,9 @@ const HomePage: React.FC = () => {
             </div>
             
             {/* Language Filters */}
-          <div className="home-lang-filters" style={{ overflowX: 'auto', whiteSpace: 'nowrap', paddingBottom: '8px' }}>
+          <div className="home-lang-filters">
             {[
+              { code: 'all', label: '🌎 Mundial' },
               { code: 'es', label: '🇪🇸 Español' },
               { code: 'en', label: '🇺🇸 English' },
               { code: 'pt-br', label: '🇧🇷 Português' },
@@ -395,7 +402,6 @@ const HomePage: React.FC = () => {
                 outline={latestLang !== lang.code}
                 color={latestLang === lang.code ? "primary" : "medium"}
                 onClick={() => setLatestLang(lang.code as any)}
-                style={{ fontSize: '11px' }}
               >
                 <IonLabel>{lang.label}</IonLabel>
               </IonChip>
@@ -403,7 +409,7 @@ const HomePage: React.FC = () => {
           </div>
 
           {/* NEW: Type Filters (Global Expansion) */}
-          <div className="home-lang-filters type-filters" style={{ overflowX: 'auto', whiteSpace: 'nowrap', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px' }}>
+          <div className="home-lang-filters type-filters">
             {[
               { id: 'all', label: '✨ Todos' },
               { id: 'manga', label: '🇯🇵 Manga (JP)' },
@@ -417,7 +423,6 @@ const HomePage: React.FC = () => {
                 outline={latestType !== type.id}
                 color={latestType === type.id ? "secondary" : "medium"}
                 onClick={() => setLatestType(type.id)}
-                style={{ fontSize: '10px', height: '28px' }}
               >
                 <IonLabel>{type.label}</IonLabel>
               </IonChip>
@@ -496,8 +501,31 @@ const HomePage: React.FC = () => {
                                 onError={(e: any) => {
                                   e.target.src = 'https://placehold.co/256x384/222222/cccccc?text=Error';
                                 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPreviewData({
+                                    url: mangadexService.getCoverUrl(manga, 'original'),
+                                    title: mangadexService.getLocalizedTitle(manga),
+                                    desc: mangadexService.getLocalizedDescription(manga) || 'Sin descripción disponible.',
+                                    id: manga.id,
+                                    tags: tags || [],
+                                    author: manga.relationships?.find((r: any) => r.type === 'author')?.attributes?.name || 'Autor desconocido',
+                                    status: manga.attributes?.status || 'unknown',
+                                    format: formatLabel
+                                  });
+                                }}
                               />
-                              <div className="list-item-format-badge">{formatLabel}</div>
+                               <div className="list-item-lang-badge">
+                                {(() => {
+                                  const code = manga.attributes?.latestChapterLang || manga.attributes?.originalLanguage || 'en';
+                                  const flags: Record<string, string> = {
+                                    'es': '🇪🇸', 'es-la': '🇲🇽', 'en': '🇺🇸', 'ja': '🇯🇵', 'ko': '🇰🇷', 'zh': '🇨🇳',
+                                    'zh-hk': '🇭🇰', 'fr': '🇫🇷', 'it': '🇮🇹', 'de': '🇩🇪', 'ru': '🇷🇺', 'tr': '🇹🇷',
+                                    'vi': '🇻🇳', 'th': '🇹🇭', 'id': '🇮🇩', 'pt-br': '🇧🇷'
+                                  };
+                                  return flags[code] || '🌐';
+                                })()}
+                              </div>
                             </div>
                             <div className="list-item-details">
                               <h3 className="list-item-title">{mangaTitle}</h3>
@@ -509,6 +537,9 @@ const HomePage: React.FC = () => {
                                     ))}
                                   </div>
                                 )}
+                              </div>
+                              <div className="format-tag-row">
+                                <span className="format-tag-inline">{formatLabel}</span>
                               </div>
                               <div className="list-item-footer">
                                 <div className="list-item-chapter">
@@ -559,6 +590,52 @@ const HomePage: React.FC = () => {
           className="custom-toast"
           color="dark"
         />
+        {/* Image Preview Overlay (Lightbox) */}
+        {previewData && (
+          <div className="image-preview-overlay" onClick={() => setPreviewData(null)}>
+            <div className="preview-container" onClick={(e) => e.stopPropagation()}>
+              <img src={previewData.url} alt="Cover Preview" className="preview-img" />
+              
+              <div className="preview-info-card">
+                <div className="preview-header-meta">
+                   <span className={`status-badge ${previewData.status}`}>{previewData.status}</span>
+                   <span className="author-name">{previewData.author}</span>
+                </div>
+                <h2 className="preview-title">{previewData.title}</h2>
+                
+                {previewData.tags.length > 0 && (
+                  <div className="preview-tags">
+                    {previewData.tags.slice(0, 4).map((tag, i) => (
+                      <span key={i} className="preview-tag-item">{tag}</span>
+                    ))}
+                  </div>
+                )}
+
+                <p className="preview-desc">{previewData.desc}</p>
+                <div className="preview-footer">
+                  <IonButton 
+                    expand="block" 
+                    fill="solid" 
+                    color="primary" 
+                    className="preview-btn-main"
+                    onClick={() => {
+                        setPreviewData(null);
+                        router.push(`/manga/${previewData.id}`);
+                    }}
+                  >
+                    Leer {previewData.format === 'WEBTOON' ? 'Manhwa' : 
+                         previewData.format === 'MANHUA' ? 'Manhua' : 
+                         previewData.format === 'MANHWA' ? 'Manhwa' : 'Manga'}
+                  </IonButton>
+                </div>
+              </div>
+
+              <button className="close-preview-btn fixed-close" onClick={() => setPreviewData(null)}>
+                <IonIcon icon={closeOutline} />
+              </button>
+            </div>
+          </div>
+        )}
       </IonContent>
     </IonPage>
   );

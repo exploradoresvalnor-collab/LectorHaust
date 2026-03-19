@@ -489,7 +489,9 @@ export const mangadexService = {
             let url = `/manga?limit=${limit}&offset=${offset}&includes[]=cover_art&includes[]=author&order[latestUploadedChapter]=desc&originalLanguage[]=${targetOrigin}`;
             url += this.getContentRatingParams(allowNSFW);
             
-            if (lang === 'es') {
+            if (lang === 'all') {
+                // World mode: No language filter
+            } else if (lang === 'es') {
                 url += `&availableTranslatedLanguage[]=es&availableTranslatedLanguage[]=es-la`;
             } else if (lang) {
                 url += `&availableTranslatedLanguage[]=${lang}`;
@@ -520,7 +522,9 @@ export const mangadexService = {
         let url = `/chapter?limit=${fetchLimit}&offset=${offset}&order[readableAt]=desc&includes[]=manga`;
         url += this.getContentRatingParams(allowNSFW);
         
-        if (lang === 'es') {
+        if (lang === 'all') {
+            // World mode: No language filter
+        } else if (lang === 'es') {
             url += `&translatedLanguage[]=es&translatedLanguage[]=es-la`;
         } else if (lang) {
             url += `&translatedLanguage[]=${lang}`;
@@ -531,7 +535,7 @@ export const mangadexService = {
             const chapters = resp.data || [];
             
             const seenMangaIds = new Set<string>();
-            const mangaIdToChapterData: Record<string, { readableAt: string, chapter: string }> = {};
+            const mangaIdToChapterData: Record<string, { readableAt: string, chapter: string, lang: string }> = {};
 
             for (const chapter of chapters) {
                 const mangaRel = chapter.relationships.find((r: any) => r.type === 'manga');
@@ -543,7 +547,8 @@ export const mangadexService = {
                 seenMangaIds.add(mangaRel.id);
                 mangaIdToChapterData[mangaRel.id] = {
                     readableAt: chapter.attributes.readableAt,
-                    chapter: chapter.attributes.chapter
+                    chapter: chapter.attributes.chapter,
+                    lang: chapter.attributes.translatedLanguage
                 };
             }
 
@@ -562,6 +567,7 @@ export const mangadexService = {
                     ...manga.attributes,
                     latestChapterReadableAt: mangaIdToChapterData[manga.id]?.readableAt,
                     latestChapterNumber: mangaIdToChapterData[manga.id]?.chapter,
+                    latestChapterLang: mangaIdToChapterData[manga.id]?.lang,
                     mangaType: this.getMangaType(manga)
                 }
             }));
@@ -601,7 +607,9 @@ export const mangadexService = {
     async getLatestChapters(limit = 12, offset = 0, lang: string | null = null) {
         let url = `/chapter?limit=${limit}&offset=${offset}&contentRating[]=safe&contentRating[]=suggestive&order[readableAt]=desc&includes[]=manga`;
         
-        if (lang === 'es') {
+        if (lang === 'all') {
+            // World mode: No language filter
+        } else if (lang === 'es') {
             // Include both Spain and Latin American Spanish
             url += `&translatedLanguage[]=es&translatedLanguage[]=es-la`;
         } else if (lang) {

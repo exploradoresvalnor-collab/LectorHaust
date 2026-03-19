@@ -62,7 +62,8 @@
     height: 160px;
     border-radius: 12px;
     box-shadow: 0 8px 25px rgba(0,0,0,0.6);
-    object-fit: cover;
+    object-fit: contain; /* Don't crop */
+    background: rgba(0,0,0,0.2);
     border: 1px solid rgba(255,255,255,0.1);
 }
 
@@ -675,7 +676,8 @@
 .recommendation-cover-wrapper img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
+    background: rgba(0,0,0,0.2);
 }
 
 .recommendation-score {

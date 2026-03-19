@@ -40,7 +40,8 @@ import {
   peopleOutline,
   copyOutline,
   pencilOutline,
-  chatbubbles
+  chatbubbles,
+  chevronBackOutline
 } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
 import { useIonRouter } from '@ionic/react';
@@ -56,6 +57,7 @@ const ProfilePage: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<'resumen' | 'historial' | 'ajustes'>('resumen');
   const [showEditAlert, setShowEditAlert] = useState(false);
+  const [showLogoutGhostAlert, setShowLogoutGhostAlert] = useState(false);
   const [presentToast] = useIonToast();
   const router = useIonRouter();
   const { history: readingHistory, favorites } = useLibraryStore();
@@ -84,7 +86,7 @@ const ProfilePage: React.FC = () => {
       if (unsubscribeStats) unsubscribeStats();
 
       if (!user) {
-        history.replace('/home');
+        setUser(null);
       } else {
         setUser(user);
         // Subscribe to stats
@@ -102,7 +104,11 @@ const ProfilePage: React.FC = () => {
 
   const { readChapters, showNSFW, setShowNSFW } = useLibraryStore();
   
-  const handleLogout = async () => {
+  const handleLogout = async (force: boolean = false) => {
+    if (user?.isAnonymous && !force) {
+      setShowLogoutGhostAlert(true);
+      return;
+    }
     await firebaseAuthService.logout();
     history.replace('/home');
   };
@@ -179,20 +185,28 @@ const ProfilePage: React.FC = () => {
   const renderWelcomeScreen = () => {
     return (
       <IonPage className="profile-page">
+        <IonHeader className="ion-no-border">
+          <IonToolbar className="profile-toolbar">
+            <IonButtons slot="start">
+              <IonBackButton defaultHref="/home" />
+            </IonButtons>
+            <IonTitle>¡Bienvenido!</IonTitle>
+          </IonToolbar>
+        </IonHeader>
         <IonContent fullscreen className="profile-content">
           <div className="welcome-container animate-fade-in">
             <div className="welcome-mascot-container">
               <img 
-                src="/mascot.png" 
+                src="/Buho.png" 
                 alt="Mascot" 
                 className="welcome-mascot"
                 onError={(e) => (e.currentTarget.src = '/logolh.webp')} 
               />
             </div>
             
-            <h1 className="welcome-title">¡Bienvenido, Nakama!</h1>
+            <h1 className="welcome-title">¡El Portal está Abierto!</h1>
             <p className="welcome-subtitle">
-              Únete a la comunidad de cazadores más grande para leer, comentar y ganar XP.
+              Sincroniza tus lecturas, sube de nivel tu Rango Hunter y forja tu propio camino como Nakama.
             </p>
 
             <div className="auth-actions">
@@ -240,6 +254,17 @@ const ProfilePage: React.FC = () => {
                 <span>Social</span>
               </div>
             </div>
+
+            <IonButton 
+              fill="clear" 
+              size="small" 
+              className="welcome-back-btn" 
+              onClick={() => history.push('/home')}
+              style={{ marginTop: '20px', '--color': 'rgba(255,255,255,0.4)', fontSize: '0.8rem' }}
+            >
+              <IonIcon icon={chevronBackOutline} slot="start" />
+              VOLVER AL INICIO
+            </IonButton>
           </div>
         </IonContent>
       </IonPage>
@@ -257,7 +282,7 @@ const ProfilePage: React.FC = () => {
           </IonButtons>
           <IonTitle>Mi Perfil Pro</IonTitle>
           <IonButtons slot="end">
-            <IonButton onClick={handleLogout} color="danger" fill="outline" className="logout-btn-header">
+            <IonButton onClick={() => handleLogout()} color="danger" fill="outline" className="logout-btn-header">
               <IonIcon icon={logOutOutline} slot="start" />
               SALIR
             </IonButton>
@@ -284,28 +309,28 @@ const ProfilePage: React.FC = () => {
             </div>
             
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <h2 className="user-name">{user.displayName || (user.isAnonymous ? 'Lector Fantasma' : 'Lector Haus')}</h2>
+              <h2 className="user-name">{user!.displayName || (user!.isAnonymous ? 'Lector Fantasma' : 'Lector Haus')}</h2>
               <IonButton fill="clear" size="small" onClick={() => setShowEditAlert(true)} className="edit-profile-btn">
                 <IonIcon icon={pencilOutline} slot="icon-only" />
               </IonButton>
             </div>
-            <p className="user-email">{user.isAnonymous ? 'Modo Anónimo Activo' : user.email}</p>
+            <p className="user-email">{user!.isAnonymous ? 'Modo Anónimo Activo' : user!.email}</p>
             
             <div 
               className="user-uid-tag animate-fade-in" 
               onClick={() => {
-                navigator.clipboard.writeText(user.uid);
+                navigator.clipboard.writeText(user!.uid);
                 presentToast({ message: 'ID copiado al portapapeles 📋', duration: 2000, color: 'primary' });
               }}
             >
-              <span>ID: {user.uid.substring(0, 8)}...{user.uid.substring(user.uid.length - 4)}</span>
+              <span>ID: {user!.uid.substring(0, 8)}...{user!.uid.substring(user!.uid.length - 4)}</span>
               <IonIcon icon={copyOutline} />
             </div>
             
             <div className="badge-belt">
                <IonBadge color="primary" className="profile-badge">{rank}</IonBadge>
-               {!user.isAnonymous && <IonBadge color="secondary" className="profile-badge">Pro Hunter</IonBadge>}
-               {user.isAnonymous && <IonBadge color="medium" className="profile-badge">Fantasma</IonBadge>}
+               {!user!.isAnonymous && <IonBadge color="secondary" className="profile-badge">Pro Hunter</IonBadge>}
+               {user!.isAnonymous && <IonBadge color="medium" className="profile-badge">Fantasma</IonBadge>}
             </div>
 
             <div className="xp-container animate-slide-up">
@@ -476,7 +501,7 @@ const ProfilePage: React.FC = () => {
                     <IonItem 
                       className="option-item logout-premium-item" 
                       button 
-                      onClick={handleLogout} 
+                      onClick={() => handleLogout()} 
                       style={{ marginTop: '30px', '--background': 'rgba(235, 68, 90, 0.05)', borderRadius: '16px', border: '1px solid rgba(235, 68, 90, 0.2)' }}
                     >
                       <IonIcon icon={logOutOutline} slot="start" color="danger" />
@@ -502,13 +527,13 @@ const ProfilePage: React.FC = () => {
               name: 'name',
               type: 'text',
               placeholder: 'Nombre / Alias',
-              value: user.displayName || ''
+              value: user!.displayName || ''
             },
             {
               name: 'avatar',
               type: 'url',
               placeholder: 'URL de Avatar (JPG/PNG)',
-              value: user.photoURL || ''
+              value: user!.photoURL || ''
             }
           ]}
           buttons={[
@@ -518,6 +543,34 @@ const ProfilePage: React.FC = () => {
               handler: (data) => {
                 handleUpdateProfile(data);
               } 
+            }
+          ]}
+        />
+        <IonAlert
+          isOpen={showLogoutGhostAlert}
+          onDidDismiss={() => setShowLogoutGhostAlert(false)}
+          header="¿Cerrar Sesión?"
+          subHeader="Estás en modo Nakama Fantasma"
+          message="Si cierras sesión, perderás este ID de usuario y tu progreso actual. ¿Qué prefieres hacer?"
+          buttons={[
+            {
+              text: 'Ir a Inicio (Mantener ID)',
+              cssClass: 'alert-button-confirm',
+              handler: () => {
+                history.push('/home');
+              }
+            },
+            {
+              text: 'Cerrar y borrar ID',
+              role: 'destructive',
+              cssClass: 'alert-button-destructive',
+              handler: () => {
+                handleLogout(true);
+              }
+            },
+            {
+              text: 'Cancelar',
+              role: 'cancel'
             }
           ]}
         />
