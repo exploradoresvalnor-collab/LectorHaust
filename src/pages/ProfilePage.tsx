@@ -134,7 +134,9 @@ const ProfilePage: React.FC = () => {
       const userRef = doc(db, 'users', user.uid);
       await updateDoc(userRef, {
         name: data.name,
-        avatar: data.avatar
+        displayName: data.name,
+        avatar: data.avatar,
+        avatarUrl: data.avatar
       });
 
       presentToast({ message: 'Perfil actualizado con éxito ✨', duration: 2000, color: 'success' });

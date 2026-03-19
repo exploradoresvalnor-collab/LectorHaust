@@ -47,7 +47,7 @@ import {
 import { Capacitor } from '@capacitor/core';
 import { Keyboard } from '@capacitor/keyboard';
 import { db } from '../services/firebase';
-import { collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp, doc, setDoc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp, doc, setDoc, getDoc } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { firebaseAuthService } from '../services/firebaseAuthService';
 import { socialService, FriendRequest } from '../services/socialService';
@@ -120,6 +120,7 @@ const ChatPage: React.FC = () => {
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
   
   // Moderation state
   const [presentToast] = useIonToast();
@@ -139,6 +140,12 @@ const ChatPage: React.FC = () => {
       if (user) {
         setCurrentUser(user);
         currentUserIdRef.current = user.uid;
+
+        // Fetch blocked users list
+        const userSnap = await getDoc(doc(db, 'users', user.uid));
+        if (userSnap.exists()) {
+          setBlockedUsers(userSnap.data().blockedUsers || []);
+        }
       } else {
         // Ghost Mode Auto-Login
         try {
@@ -296,31 +303,34 @@ const ChatPage: React.FC = () => {
     setShowActionSheet(true);
   };
 
-  const handleReport = async () => {
+  const handleReportAndBlock = async () => {
     if (!actionMessage || !currentUser) return;
     
     try {
-      await addDoc(collection(db, 'reports'), {
-        messageId: actionMessage.id,
-        reportedUserId: actionMessage.userId,
-        reporterId: currentUser.uid,
-        reason: 'Inappropriate Content or Spam',
-        timestamp: serverTimestamp()
-      });
-      presentToast({
-        message: 'Mensaje reportado. Nuestro equipo lo revisará.',
-        duration: 2500,
+      // 1. Send report
+      await socialService.reportUser(
+        currentUser.uid, 
+        actionMessage.userId, 
+        'Contenido Inapropiado / Spam', 
+        actionMessage.text
+      );
+
+      // 2. Block user
+      await socialService.blockUser(currentUser.uid, actionMessage.userId);
+      
+      // Update local state immediately
+      setBlockedUsers(prev => [...prev, actionMessage.userId]);
+      
+      presentToast({ 
+        message: 'Usuario bloqueado y reportado. No verás más sus mensajes.', 
+        duration: 3000, 
         color: 'success',
-        position: 'top'
+        position: 'top' 
       });
+      setShowActionSheet(false);
     } catch (error) {
-      console.error('Error reporting message:', error);
-      presentToast({
-        message: 'Hubo un error al enviar el reporte.',
-        duration: 2000,
-        color: 'danger',
-        position: 'top'
-      });
+      console.error("Error reporting/blocking:", error);
+      presentToast({ message: 'Hubo un error al procesar el reporte.', duration: 2000, color: 'danger' });
     }
   };
 
@@ -396,7 +406,9 @@ const ChatPage: React.FC = () => {
         </IonInfiniteScroll>
 
         <div className="messages-container">
-          {messages.map((msg, index) => {
+          {messages
+            .filter(msg => !blockedUsers.includes(msg.userId))
+            .map((msg, index) => {
             const mine = isMyMessage(msg.userId);
             const prevMsg = index > 0 ? messages[index - 1] : null;
             const isConsecutive = prevMsg && prevMsg.userId === msg.userId;
@@ -698,10 +710,10 @@ const ChatPage: React.FC = () => {
             handler: handleCopy
           },
           {
-            text: 'Reportar mensaje',
+            text: 'Bloquear y Reportar',
             role: 'destructive',
             icon: warningOutline,
-            handler: handleReport
+            handler: handleReportAndBlock
           },
           {
             text: 'Cancelar',

@@ -164,8 +164,14 @@ const formatLastSeen = (timestamp: number) => {
       Keyboard.removeAllListeners();
     }
     // Mark as read one last time before leaving
-    if (currentUser) {
-      socialService.markPrivateMessagesRead(currentUser.uid, friendId);
+    // Mark as read and clear typing on exit
+    if (currentUser && privateChatId) {
+      socialService.markPrivateMessagesRead(currentUser.uid, friendId).catch(console.warn);
+      
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      setDoc(doc(db, 'private_chats', privateChatId, 'typing', 'status'), {
+        [currentUser.uid]: false
+      }, { merge: true }).catch(console.warn);
     }
   });
 
@@ -182,19 +188,26 @@ const formatLastSeen = (timestamp: number) => {
     setNewMessage('');
     setShowEmojiPicker(false);
 
+    // 1. Clear typing status locally & reset ref
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    isTypingRef.current = false;
+
+    // 2. Notify server typing ended (Don't await to speed up message send)
+    setDoc(doc(db, 'private_chats', privateChatId, 'typing', 'status'), {
+      [currentUser.uid]: false
+    }, { merge: true }).catch(console.warn);
+
     try {
+      // 3. Send actual message
       await addDoc(collection(db, 'private_chats', privateChatId, 'messages'), {
         text: textToSend,
         userId: currentUser.uid,
         timestamp: serverTimestamp(),
         status: 'sent'
       });
-      // Increment unread count for the remote friend
+      
+      // Increment unread count for friend
       await socialService.incrementUnreadCount(friendId, currentUser.uid);
-
-      await setDoc(doc(db, 'private_chats', privateChatId, 'typing', 'status'), {
-        [currentUser.uid]: false
-      }, { merge: true });
       
       setTimeout(() => scrollToBottom(300), 50);
     } catch (error) {
@@ -203,21 +216,39 @@ const formatLastSeen = (timestamp: number) => {
     }
   };
 
-  const handleTyping = async (e: any) => {
-    const text = e.detail.value!;
+  const handleTyping = (e: any) => {
+    const text = e.detail.value || '';
     setNewMessage(text);
     if (!currentUser || !privateChatId) return;
 
-    await setDoc(doc(db, 'private_chats', privateChatId, 'typing', 'status'), {
-      [currentUser.uid]: true
-    }, { merge: true });
+    // If empty text, clear typing immediately
+    if (text.trim() === '') {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (isTypingRef.current) {
+        isTypingRef.current = false;
+        setDoc(doc(db, 'private_chats', privateChatId, 'typing', 'status'), {
+          [currentUser.uid]: false
+        }, { merge: true }).catch(console.warn);
+      }
+      return;
+    }
 
+    // High performance typing indicator: only notify server if we weren't already typing
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
+      setDoc(doc(db, 'private_chats', privateChatId, 'typing', 'status'), {
+        [currentUser.uid]: true
+      }, { merge: true }).catch(console.warn);
+    }
+
+    // Reset timeout
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-
+    
     typingTimeoutRef.current = setTimeout(async () => {
-      await setDoc(doc(db, 'private_chats', privateChatId, 'typing', 'status'), {
+      isTypingRef.current = false;
+      setDoc(doc(db, 'private_chats', privateChatId, 'typing', 'status'), {
         [currentUser.uid]: false
-      }, { merge: true });
+      }, { merge: true }).catch(console.warn);
     }, 2000);
   };
 

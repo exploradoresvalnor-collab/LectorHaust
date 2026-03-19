@@ -35,7 +35,7 @@ import { useLibraryStore } from './store/useLibraryStore';
 import { checkUpdatesForLibrary, MangaUpdate } from './services/updateService';
 import { hapticsService } from './services/hapticsService';
 import { db } from './services/firebase';
-import { collection, query, orderBy, limit, onSnapshot, doc, getDoc, setDoc, where, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, doc, getDoc, setDoc, where, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { firebaseAuthService } from './services/firebaseAuthService';
 import { socialService } from './services/socialService';
 
@@ -284,9 +284,9 @@ const AppContent: React.FC = () => {
           </IonTabButton>
           <IonTabButton tab="chat" href="/social" onClick={() => hapticsService.lightImpact()}>
             <IonIcon aria-hidden="true" icon={chatbubbles} />
-            {(pendingRequests > 0 || privateUnread > 0 || hasUnreadChat) && (
+            {(pendingRequests > 0 || totalUnread > 0 || hasUnreadChat) && (
               <IonBadge color="danger" className="tab-badge">
-                {(pendingRequests + privateUnread) > 0 ? (pendingRequests + privateUnread) : ' '}
+                {(pendingRequests + totalUnread) > 0 ? (pendingRequests + totalUnread) : ' '}
               </IonBadge>
             )}
             <IonLabel>{getTranslation('tabs.chat', currentLang)}</IonLabel>

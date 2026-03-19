@@ -12,7 +12,8 @@ import {
   deleteDoc,
   serverTimestamp,
   getDoc,
-  increment
+  increment,
+  addDoc
 } from 'firebase/firestore';
 import { db } from './firebase';
 
