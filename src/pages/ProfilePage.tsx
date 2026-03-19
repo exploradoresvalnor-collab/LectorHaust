@@ -39,7 +39,8 @@ import {
   playOutline,
   peopleOutline,
   copyOutline,
-  pencilOutline
+  pencilOutline,
+  chatbubbles
 } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
 import { useIonRouter } from '@ionic/react';
@@ -67,6 +68,7 @@ const ProfilePage: React.FC = () => {
     lastUpdated: Date.now()
   });
   const [isStatsLoading, setIsStatsLoading] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const history = useHistory();
 
   useEffect(() => {
@@ -148,7 +150,103 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  if (!user) return null;
+  const handleGoogleLogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      await firebaseAuthService.loginWithGoogle();
+      presentToast({ message: '¡Sesión iniciada con éxito! 🚀', duration: 2000, color: 'success' });
+    } catch (error) {
+      console.error("Login failed:", error);
+      presentToast({ message: 'Error al iniciar sesión', duration: 2000, color: 'danger' });
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleGhostLogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      await firebaseAuthService.loginAnonymously();
+      presentToast({ message: '¡Entraste como Nakama Fantasma! 👻', duration: 2000, color: 'secondary' });
+    } catch (error) {
+      console.error("Ghost login failed:", error);
+      presentToast({ message: 'Error al entrar en modo fantasma', duration: 2000, color: 'danger' });
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const renderWelcomeScreen = () => {
+    return (
+      <IonPage className="profile-page">
+        <IonContent fullscreen className="profile-content">
+          <div className="welcome-container animate-fade-in">
+            <div className="welcome-mascot-container">
+              <img 
+                src="/mascot.png" 
+                alt="Mascot" 
+                className="welcome-mascot"
+                onError={(e) => (e.currentTarget.src = '/logolh.webp')} 
+              />
+            </div>
+            
+            <h1 className="welcome-title">¡Bienvenido, Nakama!</h1>
+            <p className="welcome-subtitle">
+              Únete a la comunidad de cazadores más grande para leer, comentar y ganar XP.
+            </p>
+
+            <div className="auth-actions">
+              <div className="ghost-btn-container">
+                <div className="nakama-tip">✨ RECOMENDADO</div>
+                <div className="pulse-ring"></div>
+                <IonButton 
+                  expand="block" 
+                  className="ghost-login-btn" 
+                  onClick={handleGhostLogin}
+                  disabled={isLoggingIn}
+                >
+                  <IonIcon icon={playOutline} slot="start" />
+                  ENTRAR COMO FANTASMA
+                </IonButton>
+              </div>
+
+              <IonButton 
+                expand="block" 
+                fill="clear" 
+                className="google-login-btn" 
+                onClick={handleGoogleLogin}
+                disabled={isLoggingIn}
+              >
+                <img 
+                  src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
+                  alt="Google" 
+                  style={{ width: '18px', marginRight: '10px' }} 
+                />
+                Continuar con Google
+              </IonButton>
+            </div>
+
+            <div className="perks-grid">
+              <div className="perk-item">
+                <IonIcon icon={chatbubbles} className="perk-icon" />
+                <span>Chat Global</span>
+              </div>
+              <div className="perk-item">
+                <IonIcon icon={trophyOutline} className="perk-icon" />
+                <span>Niveles & XP</span>
+              </div>
+              <div className="perk-item">
+                <IonIcon icon={peopleOutline} className="perk-icon" />
+                <span>Social</span>
+              </div>
+            </div>
+          </div>
+        </IonContent>
+      </IonPage>
+    );
+  };
+
+  if (!user) return renderWelcomeScreen();
 
   return (
     <IonPage className="profile-page">
