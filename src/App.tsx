@@ -81,7 +81,7 @@ const AppContent: React.FC = () => {
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
   const [currentLang, setCurrentLang] = useState<Language>(getDefaultLanguage());
   const [pendingRequests, setPendingRequests] = useState(0);
-  const [privateUnread, setPrivateUnread] = useState(0);
+  const [totalUnread, setTotalUnread] = useState(0);
   const router = useIonRouter();
   const location = useLocation();
   const [presentToast] = useIonToast();
@@ -145,7 +145,7 @@ const AppContent: React.FC = () => {
             setPendingRequests(reqs.length);
           });
           unsubPriv = socialService.subscribeToAllUnreadCount(user.uid, (total) => {
-            setPrivateUnread(total);
+            setTotalUnread(total);
           });
           // Presence Update Interval (Every 2 minutes)
           const interval = setInterval(() => socialService.updateUserPresence(user.uid), 120000);
@@ -181,7 +181,7 @@ const AppContent: React.FC = () => {
         }
       } else {
         setPendingRequests(0);
-        setPrivateUnread(0);
+        setTotalUnread(0);
       }
     });
 
