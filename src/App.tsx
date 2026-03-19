@@ -280,7 +280,7 @@ const AppContent: React.FC = () => {
             <IonIcon aria-hidden="true" icon={search} />
             <IonLabel>{getTranslation('tabs.explore', currentLang)}</IonLabel>
           </IonTabButton>
-          <IonTabButton tab="chat" href="/chat" onClick={() => hapticsService.lightImpact()}>
+          <IonTabButton tab="chat" href="/social" onClick={() => hapticsService.lightImpact()}>
             <IonIcon aria-hidden="true" icon={chatbubbles} />
             {(pendingRequests > 0 || privateUnread > 0 || hasUnreadChat) && (
               <IonBadge color="danger" className="tab-badge">
