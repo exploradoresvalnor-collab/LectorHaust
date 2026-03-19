@@ -8,22 +8,24 @@ service cloud.firestore {
 
     // 1. Perfiles de Usuario y Datos Privados
     match /users/{userId} {
-      allow read: if true;
+      allow read: if isAuthenticated();
       allow write: if isOwner(userId);
-      
-      // Permitir actualización de perfil (ej. para el array de amigos)
-      allow update: if isAuthenticated();
       
       // --- Sub-colecciones Específicas ---
       
-      // Favoritos, Historial, Ajustes, Chats Privados (Solo el dueño)
+      // Favoritos, Historial, Ajustes (Solo el dueño)
       match /favorites/{docId} { allow read, write: if isOwner(userId); }
       match /history/{docId} { allow read, write: if isOwner(userId); }
       match /readChapters/{docId} { allow read, write: if isOwner(userId); }
-      match /privateChats/{docId} { allow read, write: if isOwner(userId); }
+      
+      // Estado de Chat Privado (Contadores de pendientes)
+      match /privateChats/{friendId} { 
+        allow read, write: if isOwner(userId);
+        // El emisor del mensaje puede incrementar el unreadCount del receptor
+        allow create, update: if isAuthenticated() && request.auth.uid == friendId;
+      }
 
-      // Solicitudes de Amistad (Regla clave para que funcione el social)
-      // Permite al emisor crearla y al receptor leerla/borrarla
+      // Solicitudes de Amistad
       match /friendRequests/{senderId} {
         allow read, write: if isAuthenticated() && (request.auth.uid == userId || request.auth.uid == senderId);
       }

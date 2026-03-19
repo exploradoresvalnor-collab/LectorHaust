@@ -130,12 +130,13 @@ const formatLastSeen = (timestamp: number) => {
       
       // Mark messages as read when viewing
       if (currentUserIdRef.current) {
-        await socialService.markPrivateMessagesRead(currentUserIdRef.current, friendId);
+        socialService.markPrivateMessagesRead(currentUserIdRef.current, friendId).catch(console.warn);
       }
 
-      if (limitCount === 30) {
-        scrollToBottom(300);
-      }
+      // Scroll to bottom on load or new message
+      setTimeout(() => scrollToBottom(300), 100);
+    }, (error) => {
+      console.error("Chat subscription error:", error);
     });
 
     // Sub to Typing Metadata
@@ -193,6 +194,8 @@ const formatLastSeen = (timestamp: number) => {
       await setDoc(doc(db, 'private_chats', privateChatId, 'typing', 'status'), {
         [currentUser.uid]: false
       }, { merge: true });
+      
+      setTimeout(() => scrollToBottom(300), 50);
     } catch (error) {
       console.error("Error sending message:", error);
       setNewMessage(textToSend);
