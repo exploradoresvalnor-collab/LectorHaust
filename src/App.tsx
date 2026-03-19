@@ -122,18 +122,20 @@ const AppContent: React.FC = () => {
         try {
           const snap = await getDoc(userRef);
           if (!snap.exists()) {
-            // First time logic: create the record so social system sees them
+            const defaultName = user.displayName || `Explorador_${user.uid.substring(0, 4)}`;
             await setDoc(userRef, {
               uid: user.uid,
-              name: user.displayName || 'Explorador',
-              avatar: user.photoURL || '',
+              name: defaultName,
+              displayName: defaultName, // For compatibility
+              avatar: user.photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${user.uid}`,
+              avatarUrl: user.photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${user.uid}`, // For compatibility
               email: user.email || '',
               friends: [],
-              lastActive: Date.now(), // INITIAL ACTIVE
-              createdAt: Date.now()
+              blockedUsers: [],
+              lastActive: Date.now(),
+              createdAt: serverTimestamp()
             });
           } else {
-            // Update presence on mount/login
             await socialService.updateUserPresence(user.uid);
           }
         } catch (err) { console.warn("User init failed", err); }

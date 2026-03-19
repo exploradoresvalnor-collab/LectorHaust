@@ -190,5 +190,38 @@ export const socialService = {
     await updateDoc(userRef, {
       lastActive: Date.now()
     });
+  },
+
+  /**
+   * Moderation: Report and Block
+   */
+  async reportUser(reporterUid: string, reportedUid: string, reason: string, context?: string) {
+    try {
+      await addDoc(collection(db, 'reports'), {
+        reporterId: reporterUid,
+        reportedId: reportedUid,
+        reason,
+        context: context || '',
+        timestamp: serverTimestamp(),
+        status: 'pending'
+      });
+    } catch (e) {
+      console.error("Report failed", e);
+      throw e;
+    }
+  },
+
+  async blockUser(myUid: string, userToBlockUid: string) {
+    try {
+      const myRef = doc(db, 'users', myUid);
+      await updateDoc(myRef, {
+        blockedUsers: arrayUnion(userToBlockUid)
+      });
+      // Try to remove friendship if it exists
+      await this.removeFriend(myUid, userToBlockUid).catch(() => {});
+    } catch (e) {
+      console.error("Block failed", e);
+      throw e;
+    }
   }
 };

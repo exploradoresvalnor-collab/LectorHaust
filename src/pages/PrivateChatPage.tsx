@@ -55,6 +55,7 @@ const PrivateChatPage: React.FC = () => {
   const contentRef = useRef<HTMLIonContentElement | null>(null);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isTypingRef = useRef<boolean>(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [friendData, setFriendData] = useState<any>(null);
 
