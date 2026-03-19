@@ -141,6 +141,31 @@ const AppContent: React.FC = () => {
           unsubPriv = socialService.subscribeToAllUnreadCount(user.uid, (total) => {
             setPrivateUnread(total);
           });
+
+          // Monitor general notifications (Friendships, etc)
+          const unsubNotif = onSnapshot(
+            query(collection(db, 'notifications'), where('userId', '==', user.uid), where('read', '==', false)),
+            (snapshot) => {
+              snapshot.docChanges().forEach(async (change) => {
+                if (change.type === 'added') {
+                  const n = change.doc.data();
+                  if (n.type === 'friend_accepted') {
+                    const fSnap = await getDoc(doc(db, 'users', n.fromId));
+                    const fName = fSnap.exists() ? (fSnap.data().name || fSnap.data().displayName) : 'Un Nakama';
+                    presentToast({
+                      message: `¡${fName} aceptó tu solicitud! 🎉`,
+                      duration: 4000, color: 'success', position: 'top',
+                      buttons: [{ text: 'Chat', handler: () => router.push(`/chat/${n.fromId}`) }]
+                    });
+                    await updateDoc(doc(db, 'notifications', change.doc.id), { read: true });
+                  }
+                }
+              });
+            }
+          );
+          // Chain cleanup
+          const oldUnsubReq = unsubReq;
+          unsubReq = () => { if (oldUnsubReq) oldUnsubReq(); unsubNotif(); };
         }
       } else {
         setPendingRequests(0);

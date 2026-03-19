@@ -69,6 +69,20 @@ export const socialService = {
     batch.delete(requestRef);
 
     await batch.commit();
+
+    // 4. Create a notification for the sender
+    try {
+      const notifRef = doc(collection(db, 'notifications'));
+      await setDoc(notifRef, {
+        userId: friendUid,
+        type: 'friend_accepted',
+        fromId: myUid,
+        read: false,
+        timestamp: serverTimestamp()
+      });
+    } catch (e) {
+      console.warn("Failed to create acceptance notification", e);
+    }
   },
 
   /**
