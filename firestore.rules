@@ -65,5 +65,11 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isOwner(userId);
     }
+
+    // 7. Chats Privados (Colección superior para mensajes directos)
+    match /private_chats/{chatId}/{anyDocument=**} {
+      // Permite acceso solo si el UID del usuario logueado es parte del ID del chat (uid1_uid2)
+      allow read, write: if isAuthenticated() && chatId.contains(request.auth.uid);
+    }
   }
 }

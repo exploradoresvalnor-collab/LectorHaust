@@ -35,7 +35,7 @@ import { useLibraryStore } from './store/useLibraryStore';
 import { checkUpdatesForLibrary, MangaUpdate } from './services/updateService';
 import { hapticsService } from './services/hapticsService';
 import { db } from './services/firebase';
-import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, doc, getDoc, setDoc } from 'firebase/firestore';
 import { firebaseAuthService } from './services/firebaseAuthService';
 import { socialService } from './services/socialService';
 
@@ -112,17 +112,36 @@ const AppContent: React.FC = () => {
     let unsubReq: (() => void) | null = null;
     let unsubPriv: (() => void) | null = null;
 
-    const unsubscribeAuth = firebaseAuthService.subscribe((user) => {
+    const unsubscribeAuth = firebaseAuthService.subscribe(async (user) => {
       if (unsubReq) unsubReq();
       if (unsubPriv) unsubPriv();
 
-      if (user && !user.isAnonymous) {
-        unsubReq = socialService.subscribeToFriendRequests(user.uid, (reqs) => {
-          setPendingRequests(reqs.length);
-        });
-        unsubPriv = socialService.subscribeToAllUnreadCount(user.uid, (total) => {
-          setPrivateUnread(total);
-        });
+      if (user) {
+        // --- INITIALIZE USER DOC IF MISSING ---
+        const userRef = doc(db, 'users', user.uid);
+        try {
+          const snap = await getDoc(userRef);
+          if (!snap.exists()) {
+            // First time logic: create the record so social system sees them
+            await setDoc(userRef, {
+              uid: user.uid,
+              name: user.displayName || 'Explorador',
+              avatar: user.photoURL || '',
+              email: user.email || '',
+              friends: [],
+              createdAt: Date.now()
+            });
+          }
+        } catch (err) { console.warn("User init failed", err); }
+
+        if (!user.isAnonymous) {
+          unsubReq = socialService.subscribeToFriendRequests(user.uid, (reqs) => {
+            setPendingRequests(reqs.length);
+          });
+          unsubPriv = socialService.subscribeToAllUnreadCount(user.uid, (total) => {
+            setPrivateUnread(total);
+          });
+        }
       } else {
         setPendingRequests(0);
         setPrivateUnread(0);
@@ -148,7 +167,7 @@ const AppContent: React.FC = () => {
 
   // Global Chat Notifications Logic
   useEffect(() => {
-    if (pendingRequests > lastPendingRef.current && lastPendingRef.current !== 0) {
+    if (pendingRequests > lastPendingRef.current) {
       if (Capacitor.isNativePlatform()) {
         hapticsService.lightImpact();
       }
@@ -160,9 +179,8 @@ const AppContent: React.FC = () => {
         buttons: [{ text: 'Ver', handler: () => router.push('/social') }]
       });
     }
-    if (pendingRequests !== lastPendingRef.current) {
-      lastPendingRef.current = pendingRequests;
-    }
+    lastPendingRef.current = pendingRequests;
+
   }, [pendingRequests, presentToast, router]);
 
   useEffect(() => {

@@ -70,7 +70,14 @@ const SocialPage: React.FC = () => {
             rawRequests.map(async (req) => {
               const userRef = doc(db, 'users', req.fromId);
               const userSnap = await getDoc(userRef);
-              return { ...req, userData: userSnap.data() || { name: 'Usuario Desconocido' } };
+              const data = userSnap.data() || {};
+              return { 
+                ...req, 
+                userData: { 
+                  ...data, 
+                  name: data.name || data.displayName || `Usuario ${req.fromId.substring(0, 4)}` 
+                } 
+              };
             })
           );
           setRequests(detailedRequests);
@@ -83,9 +90,18 @@ const SocialPage: React.FC = () => {
             const friendIds = userSnap.data().friends || [];
             const detailedFriends = await Promise.all(
               friendIds.map(async (fId: string) => {
-                const fRef = doc(db, 'users', fId);
-                const fSnap = await getDoc(fRef);
-                return { id: fId, ...(fSnap.data() || { name: 'Usuario Desconocido' }) };
+                try {
+                  const fRef = doc(db, 'users', fId);
+                  const fSnap = await getDoc(fRef);
+                  const data = fSnap.exists() ? fSnap.data() : {};
+                  return { 
+                    id: fId, 
+                    ...data,
+                    name: data.name || data.displayName || `Explorador ${fId.substring(0, 4)}` 
+                  };
+                } catch (e) {
+                  return { id: fId, name: `Usuario ${fId.substring(0, 4)}` };
+                }
               })
             );
             setFriends(detailedFriends);

@@ -34,6 +34,16 @@ export const socialService = {
       status: 'pending',
       timestamp: serverTimestamp()
     });
+
+    // Create a notification for the recipient
+    const notifRef = doc(collection(db, 'notifications'));
+    await setDoc(notifRef, {
+      userId: toUid,
+      type: 'friend_request',
+      fromId: fromUid,
+      read: false,
+      timestamp: serverTimestamp()
+    });
   },
 
   /**
