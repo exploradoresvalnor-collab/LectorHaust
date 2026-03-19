@@ -139,7 +139,7 @@ const formatLastSeen = (timestamp: number) => {
     });
 
     // Sub to Typing Metadata
-    const metaRef = doc(db, 'private_chats', privateChatId, '_meta_typing');
+    const metaRef = doc(db, 'private_chats', privateChatId, 'typing', 'status');
     const unsubscribeTyping = onSnapshot(metaRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data() as Record<string, boolean>;
@@ -190,7 +190,7 @@ const formatLastSeen = (timestamp: number) => {
       // Increment unread count for the remote friend
       await socialService.incrementUnreadCount(friendId, currentUser.uid);
 
-      await setDoc(doc(db, 'private_chats', privateChatId, '_meta_typing'), {
+      await setDoc(doc(db, 'private_chats', privateChatId, 'typing', 'status'), {
         [currentUser.uid]: false
       }, { merge: true });
     } catch (error) {
@@ -204,14 +204,14 @@ const formatLastSeen = (timestamp: number) => {
     setNewMessage(text);
     if (!currentUser || !privateChatId) return;
 
-    await setDoc(doc(db, 'private_chats', privateChatId, '_meta_typing'), {
+    await setDoc(doc(db, 'private_chats', privateChatId, 'typing', 'status'), {
       [currentUser.uid]: true
     }, { merge: true });
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
     typingTimeoutRef.current = setTimeout(async () => {
-      await setDoc(doc(db, 'private_chats', privateChatId, '_meta_typing'), {
+      await setDoc(doc(db, 'private_chats', privateChatId, 'typing', 'status'), {
         [currentUser.uid]: false
       }, { merge: true });
     }, 2000);
