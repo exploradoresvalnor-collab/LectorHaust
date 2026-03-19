@@ -619,8 +619,14 @@ const HomePage: React.FC = () => {
                     color="primary" 
                     className="preview-btn-main"
                     onClick={() => {
+                        // Limpiar foco para evitar error aria-hidden en transiciones
+                        if (document.activeElement instanceof HTMLElement) {
+                            document.activeElement.blur();
+                        }
                         setPreviewData(null);
-                        router.push(`/manga/${previewData.id}`);
+                        setTimeout(() => {
+                            router.push(`/manga/${previewData.id}`);
+                        }, 150);
                     }}
                   >
                     Leer {previewData.format === 'WEBTOON' ? 'Manhwa' : 

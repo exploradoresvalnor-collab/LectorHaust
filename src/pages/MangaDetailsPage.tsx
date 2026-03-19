@@ -324,7 +324,15 @@ const MangaDetailsPage: React.FC = () => {
                 expand="block" 
                 color="secondary"
                 className="continue-reading-btn"
-                onClick={() => router.push(`/reader/${progress.chapterId}`)}
+                onClick={() => {
+                  if (document.activeElement instanceof HTMLElement) {
+                    document.activeElement.blur();
+                  }
+                  hapticsService.mediumImpact();
+                  setTimeout(() => {
+                    router.push(`/reader/${progress.chapterId}`);
+                  }, 150);
+                }}
               >
                 CONTINUAR CAP. {progress.chapterNumber} (Pág. {progress.pageIndex})
               </IonButton>
@@ -337,11 +345,17 @@ const MangaDetailsPage: React.FC = () => {
                   // If order is ascending (oldest first), the first chapter is at the beginning.
                   const firstChapter = chapterOrder === 'desc' ? chapters[chapters.length - 1] : chapters[0];
                   if (firstChapter) {
-                    if (firstChapter.attributes?.externalUrl) {
-                      window.open(firstChapter.attributes.externalUrl, '_blank');
-                    } else {
-                      router.push(`/reader/${firstChapter.id}`);
+                    if (document.activeElement instanceof HTMLElement) {
+                      document.activeElement.blur();
                     }
+                    hapticsService.mediumImpact();
+                    setTimeout(() => {
+                      if (firstChapter.attributes?.externalUrl) {
+                        window.open(firstChapter.attributes.externalUrl, '_blank');
+                      } else {
+                        router.push(`/reader/${firstChapter.id}`);
+                      }
+                    }, 150);
                   }
                 }}
               >
@@ -520,11 +534,17 @@ const MangaDetailsPage: React.FC = () => {
                         toggleRead(chapter.id);
                       }}
                       onClick={() => {
-                        if (chapter.attributes.externalUrl) {
-                          window.open(chapter.attributes.externalUrl, '_blank');
-                        } else {
-                          router.push(`/reader/${chapter.id}`);
+                        if (document.activeElement instanceof HTMLElement) {
+                          document.activeElement.blur();
                         }
+                        hapticsService.lightImpact();
+                        setTimeout(() => {
+                          if (chapter.attributes.externalUrl) {
+                            window.open(chapter.attributes.externalUrl, '_blank');
+                          } else {
+                            router.push(`/reader/${chapter.id}`);
+                          }
+                        }, 150);
                       }}
                     />
                   );

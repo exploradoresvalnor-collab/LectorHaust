@@ -248,7 +248,7 @@ export const mangadexService = {
             url += `&originalLanguage[]=${filters.origin}`;
         }
 
-        if (filters.lang) {
+        if (filters.lang && filters.lang !== 'all') {
             url += `&availableTranslatedLanguage[]=${filters.lang}`;
         }
 
@@ -273,7 +273,7 @@ export const mangadexService = {
         let url = `/manga?limit=${limit}&offset=${offset}&hasAvailableChapters=true&order[followedCount]=desc&includes[]=cover_art&includes[]=author`;
         url += this.getContentRatingParams(allowNSFW);
         
-        if (lang) {
+        if (lang && lang !== 'all') {
             url += `&availableTranslatedLanguage[]=${lang}`;
             if (lang === 'es') {
                 url += `&availableTranslatedLanguage[]=es-la`;
@@ -345,11 +345,14 @@ export const mangadexService = {
             url += `&status[]=completed`;
         }
         
-        const aggregatedLang = lang === 'es' ? ['es', 'es-la', 'en'] : [lang || 'en'];
+        const isWorldMode = lang === 'all';
+        const aggregatedLang = isWorldMode ? [] : (lang === 'es' ? ['es', 'es-la', 'en'] : [lang || 'en']);
         
-        aggregatedLang.forEach(l => {
-            url += `&availableTranslatedLanguage[]=${l}`;
-        });
+        if (!isWorldMode) {
+            aggregatedLang.forEach(l => {
+                url += `&availableTranslatedLanguage[]=${l}`;
+            });
+        }
 
         if (genre) {
             const uuid = GENRE_UUIDS[genre.toLowerCase()] || genre;
@@ -390,11 +393,13 @@ export const mangadexService = {
                         if (!lastChapterStr && status !== 'completed') return null;
 
                         let aggUrl = `/manga/${manga.id}/aggregate?`;
-                        aggregatedLang.forEach(l => {
-                            aggUrl += `translatedLanguage[]=${l}&`;
-                        });
+                        if (!isWorldMode) {
+                            aggregatedLang.forEach(l => {
+                                aggUrl += `translatedLanguage[]=${l}&`;
+                            });
+                        }
                         
-                        const aggData = await apiFetch(aggUrl.slice(0, -1));
+                        const aggData = await apiFetch(aggUrl.endsWith('?') || aggUrl.endsWith('&') ? aggUrl.slice(0, -1) : aggUrl);
                         if (!aggData || !aggData.volumes) return null;
 
                         const volumes = Object.values(aggData.volumes) as any[];
@@ -641,14 +646,14 @@ export const mangadexService = {
         while (hasMore) {
             let url = `/manga/${mangaId}/feed?limit=${limit}&offset=${offset}&order[volume]=${orderDir}&order[chapter]=${orderDir}&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&includes[]=scanlation_group`;
             
-            if (lang) {
+            if (lang && lang !== 'all') {
                 let langsArray = Array.isArray(lang) ? lang : [lang];
                 // Si piden español, incluir latam
                 if (langsArray.includes('es') && !langsArray.includes('es-la')) {
                     langsArray.push('es-la');
                 }
                 langsArray.forEach(l => url += `&translatedLanguage[]=${l}`);
-            } else {
+            } else if (!lang) {
                 // Fallback de idiomas si no se especifica para asegurar contenido
                 url += `&translatedLanguage[]=es&translatedLanguage[]=es-la&translatedLanguage[]=en`;
             }
@@ -843,16 +848,12 @@ export const mangadexService = {
     getOptimizedUrl(url: string, params = 'f_auto,q_auto:best') {
         if (!url) return '';
         
-        // Avoid double-prefixing
+        // Evitar doble prefijo si ya está optimizada
         if (url.includes('res.cloudinary.com') || url.includes('i0.wp.com')) return url;
 
-        // On Native/Mobile Web, if Cloudinary fails, we can use Photon (wp.com) as a very stable fallback
-        // For now, let's use a dual strategy: 
-        // 1. If it's a cover, use Cloudinary (good for quality)
-        // 2. If it's a chapter page from a .network node, use Photon (more permissive CORS)
-        
-        if (url.includes('mangadex.network')) {
-            // WordPress Photon proxy (i0.wp.com) is excellent for CORS and very fast
+        // Para TODOS los assets de MangaDex (uploads, api, network), usamos Photon (i0.wp.com).
+        // WordPress Photon es extremadamente fiable, bypassa bloqueos de ISP y maneja CORS perfectamente.
+        if (url.includes('mangadex.org') || url.includes('mangadex.network')) {
             return `https://i0.wp.com/${url.replace(/^https?:\/\//, '')}`;
         }
 
@@ -860,6 +861,7 @@ export const mangadexService = {
             return `https://i0.wp.com/${url.replace(/^https?:\/\//, '')}`;
         }
 
+        // Para otros dominios, usamos Cloudinary como fallback
         return `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/fetch/${params}/${encodeURIComponent(url)}`;
     },
 

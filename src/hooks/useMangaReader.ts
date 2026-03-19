@@ -92,19 +92,26 @@ export function useMangaReader(chapterId?: string) {
       try {
         lastLoadedId.current = chapterId;
 
-        // 🔌 OFFLINE FIRST: Check if chapter is downloaded locally
-        const downloaded = await offlineService.isDownloaded(chapterId);
         let pagesLoaded = false;
+        let downloaded = false;
 
-        if (downloaded) {
-          const localPages = await offlineService.getLocalPages(chapterId);
-          if (localPages.length > 0 && isMounted) {
-            setPages(localPages);
-            setIsOffline(true);
-            markAsRead(chapterId);
-            pagesLoaded = true;
-            console.log(`[Reader] Loaded ${localPages.length} pages from offline storage`);
+        try {
+          // 🔌 OFFLINE FIRST: Check if chapter is downloaded locally
+          // Wrap in a try-catch to avoid hangs if storage is blocked by tracking/privacy settings
+          downloaded = await offlineService.isDownloaded(chapterId).catch(() => false);
+          
+          if (downloaded) {
+            const localPages = await offlineService.getLocalPages(chapterId).catch(() => []);
+            if (localPages.length > 0 && isMounted) {
+              setPages(localPages);
+              setIsOffline(true);
+              markAsRead(chapterId);
+              pagesLoaded = true;
+              console.log(`[Reader] Loaded ${localPages.length} pages from offline storage`);
+            }
           }
+        } catch (storageErr) {
+          console.warn('[Reader] Offline storage access blocked or failed:', storageErr);
         }
 
         // If no offline pages, fetch from network
