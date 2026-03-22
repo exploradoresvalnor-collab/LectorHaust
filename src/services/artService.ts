@@ -1,4 +1,7 @@
 import axios from 'axios';
+import { Capacitor } from '@capacitor/core';
+
+const PROXY_URL = 'https://manga-proxy.mchaustman.workers.dev/?url=';
 
 export interface SafebooruPost {
   id: number;
@@ -21,16 +24,10 @@ class ArtService {
    */
   async getRandomBackgrounds(tags: string = 'scenery+landscape+rating:safe', limit: number = 20): Promise<string[]> {
     try {
-      const response = await axios.get(this.baseUrl, {
-        params: {
-          page: 'dapi',
-          s: 'post',
-          q: 'index',
-          json: 1,
-          tags: tags,
-          limit: limit
-        }
-      });
+      const apiUrl = `${this.baseUrl}?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(tags)}&limit=${limit}`;
+      const requestUrl = Capacitor.isNativePlatform() ? apiUrl : `${PROXY_URL}${encodeURIComponent(apiUrl)}`;
+
+      const response = await axios.get(requestUrl);
 
       if (!Array.isArray(response.data)) {
         console.warn('[ArtService] No images found or invalid response', response.data);
@@ -40,9 +37,11 @@ class ArtService {
       // Construct full URLs
       // Safebooru images are stored at https://safebooru.org/images/{directory}/{image}
       return response.data.map((post: SafebooruPost) => {
-        // Prefer file_url if available, else construct manually
-        if (post.file_url) return post.file_url.startsWith('http') ? post.file_url : `https:${post.file_url}`;
-        return `https://safebooru.org/images/${post.directory}/${post.image}`;
+        let rawUrl = post.file_url || `https://safebooru.org/images/${post.directory}/${post.image}`;
+        if (!rawUrl.startsWith('http')) rawUrl = `https:${rawUrl}`;
+        
+        // Proxy images too on web to avoid mixed content or referer issues
+        return Capacitor.isNativePlatform() ? rawUrl : `${PROXY_URL}${encodeURIComponent(rawUrl)}`;
       });
     } catch (error) {
       console.error('[ArtService] Failed to fetch backgrounds:', error);
