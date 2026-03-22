@@ -30,12 +30,30 @@
 /* --- Cover Banner --- */
 .profile-cover-banner {
   height: calc(180px + env(safe-area-inset-top));
+  background-color: #1a1a1a;
   background-image: url('https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1000&auto=format&fit=crop');
   background-size: cover;
-  background-position: center 30%;
+  background-position: center;
   position: relative;
   z-index: 0;
-  margin: calc(-60px - env(safe-area-inset-top)) -16px 0; /* Bleed into navbar and notch */
+  margin: calc(-60px - env(safe-area-inset-top)) -16px 0;
+  transition: background-image 0.5s ease-in-out;
+}
+
+.random-bg-btn {
+  position: absolute;
+  top: calc(70px + env(safe-area-inset-top));
+  right: 15px;
+  --background: rgba(0, 0, 0, 0.4);
+  --color: #fff;
+  --border-radius: 20px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  z-index: 100;
 }
 
 .cover-gradient {

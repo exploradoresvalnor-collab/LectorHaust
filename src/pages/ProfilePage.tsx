@@ -51,6 +51,8 @@ import { useLibraryStore } from '../store/useLibraryStore';
 import { userStatsService, UserStats } from '../services/userStatsService';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { artService } from '../services/artService';
+import { getDoc } from 'firebase/firestore';
 import './ProfilePage.css';
 
 const ProfilePage: React.FC = () => {
@@ -70,6 +72,8 @@ const ProfilePage: React.FC = () => {
     lastUpdated: Date.now()
   });
   const [isStatsLoading, setIsStatsLoading] = useState(true);
+  const [profileBackground, setProfileBackground] = useState<string>('');
+  const [showBackgroundSearchAlert, setShowBackgroundSearchAlert] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const history = useHistory();
 
@@ -101,6 +105,18 @@ const ProfilePage: React.FC = () => {
       if (unsubscribeStats) unsubscribeStats();
     };
   }, [history]);
+
+  // Load profile background from Firestore
+  useEffect(() => {
+    if (user) {
+      const userRef = doc(db, 'users', user.uid);
+      getDoc(userRef).then(snap => {
+        if (snap.exists() && snap.data().profileBackground) {
+          setProfileBackground(snap.data().profileBackground);
+        }
+      });
+    }
+  }, [user]);
 
   const { readChapters, showNSFW, setShowNSFW } = useLibraryStore();
   
@@ -166,6 +182,46 @@ const ProfilePage: React.FC = () => {
       presentToast({ message: 'Error al iniciar sesión', duration: 2000, color: 'danger' });
     } finally {
       setIsLoggingIn(false);
+    }
+  };
+
+  const handleRandomizeBackground = async () => {
+    if (!user) return;
+    
+    try {
+      const bg = await artService.getOneRandomBackground();
+      if (bg) {
+        setProfileBackground(bg);
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, { profileBackground: bg });
+        presentToast({ message: '¡Nuevo fondo de arte aplicado! 🎨', duration: 2000, color: 'success' });
+      }
+    } catch (err) {
+      console.error("Failed to randomize background:", err);
+      presentToast({ message: 'Error al obtener fondo', duration: 2000, color: 'danger' });
+    }
+  };
+
+  const handleSearchBackground = async (tagName: string) => {
+    if (!user || !tagName) return;
+    setIsStatsLoading(true);
+    try {
+      // Safebooru likes tags separated by + or spaces
+      const formattedTag = tagName.trim().replace(/\s+/g, '_');
+      const bg = await artService.getOneRandomBackground(`${formattedTag}+rating:safe`);
+      if (bg) {
+        setProfileBackground(bg);
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, { profileBackground: bg });
+        presentToast({ message: `Fondo de "${tagName}" aplicado 🎨`, duration: 2500, color: 'success' });
+      } else {
+        presentToast({ message: `No se encontró arte para "${tagName}"`, duration: 3000, color: 'warning' });
+      }
+    } catch (err) {
+      console.error("Search background failed:", err);
+      presentToast({ message: 'Error en la búsqueda', duration: 2000, color: 'danger' });
+    } finally {
+      setIsStatsLoading(false);
     }
   };
 
@@ -292,8 +348,20 @@ const ProfilePage: React.FC = () => {
 
       <IonContent fullscreen className="profile-content">
         {/* Header Cover Banner */}
-        <div className="profile-cover-banner">
+        <div 
+          className="profile-cover-banner" 
+          style={profileBackground ? { backgroundImage: `url(${profileBackground})` } : {}}
+        >
           <div className="cover-gradient"></div>
+          <IonButton 
+            fill="clear" 
+            size="small" 
+            className="random-bg-btn animate-fade-in" 
+            onClick={() => setShowBackgroundSearchAlert(true)}
+          >
+            <IonIcon icon={colorPaletteOutline} slot="start" />
+            Personalizar
+          </IonButton>
         </div>
 
         <div className="profile-responsive-layout">
@@ -544,6 +612,36 @@ const ProfilePage: React.FC = () => {
                 handleUpdateProfile(data);
               } 
             }
+          ]}
+        />
+        <IonAlert
+          isOpen={showBackgroundSearchAlert}
+          onDidDismiss={() => setShowBackgroundSearchAlert(false)}
+          header="Fondo de Perfil"
+          message="Elige un arte aleatorio o busca tu personaje/serie favorita (ej: Luffy, One Piece, Cyberpunk)"
+          inputs={[
+            {
+              name: 'Tag',
+              type: 'text',
+              placeholder: 'Etiqueta de búsqueda...'
+            }
+          ]}
+          buttons={[
+            {
+              text: '🎲 Aleatorio',
+              cssClass: 'alert-button-secondary',
+              handler: () => {
+                handleRandomizeBackground();
+              }
+            },
+            {
+              text: '🔍 Buscar',
+              handler: (data) => {
+                if (data.Tag) handleSearchBackground(data.Tag);
+                else handleRandomizeBackground();
+              }
+            },
+            { text: 'Cancelar', role: 'cancel' }
           ]}
         />
         <IonAlert
