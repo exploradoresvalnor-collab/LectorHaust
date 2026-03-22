@@ -13,7 +13,7 @@ import {
 } from '@ionic/react';
 import { chevronBackOutline, chevronForwardOutline } from 'ionicons/icons';
 import { useParams } from 'react-router-dom';
-import { mangadexService } from '../services/mangadexService';
+import { mangaProvider } from '../services/mangaProvider';
 import CommentSection from '../components/CommentSection';
 import { useMangaReader } from '../hooks/useMangaReader';
 import { hapticsService } from '../services/hapticsService';
@@ -146,7 +146,7 @@ const ReaderPage: React.FC = () => {
                 {pages.map((page, index) => (
                   <div key={index} className="page-wrapper" data-index={index} style={{ contentVisibility: 'auto' }}>
                     <img 
-                      src={page.includes('mangadex') ? mangadexService.getProxiedUrl(page) : page} 
+                      src={page.includes('mangadex') ? mangaProvider.getProxiedUrl(page) : page} 
                       className="manga-page loaded" 
                       alt={`Página ${index + 1}`}
                       loading={index < 3 ? "eager" : "lazy"}
@@ -165,7 +165,7 @@ const ReaderPage: React.FC = () => {
                   <>
                     <img 
                       key={currentMangaPage} // Fuerza re-render al cambiar página
-                      src={pages[currentMangaPage].includes('mangadex') ? mangadexService.getProxiedUrl(pages[currentMangaPage]) : pages[currentMangaPage]} 
+                      src={pages[currentMangaPage].includes('mangadex') ? mangaProvider.getProxiedUrl(pages[currentMangaPage]) : pages[currentMangaPage]} 
                       className="manga-page-single loaded fade-in" 
                       alt={`Página ${currentMangaPage + 1}`}
                       decoding="async"
@@ -176,7 +176,7 @@ const ReaderPage: React.FC = () => {
                       <link 
                         rel="preload" 
                         as="image" 
-                        href={pages[currentMangaPage + 1].includes('mangadex') ? mangadexService.getProxiedUrl(pages[currentMangaPage + 1]) : pages[currentMangaPage + 1]} 
+                        href={pages[currentMangaPage + 1].includes('mangadex') ? mangaProvider.getProxiedUrl(pages[currentMangaPage + 1]) : pages[currentMangaPage + 1]} 
                       />
                     )}
                   </>

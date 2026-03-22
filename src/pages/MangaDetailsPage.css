@@ -18,7 +18,7 @@
 }
 
 .manga-header-bg {
-    height: 320px;
+    height: 380px; /* Increased from 320px to prevent mobile title crowding */
     background-size: cover;
     background-position: center;
     position: relative;
@@ -49,9 +49,9 @@
 
 .details-header-content {
     position: relative;
-    z-index: 10;
+    z-index: 30; /* Increased above details-body (20) so text never clips behind it */
     display: flex;
-    padding: 20px;
+    padding: 20px 20px 50px 20px; /* Massive bottom padding to radically push text up */
     gap: 15px;
     width: 100%;
     align-items: flex-end;
@@ -356,7 +356,7 @@
     }
     
     .details-header-content {
-        padding: 40px 5%;
+        padding: 40px 5% 50px;
         gap: 30px;
     }
     

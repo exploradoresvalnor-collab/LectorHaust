@@ -25,6 +25,34 @@ export default defineConfig({
         headers: {
           'User-Agent': 'MiravoyApp/1.0 (Local Dev)',
         }
+      },
+      '/api-aniwatch': {
+        target: 'https://apideaniwatch.vercel.app',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api-aniwatch/, ''),
+        timeout: 20000,
+        headers: {
+          'User-Agent': 'MangaApp/1.0 (Local Dev)',
+          'Accept': 'application/json',
+          'Referer': 'https://apideaniwatch.vercel.app'
+        }
+      },
+      '/api-local': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api-local/, ''),
+        timeout: 20000
+      },
+      '/api-comick': {
+        target: 'https://api.comick.io',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api-comick/, ''),
+        timeout: 15000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Referer': 'https://comick.io',
+          'Origin': 'https://comick.io'
+        }
       }
     }
   },

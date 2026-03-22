@@ -47,7 +47,7 @@ import {
   shareOutline
 } from 'ionicons/icons';
 import { useParams } from 'react-router-dom';
-import { mangadexService } from '../services/mangadexService';
+import { mangaProvider } from '../services/mangaProvider';
 import { useLibraryStore } from '../store/useLibraryStore';
 import ChapterItem from '../components/ChapterItem';
 
@@ -118,7 +118,7 @@ const MangaDetailsPage: React.FC = () => {
             if (!rec) return null;
             const title = rec.title.english || rec.title.romaji || rec.title.native;
             try {
-              const verified = await mangadexService.fetchVerifiedRecommendation(title);
+              const verified = await mangaProvider.fetchVerifiedRecommendation(title);
               if (verified && verified.hasChapters && !cancelled) {
                 return {
                   aniId: rec.id,
@@ -185,9 +185,9 @@ const MangaDetailsPage: React.FC = () => {
       </IonPage>
     );
   }
-  const title = mangadexService.getLocalizedTitle(manga);
-  const coverUrl = mangadexService.getCoverUrl(manga);
-  const bestDescription = mangadexService.getLocalizedDescription(manga);
+  const title = mangaProvider.getLocalizedTitle(manga);
+  const coverUrl = mangaProvider.getCoverUrl(manga);
+  const bestDescription = mangaProvider.getLocalizedDescription(manga);
 
 
   const mangaFormat = manga?.attributes?.originalLanguage;
@@ -289,7 +289,7 @@ const MangaDetailsPage: React.FC = () => {
 
       <IonContent>
         {/* Dynamic Cinematic Header */}
-        <div className="manga-header-bg" style={{ backgroundImage: `url(${mangadexService.getOptimizedUrl(aniData?.bannerImage || coverUrl)})` }}>
+        <div className="manga-header-bg" style={{ backgroundImage: `url(${mangaProvider.getOptimizedUrl(aniData?.bannerImage || coverUrl)})` }}>
           <div className="overlay-gradient"></div>
           <div className="details-header-content animate-fade-in">
             <img src={coverUrl} className="main-details-cover" alt={title} />
@@ -410,7 +410,7 @@ const MangaDetailsPage: React.FC = () => {
               <div className="characters-scroll">
                 {aniData.characters.edges.map((edge: any) => (
                   <div key={edge.node.id} className="character-card">
-                    <img src={mangadexService.getOptimizedUrl(edge.node.image.medium)} alt={edge.node.name.full} />
+                    <img src={mangaProvider.getOptimizedUrl(edge.node.image.medium)} alt={edge.node.name.full} />
                     <p>{edge.node.name.full}</p>
                     <span>{edge.role.replace('_', ' ')}</span>
                   </div>
@@ -513,10 +513,10 @@ const MangaDetailsPage: React.FC = () => {
                         hapticsService.lightImpact();
                         setDownloadingChapters(prev => ({ ...prev, [chapter.id]: 0 }));
                         try {
-                          const data = await mangadexService.getChapterPages(chapter.id);
+                          const data = await mangaProvider.getChapterPages(chapter.id);
                           if (data?.pages) {
-                            const title = mangadexService.getLocalizedTitle(manga);
-                            const cover = mangadexService.getCoverUrl(manga);
+                            const title = mangaProvider.getLocalizedTitle(manga);
+                            const cover = mangaProvider.getCoverUrl(manga);
                             await offlineService.downloadChapter(
                               chapter.id, id || '', title, chapter.attributes?.chapter || '?', data.pages, cover,
                               (progress) => setDownloadingChapters(prev => ({ ...prev, [chapter.id]: progress.percent }))
@@ -643,7 +643,7 @@ const MangaDetailsPage: React.FC = () => {
                     >
                       <div className="recommendation-cover-wrapper">
                         <img 
-                          src={mangadexService.getOptimizedUrl(rec.coverImage)} 
+                          src={mangaProvider.getOptimizedUrl(rec.coverImage)} 
                           alt={rec.title} 
                           loading="lazy"
                         />

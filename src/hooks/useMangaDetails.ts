@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { mangadexService } from '../services/mangadexService';
+import { mangaProvider } from '../services/mangaProvider';
+import { mangapillService } from '../services/mangapillService';
 import { anilistService } from '../services/anilistService';
 
 // Helper to deduplicate chapters by chapter number (keeps the first occurrence)
@@ -7,13 +8,15 @@ export const deduplicateChapters = (chaptersArray: any[]) => {
   const seen = new Set();
   return (chaptersArray || []).filter(ch => {
     const chapterNum = ch.attributes?.chapter;
-    // If it has no chapter number (like a one-shot) or we haven't seen this number, keep it
     if (chapterNum === null || chapterNum === undefined) return true;
     if (seen.has(chapterNum)) return false;
     seen.add(chapterNum);
     return true;
   });
 };
+
+// Zero-latency Memory Cache for Screen Transitions (Details <-> Reader)
+const detailsMemoryCache = new Map<string, any>();
 
 export function useMangaDetails(id?: string) {
   const [manga, setManga] = useState<any>(null);
@@ -29,16 +32,39 @@ export function useMangaDetails(id?: string) {
   const [availableLangs, setAvailableLangs] = useState<string[]>([]);
   const [mdStats, setMdStats] = useState<{ rating: number | null, follows: number }>({ rating: null, follows: 0 });
   const [chapterOrder, setChapterOrder] = useState<'asc' | 'desc'>('desc');
+  // Store the MangaPill ID if we had to fallback (for pagination)
+  const mangapillFallbackId = useRef<string | null>(null);
   const isMounted = useRef(true);
 
   useEffect(() => {
     const fetchMangaDetails = async () => {
       if (!id) return;
-      setLoading(true);
+      
+      const cacheKey = `${id}_${chapterLang}_${chapterOrder}`;
+      if (detailsMemoryCache.has(cacheKey)) {
+        const c = detailsMemoryCache.get(cacheKey);
+        if (isMounted.current) {
+          setManga(c.manga);
+          setAniData(c.aniData);
+          setChapters(c.chapters);
+          setTotalChapters(c.totalChapters);
+          setTotalPages(c.totalPages);
+          setHasMoreChapters(c.hasMoreChapters);
+          setAvailableLangs(c.availableLangs);
+          setMdStats(c.mdStats);
+          setCurrentPage(c.currentPage);
+          setLoading(false);
+          setLoadingChapters(false);
+        }
+        return; // Zero latency UI restore
+      }
 
-      // --- MANGADEX PATH ---
+      setLoading(true);
+      mangapillFallbackId.current = null; // Reset fallback on each load
+
+      // --- PROVIDER FETCH ---
       try {
-        const data = await mangadexService.getMangaDetails(id);
+        const data = await mangaProvider.getMangaDetails(id);
         
         if (!isMounted.current) return;
 
@@ -49,17 +75,14 @@ export function useMangaDetails(id?: string) {
         const mangaObj = data.data;
         setManga(mangaObj);
         
-        // --- PARALLEL BLOCK FOR NON-CRITICAL INFO ---
         const title = mangaObj.attributes?.title?.en || Object.values(mangaObj.attributes?.title || {})[0];
         
-        // Let non-essential data fetch in background without 'await' blocks
+        // Non-essential parallel fetches
         Promise.all([
-          // Statistics
-          mangadexService.getMangaStatistics(id).then(stats => {
+          mangaProvider.getMangaStatistics(id).then((stats: any) => {
             if (isMounted.current) setMdStats(stats);
           }).catch(() => {}),
 
-          // AniList Metadata
           (async () => {
             if (!title) return;
             try {
@@ -71,11 +94,10 @@ export function useMangaDetails(id?: string) {
             } catch (err) { console.warn('AniList fetch failed', err); }
           })(),
 
-          // Available Languages (Limited to 100 for speed)
-          mangadexService.getMangaChapters(id, null as any, 100).then(allChaptersData => {
+          mangaProvider.getMangaChapters(id, null as any, 100).then((allChaptersData: any) => {
             if (isMounted.current && allChaptersData.data) {
               const langs = [...new Set(allChaptersData.data.map((c: any) => c.attributes?.translatedLanguage))] as string[];
-              setAvailableLangs(prev => prev.length > 0 ? prev : langs.filter(l => !!l));
+              setAvailableLangs((prev: string[]) => prev.length > 0 ? prev : langs.filter((l: string) => !!l));
             }
           }).catch(() => {})
         ]);
@@ -85,9 +107,46 @@ export function useMangaDetails(id?: string) {
           setHasMoreChapters(true);
         }
         
-        // Essential: First page of chapters
-        const chaptersData = await mangadexService.getMangaChapters(id, chapterLang, 20, 0, chapterOrder);
+        // Essential: First page of chapters from primary provider
+        let chaptersData = await mangaProvider.getMangaChapters(id, chapterLang, 20, 0, chapterOrder);
         
+        // ────────────────────────────────────────────────────────
+        // 🔄 MANGAPILL FALLBACK: If MangaDex returned 0 chapters
+        //    (copyright block), search on MangaPill by title
+        // ────────────────────────────────────────────────────────
+        if ((!chaptersData.data || chaptersData.data.length === 0) && title && !mangaProvider.isExternalId(id)) {
+          console.log(`[Details] 0 chapters on MangaDex for "${title}". Trying MangaPill fallback...`);
+          try {
+            const results = await mangapillService.searchManga(title as string);
+            if (results && results.length > 0) {
+              const fullId = results[0].id; // This is now 'mp:5323/mashle'
+              mangapillFallbackId.current = fullId;
+              
+              console.log(`[Details] Found on MangaPill: id=${fullId}. Fetching chapters...`);
+              const mpChaptersData = await mangapillService.getMangaChapters(fullId);
+
+              
+              chaptersData = {
+                data: mpChaptersData.data.map((c: any) => ({
+                  id: c.id,
+                  attributes: {
+                    chapter: c.attributes.chapter,
+                    title: c.attributes.title,
+                    translatedLanguage: 'en' // MangaPill is mostly English
+                  }
+                })),
+                total: mpChaptersData.total
+              };
+
+              if (isMounted.current) {
+                setAvailableLangs(['en']);
+              }
+            }
+          } catch (err) {
+            console.warn('[Details] MangaPill fallback failed:', err);
+          }
+        }
+
         if (isMounted.current) {
           const newChapters = deduplicateChapters(chaptersData.data || []);
           setTotalChapters(chaptersData.total || 0);
@@ -115,6 +174,17 @@ export function useMangaDetails(id?: string) {
     };
   }, [id, chapterLang, chapterOrder]);
 
+  // Save to Memory Cache whenever essential data stabilizes
+  useEffect(() => {
+    if (manga && chapters.length > 0 && id) {
+      const cacheKey = `${id}_${chapterLang}_${chapterOrder}`;
+      detailsMemoryCache.set(cacheKey, {
+        manga, aniData, chapters, totalChapters, totalPages, 
+        hasMoreChapters, availableLangs, mdStats, currentPage
+      });
+    }
+  }, [manga, aniData, chapters, totalChapters, totalPages, hasMoreChapters, availableLangs, mdStats, currentPage, id, chapterLang, chapterOrder]);
+
   const handleLangChange = useCallback((newLang: string) => {
     setChapterLang(newLang);
     setLoadingChapters(true);
@@ -128,7 +198,28 @@ export function useMangaDetails(id?: string) {
     setLoadingChapters(true);
     try {
       const offset = (pageIndex - 1) * 20;
-      const data = await mangadexService.getMangaChapters(id, chapterLang, 20, offset, chapterOrder);
+      // Use MangaPill fallback ID if available, otherwise use the original ID
+      const chapterId = mangapillFallbackId.current || id;
+      
+      let data: any;
+      if (mangapillFallbackId.current) {
+          const mpChaptersData = await mangapillService.getMangaChapters(chapterId);
+          // MangaPill doesn't have offset in scraping easily, so we slice
+          const slice = mpChaptersData.data.slice(offset, offset + 20);
+          data = {
+              data: slice.map((c: any) => ({
+                  id: c.id,
+                  attributes: {
+                    chapter: c.attributes.chapter,
+                    title: c.attributes.title,
+                    translatedLanguage: 'en'
+                  }
+              })),
+              total: mpChaptersData.total
+          };
+      } else {
+          data = await mangaProvider.getMangaChapters(chapterId, chapterLang, 20, offset, chapterOrder);
+      }
       if (!isMounted.current) return;
 
       const rawNewChapters = data.data || [];
@@ -163,3 +254,4 @@ export function useMangaDetails(id?: string) {
     loadPage
   };
 }
+

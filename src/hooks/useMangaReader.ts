@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { mangadexService } from '../services/mangadexService';
+import { mangaProvider } from '../services/mangaProvider';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { auth } from '../services/firebase';
@@ -116,7 +116,7 @@ export function useMangaReader(chapterId?: string) {
 
         // If no offline pages, fetch from network
         if (!pagesLoaded) {
-          const data = await mangadexService.getChapterPages(chapterId, dataSaverMode ? 'data-saver' : 'data');
+          const data = await mangaProvider.getChapterPages(chapterId, dataSaverMode ? 'data-saver' : 'data');
           if (!isMounted) return;
           if (data && data.pages) {
             setPages(data.pages);
@@ -127,7 +127,7 @@ export function useMangaReader(chapterId?: string) {
 
         // Always fetch chapter metadata for navigation (prev/next) in parallel with details
         const [chapterInfo, _] = await Promise.all([
-          mangadexService.getChapter(chapterId),
+          mangaProvider.getChapter(chapterId),
           (async () => {
              // award XP if online
              if (!downloaded && auth.currentUser) userStatsService.awardChapterXP(auth.currentUser.uid);
@@ -147,18 +147,18 @@ export function useMangaReader(chapterId?: string) {
           // Parallelize manga info and chapters scan
           Promise.all([
             // Manga details (for title/cover)
-            mangadexService.getMangaById(mangaRel.id).then(mangaData => {
+            mangaProvider.getMangaById(mangaRel.id).then((mangaData: any) => {
               if (mangaData?.data && isMounted) {
-                setMangaTitle(mangadexService.getLocalizedTitle(mangaData.data));
-                setMangaCover(mangadexService.getCoverUrl(mangaData.data));
+                setMangaTitle(mangaProvider.getLocalizedTitle(mangaData.data) as string);
+                setMangaCover(mangaProvider.getCoverUrl(mangaData.data));
               }
             }),
             // Chapters feed (for Nav)
-            mangadexService.getMangaChapters(
+            mangaProvider.getMangaChapters(
               mangaRel.id, 
               chapterInfo.data.attributes.translatedLanguage || 'es',
               100, 0
-            ).then(chaptersData => {
+            ).then((chaptersData: any) => {
               if (chaptersData.data && isMounted) {
                 const sorted = chaptersData.data
                   .filter((c: any) => c.attributes.chapter)

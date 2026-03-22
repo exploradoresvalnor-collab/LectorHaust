@@ -3,7 +3,7 @@ import { User } from 'firebase/auth';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { firebaseAuthService } from '../services/firebaseAuthService';
-import { mangadexService } from '../services/mangadexService';
+import { mangaProvider, MangaSource } from '../services/mangaProvider';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { cacheService } from '../services/cacheService';
 
@@ -22,6 +22,7 @@ export function useHomeData() {
   const [showLoginHint, setShowLoginHint] = useState(true);
   const [latestLang, setLatestLang] = useState(getDefaultLanguage());
   const [latestType, setLatestType] = useState('all');
+  const [currentSource, setCurrentSource] = useState<MangaSource>(mangaProvider.getSource());
   const [completedMasterpieces, setCompletedMasterpieces] = useState<any[]>([]);
   const [popularManga, setPopularManga] = useState<any[]>([]);
   const [featuredMasterpiece, setFeaturedMasterpiece] = useState<any | null>(null);
@@ -34,7 +35,7 @@ export function useHomeData() {
   const lastFetchTime = useRef<string>('');
 
   const fetchData = useCallback(async (force = false) => {
-    const fetchKey = `${latestLang}_${latestType}_${showNSFW}`;
+    const fetchKey = `${currentSource}_${latestLang}_${latestType}_${showNSFW}`;
     if (!force && lastFetchRef.current === fetchKey) return;
     lastFetchRef.current = fetchKey;
 
@@ -44,18 +45,17 @@ export function useHomeData() {
     setShowNewBanner(false);
     setNewChaptersCount(0);
     try {
-      // 1. Fetch Latest first (Extremely fast, 1 request)
-      const latestCacheKey = `cache_latest_${latestLang}_${latestType}_${showNSFW}`;
+      // 1. Fetch Latest first
+      const latestCacheKey = `cache_latest_${currentSource}_${latestLang}_${latestType}_${showNSFW}`;
       let updatedMangas: any[] = [];
       const cachedLatest = cacheService.get<any[]>(latestCacheKey);
 
       if (cachedLatest && !force) {
         updatedMangas = cachedLatest;
       } else {
-        const latestData = await mangadexService.getLatestUpdatedManga(12, 0, latestLang, latestType, showNSFW);
+        const latestData = await mangaProvider.getLatestUpdatedManga(12, 0, latestLang, latestType, showNSFW);
         updatedMangas = latestData.data || [];
         if (updatedMangas.length > 0) {
-          // 5 minutes TTL (0.083 hours)
           cacheService.set(latestCacheKey, updatedMangas, 5 / 60); 
         }
       }
@@ -72,16 +72,18 @@ export function useHomeData() {
       setLoading(false);
 
       // 2. Fetch JP Masterpieces
-      const jpCacheKey = `cache_mp_JP_${latestLang}_${showNSFW}`;
+      const jpCacheKey = `cache_mp_v2_JP_${currentSource}_${latestLang}_${showNSFW}`;
       const cachedJP = cacheService.get<any[]>(jpCacheKey);
 
       if (cachedJP && !force) {
-        setCompletedMasterpieces(cachedJP);
-        setHeroMangas(cachedJP.slice(0, 4));
-        if (cachedJP.length > 0) setFeaturedMasterpiece(cachedJP[0]);
+        const shuffledJP = [...cachedJP].sort(() => 0.5 - Math.random());
+        setCompletedMasterpieces(shuffledJP);
+        setHeroMangas(shuffledJP.slice(0, 4));
+        if (shuffledJP.length > 0) setFeaturedMasterpiece(shuffledJP[0]);
       } else {
-        mangadexService.getFullyTranslatedMasterpieces('JP', latestLang, 4, 0, null, false, showNSFW)
-          .then(jpMD => {
+        const randomOffsetJP = Math.floor(Math.random() * 20) * 10; // offset 0 to 190
+        mangaProvider.getFullyTranslatedMasterpieces('JP', latestLang, 4, randomOffsetJP, null, false, showNSFW)
+          .then((jpMD: any) => {
             const initialMasterpieces = jpMD.data || [];
             if (initialMasterpieces.length > 0) {
               cacheService.set(jpCacheKey, initialMasterpieces, 4); // 4 hours TTL
@@ -92,21 +94,23 @@ export function useHomeData() {
               setFeaturedMasterpiece(initialMasterpieces[0]);
             }
           })
-          .catch(err => console.error('Error fetching JP masterpieces', err));
+          .catch((err: any) => console.error('Error fetching JP masterpieces', err));
       }
 
       // 3. Fetch KR and CN in background to fill the diversity
       setTimeout(async () => {
         try {
-          const krKey = `cache_mp_KR_${latestLang}_${showNSFW}`;
-          const cnKey = `cache_mp_CN_${latestLang}_${showNSFW}`;
+          const krKey = `cache_mp_v2_KR_${currentSource}_${latestLang}_${showNSFW}`;
+          const cnKey = `cache_mp_v2_CN_${currentSource}_${latestLang}_${showNSFW}`;
           let krData = cacheService.get<any[]>(krKey);
           let cnData = cacheService.get<any[]>(cnKey);
 
           if ((!krData || !cnData) || force) {
+            const randomOffsetKR = Math.floor(Math.random() * 10) * 10; // offset 0 to 90
+            const randomOffsetCN = Math.floor(Math.random() * 10) * 10;
             const [krMD, cnMD] = await Promise.all([
-              mangadexService.getFullyTranslatedMasterpieces('KR', latestLang, 4, 0, null, false, showNSFW),
-              mangadexService.getFullyTranslatedMasterpieces('CN', latestLang, 4, 0, null, false, showNSFW)
+              mangaProvider.getFullyTranslatedMasterpieces('KR', latestLang, 4, randomOffsetKR, null, false, showNSFW),
+              mangaProvider.getFullyTranslatedMasterpieces('CN', latestLang, 4, randomOffsetCN, null, false, showNSFW)
             ]);
             krData = krMD.data || [];
             cnData = cnMD.data || [];
@@ -143,13 +147,20 @@ export function useHomeData() {
 
     } catch (error) {
       console.error('Error fetching home data:', error);
+      lastFetchRef.current = null; // Allow retry on failure
       setLoading(false);
     }
-  }, [latestLang, latestType, showNSFW]);
+  }, [currentSource, latestLang, latestType, showNSFW]);
+
+  const changeSource = useCallback((source: MangaSource) => {
+    mangaProvider.setSource(source);
+    setCurrentSource(source);
+    lastFetchRef.current = null; // force refetch
+  }, []);
 
   const loadMoreLatest = useCallback(async (e: any) => {
     try {
-      const latestData = await mangadexService.getLatestUpdatedManga(12, latestOffset, latestLang, latestType, showNSFW);
+      const latestData = await mangaProvider.getLatestUpdatedManga(12, latestOffset, latestLang, latestType, showNSFW);
       const data = latestData.data || [];
       if (data.length < 12) setIsDone(true);
       setLatest(prev => {
@@ -176,7 +187,7 @@ export function useHomeData() {
   useEffect(() => {
     const timer = setInterval(async () => {
       try {
-        const pollData = await mangadexService.getLatestChapters(5, 0, latestLang);
+        const pollData = await mangaProvider.getLatestChapters(5, 0, latestLang);
         const newOnes = pollData.data || [];
         
         if (newOnes.length > 0 && lastFetchTime.current) {
@@ -247,6 +258,8 @@ export function useHomeData() {
     currentUser,
     showLoginHint,
     setShowLoginHint,
+    currentSource,
+    changeSource,
     latestLang,
     setLatestLang,
     latestType,

@@ -26,7 +26,7 @@ import {
 } from '@ionic/react';
 import { personCircleOutline, notifications, refreshOutline, chevronDownOutline, libraryOutline, sparklesOutline, checkmarkCircle, chevronBackOutline, chevronForwardOutline, logInOutline, closeOutline, cloudUploadOutline, chatbubblesOutline, trophyOutline, logoGoogle, personOutline } from 'ionicons/icons';
 import MangaCard from '../components/MangaCard';
-import { mangadexService } from '../services/mangadexService';
+import { mangaProvider, MangaSource } from '../services/mangaProvider';
 import { firebaseAuthService } from '../services/firebaseAuthService';
 import LoadingScreen from '../components/LoadingScreen';
 import EmptyState from '../components/EmptyState';
@@ -51,6 +51,8 @@ const HomePage: React.FC = () => {
     currentUser,
     showLoginHint,
     setShowLoginHint,
+    currentSource,
+    changeSource,
     latestLang, setLatestLang,
     latestType, setLatestType,
     completedMasterpieces,
@@ -275,16 +277,16 @@ const HomePage: React.FC = () => {
               <div 
                 className="hero-img-layer"
                 style={{ 
-                  backgroundImage: `url(${mangadexService.getCoverUrl(currentHero, '512')})`,
+                  backgroundImage: `url(${mangaProvider.getCoverUrl(currentHero, '512')})`,
                   backgroundPosition: 'center top'
                 }}
               />
               <div className="hero-gradient-overlay" />
               <div className="hero-info">
                 <span className="hero-badge">🔥 DESTACADO</span>
-                <h1>{mangadexService.getLocalizedTitle(currentHero)}</h1>
+                <h1>{mangaProvider.getLocalizedTitle(currentHero) as React.ReactNode}</h1>
                 <p>
-                  {mangadexService.getLocalizedDescription(currentHero).substring(0, 150)}...
+                  {(mangaProvider.getLocalizedDescription(currentHero) as string).substring(0, 150)}...
                 </p>
                 <IonButton shape="round" color="primary" size="small">
                   Leer Ahora
@@ -350,12 +352,12 @@ const HomePage: React.FC = () => {
                       onClick={() => router.push(`/manga/${manga.id}`)}
                     >
                       <img 
-                        src={mangadexService.getCoverUrl(manga)} 
+                        src={mangaProvider.getCoverUrl(manga)} 
                         className="carousel-cover" 
-                        alt={mangadexService.getLocalizedTitle(manga) as string} 
+                        alt={mangaProvider.getLocalizedTitle(manga) as string} 
                         loading="lazy"
                       />
-                      <div className="carousel-title">{mangadexService.getLocalizedTitle(manga)}</div>
+                      <div className="carousel-title">{mangaProvider.getLocalizedTitle(manga) as React.ReactNode}</div>
                     </div>
                   ))
                 )}
@@ -382,6 +384,23 @@ const HomePage: React.FC = () => {
               <h2>{getTranslation('home.latest', latestLang as Language)}</h2>
             </div>
             
+            {/* Source Switcher (MangaDex / Comick) */}
+            <div className="home-lang-filters source-filters" style={{ marginBottom: '10px' }}>
+              {[
+                { id: 'mangadex', label: '📖 Servidor Principal' },
+                { id: 'comick', label: '🚀 Servidor Respaldo (Completo)' }
+              ].map(src => (
+                <IonChip 
+                  key={src.id}
+                  outline={currentSource !== src.id}
+                  color={currentSource === src.id ? "warning" : "medium"}
+                  onClick={() => changeSource(src.id as MangaSource)}
+                >
+                  <IonLabel>{src.label}</IonLabel>
+                </IonChip>
+              ))}
+            </div>
+
             {/* Language Filters */}
           <div className="home-lang-filters">
             {[
@@ -443,7 +462,7 @@ const HomePage: React.FC = () => {
                       <div className="promo-badge">RECOMENDADO</div>
                       <div className="promo-content">
                         <img 
-                          src={mangadexService.getCoverUrl(featuredMasterpiece, '512')} 
+                          src={mangaProvider.getCoverUrl(featuredMasterpiece, '512')} 
                           alt="promo" 
                           className="promo-image" 
                           fetchPriority="high"
@@ -453,7 +472,7 @@ const HomePage: React.FC = () => {
                           <span className="promo-label">
                             {featuredMasterpiece.attributes?.mangaType || 'Obra Maestra'} Finalizada
                           </span>
-                          <h3 className="promo-title">{mangadexService.getLocalizedTitle(featuredMasterpiece)}</h3>
+                          <h3 className="promo-title">{mangaProvider.getLocalizedTitle(featuredMasterpiece) as React.ReactNode}</h3>
                           <p className="promo-desc">
                             Esta obra está 100% completada y traducida. ¡Ideal para maratonear!
                           </p>
@@ -472,8 +491,8 @@ const HomePage: React.FC = () => {
                   {filteredLatest.length > 0 ? (
                     <div className="manga-list-container">
                       {filteredLatest.map((manga: any) => {
-                        const mangaTitle = mangadexService.getLocalizedTitle(manga);
-                        const coverUrl = mangadexService.getCoverUrl(manga);
+                        const mangaTitle = mangaProvider.getLocalizedTitle(manga);
+                        const coverUrl = mangaProvider.getCoverUrl(manga);
                         const formatLabel = manga?.attributes?.mangaType || 'Manga';
                         
                         const lastChapter = manga?.attributes?.latestChapterNumber || manga?.attributes?.lastChapter;
@@ -492,7 +511,7 @@ const HomePage: React.FC = () => {
                           >
                             <div className="list-item-cover-wrapper">
                               <img 
-                                src={mangadexService.getCoverUrl(manga, '256')} 
+                                src={mangaProvider.getCoverUrl(manga, '256')} 
                                 alt={mangaTitle as string} 
                                 className="list-item-cover" 
                                 loading="lazy"
@@ -504,9 +523,9 @@ const HomePage: React.FC = () => {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setPreviewData({
-                                    url: mangadexService.getCoverUrl(manga, 'original'),
-                                    title: mangadexService.getLocalizedTitle(manga),
-                                    desc: mangadexService.getLocalizedDescription(manga) || 'Sin descripción disponible.',
+                                    url: mangaProvider.getCoverUrl(manga, 'original'),
+                                    title: mangaProvider.getLocalizedTitle(manga) as string,
+                                    desc: (mangaProvider.getLocalizedDescription(manga) as string) || 'Sin descripción disponible.',
                                     id: manga.id,
                                     tags: tags || [],
                                     author: manga.relationships?.find((r: any) => r.type === 'author')?.attributes?.name || 'Autor desconocido',

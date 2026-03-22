@@ -18,7 +18,7 @@ import {
 import { IonReactRouter } from '@ionic/react-router';
 import { useLocation } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
-import { home, search, library, chatbubbles } from 'ionicons/icons';
+import { home, search, library, chatbubbles, tvOutline } from 'ionicons/icons';
 import { getTranslation, Language, getDefaultLanguage } from './utils/translations';
 import LocalizationBanner from './components/LocalizationBanner';
 import HomePage from './pages/HomePage';
@@ -30,6 +30,7 @@ import ProfilePage from './pages/ProfilePage';
 import ChatPage from './pages/ChatPage';
 import PrivateChatPage from './pages/PrivateChatPage';
 import SocialPage from './pages/SocialPage';
+import AnimeExplorer from './pages/AnimeExplorer';
 import { useState, useEffect, useRef } from 'react';
 import { useLibraryStore } from './store/useLibraryStore';
 import { checkUpdatesForLibrary, MangaUpdate } from './services/updateService';
@@ -266,6 +267,7 @@ const AppContent: React.FC = () => {
           </Route>
           <Route exact path="/chat/:friendId" component={PrivateChatPage} />
           <Route exact path="/social" component={SocialPage} />
+          <Route exact path="/anime" component={AnimeExplorer} />
           <Route exact path="/">
             <Redirect to="/home" />
           </Route>
@@ -281,6 +283,10 @@ const AppContent: React.FC = () => {
           <IonTabButton tab="search" href="/search" onClick={() => hapticsService.lightImpact()}>
             <IonIcon aria-hidden="true" icon={search} />
             <IonLabel>{getTranslation('tabs.explore', currentLang)}</IonLabel>
+          </IonTabButton>
+          <IonTabButton tab="anime" href="/anime" onClick={() => hapticsService.lightImpact()}>
+            <IonIcon aria-hidden="true" icon={tvOutline} />
+            <IonLabel>Anime</IonLabel>
           </IonTabButton>
           <IonTabButton tab="chat" href="/social" onClick={() => hapticsService.lightImpact()}>
             <IonIcon aria-hidden="true" icon={chatbubbles} />

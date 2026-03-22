@@ -24,10 +24,10 @@ import {
   useIonRouter,
   useIonViewWillEnter
 } from '@ionic/react';
-import { trendingUpOutline, sparklesOutline, searchOutline, heartOutline, filterOutline } from 'ionicons/icons';
+import { searchOutline, filterOutline, checkmarkCircleOutline, closeOutline, trendingUpOutline, sparklesOutline, timeOutline, medalOutline, starOutline, personOutline, imagesOutline, heartOutline } from 'ionicons/icons';
+import { mangaProvider } from '../services/mangaProvider';
 import MangaCard from '../components/MangaCard';
 import LoadingScreen from '../components/LoadingScreen';
-import { mangadexService } from '../services/mangadexService';
 import { 
   useSearch, 
   FORMATS, 
@@ -222,7 +222,7 @@ const SearchPage: React.FC = () => {
                       <IonCol size="6" sizeSm="4" sizeMd="3" sizeLg="2" key={manga.id}>
                         <MangaCard 
                           title={manga.attributes.title.en || Object.values(manga.attributes.title)[0]}
-                          coverUrl={mangadexService.getCoverUrl(manga)}
+                          coverUrl={mangaProvider.getCoverUrl(manga)}
                           format={manga.attributes.originalLanguage}
                           tags={manga.attributes.tags
                             ?.filter((t: any) => t.attributes?.group === 'genre')
@@ -273,7 +273,7 @@ const SearchPage: React.FC = () => {
                     <IonCol size="6" sizeSm="4" sizeMd="3" sizeLg="2" key={m.id}>
                       <MangaCard 
                         title={m.attributes.title.en || Object.values(m.attributes.title)[0]}
-                        coverUrl={mangadexService.getCoverUrl(m)}
+                        coverUrl={mangaProvider.getCoverUrl(m)}
                         format={m.attributes.originalLanguage}
                         tags={m.attributes.tags
                           ?.filter((t: any) => t.attributes?.group === 'genre')
@@ -307,7 +307,7 @@ const SearchPage: React.FC = () => {
                     <IonCol size="6" sizeSm="4" sizeMd="3" sizeLg="2" key={m.id}>
                       <MangaCard 
                         title={m.attributes.title.en || Object.values(m.attributes.title)[0]}
-                        coverUrl={mangadexService.getCoverUrl(m)}
+                        coverUrl={mangaProvider.getCoverUrl(m)}
                         format={m.attributes.originalLanguage}
                         tags={m.attributes.tags
                           ?.filter((t: any) => t.attributes?.group === 'genre')
@@ -429,8 +429,8 @@ const SearchPage: React.FC = () => {
                     {completedManga.map((manga: any) => (
                       <IonCol size="6" sizeSm="4" sizeMd="3" sizeLg="2" key={manga.id}>
                         <MangaCard 
-                          title={mangadexService.getLocalizedTitle(manga)}
-                          coverUrl={mangadexService.getCoverUrl(manga)}
+                          title={mangaProvider.getLocalizedTitle(manga)}
+                          coverUrl={mangaProvider.getCoverUrl(manga)}
                           format={manga.attributes.mangaType || manga.attributes.originalLanguage}
                           onClick={() => router.push(`/manga/${manga.id}`)}
                         />

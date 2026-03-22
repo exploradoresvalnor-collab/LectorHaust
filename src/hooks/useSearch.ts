@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { mangadexService } from '../services/mangadexService';
+import { mangaProvider } from '../services/mangaProvider';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { getDefaultLanguage } from '../utils/translations';
 
@@ -106,7 +106,6 @@ export function useSearch() {
   const [completedGenre, setCompletedGenre] = useState<string>('');
   const [completedLang, setCompletedLang] = useState<string>(getDefaultLanguage());
   const [completedDemographic, setCompletedDemographic] = useState<string | null>(null);
-  const [completedStatus, setCompletedStatus] = useState<string>('completed');
   const [isCompletedDone, setIsCompletedDone] = useState(false);
   
   // Modern Filters
@@ -124,19 +123,20 @@ export function useSearch() {
   const loadDiscoveryData = useCallback(async () => {
     setLoading(true);
     try {
-      const trendingData = await mangadexService.getPopularManga(null, 'es', 24, 0, null, false, showNSFW);
-      setTrending(trendingData.data || []);
-
-      if (favorites.length > 0) {
-        const suggestedData = await mangadexService.getRecommendations([], 10);
-        setSuggestions(suggestedData);
-      }
+      // Trending
+      const trendingData = await mangaProvider.getPopularManga(null, 'es', 24, 0, null, false, showNSFW);
+      setTrending(trendingData.data);
+      
+      // Random Suggestions (mocked via latest for now if getRecommendations isn't mapped, but let's try getLatest)
+      // Since mangaProvider doesn't have getRecommendations, we'll just fetch latest random
+      const suggestedData = await mangaProvider.getLatestUpdatedManga(10, 0, 'es', 'all', showNSFW);
+      setSuggestions(suggestedData.data);
     } catch (err) {
       console.error('Discovery load error:', err);
     } finally {
       setLoading(false);
     }
-  }, [favorites, showNSFW]);
+  }, [showNSFW]);
 
   const fetchCompleted = useCallback(async (
     isLoadMore = false, 
@@ -153,7 +153,7 @@ export function useSearch() {
     
     try {
         const offsetToUse = isLoadMore ? completedOffset : 0;
-        const resp = await mangadexService.getFullyTranslatedMasterpieces(null, lang, 10, offsetToUse, genre || null, color, showNSFW);
+        const resp = await mangaProvider.getFullyTranslatedMasterpieces(null, lang, 10, offsetToUse, genre || null, color, showNSFW);
         
         let newData = resp.data || [];
         
@@ -164,7 +164,7 @@ export function useSearch() {
         if (!newData.length) {
             setIsCompletedDone(true);
         } else {
-            setCompletedOffset(resp.rawOffsetNext !== undefined ? resp.rawOffsetNext : offsetToUse + 10); 
+            setCompletedOffset(offsetToUse + 10); 
         }
 
         if (isLoadMore) {
@@ -226,19 +226,28 @@ export function useSearch() {
       if (status) filters.status = status;
       if (demographic) filters.demographic = demographic;
       
-      const orderParam: any = {};
-      orderParam[order || activeOrder] = 'desc';
+      const orderParam: any = {
+        [order || activeOrder]: 'desc'
+      };
 
-      const data = await mangadexService.searchManga(searchVal, filters, 20, currentOffset, orderParam, showNSFW);
+      const resp = await mangaProvider.searchManga(
+        searchVal, 
+        filters, 
+        20, 
+        currentOffset, 
+        orderParam, 
+        showNSFW
+      );
       
+      const data = resp.data || []; 
       if (isMore) {
-        setResults(prev => [...prev, ...(data.data || [])]);
+        setResults(prev => [...prev, ...(data || [])]);
       } else {
-        setResults(data.data || []);
+        setResults(data || []);
       }
 
       setOffset(currentOffset);
-      if (data.data.length < 20) setIsDone(true);
+      if (data.length < 20) setIsDone(true);
     } catch (error) {
       console.error('Search error:', error);
     } finally {

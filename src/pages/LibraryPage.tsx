@@ -18,12 +18,13 @@ import {
   IonInfiniteScroll,
   IonInfiniteScrollContent,
   IonChip,
+  IonBadge,
   useIonViewWillEnter,
   useIonRouter
 } from '@ionic/react';
 import { playOutline, gridOutline, listOutline, bookOutline, refreshCircleOutline, cloudDownloadOutline, trashOutline } from 'ionicons/icons';
 import MangaCard from '../components/MangaCard';
-import { mangadexService } from '../services/mangadexService';
+import { mangaProvider } from '../services/mangaProvider';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { hapticsService } from '../services/hapticsService';
 import EmptyState from '../components/EmptyState';
@@ -255,7 +256,7 @@ const LibraryPage: React.FC = () => {
                             <IonCol size="6" sizeSm="4" sizeMd="3" sizeLg="2" key={manga.id}>
                               <MangaCard 
                                 title={manga.attributes.title.en || Object.values(manga.attributes.title)[0]}
-                                coverUrl={mangadexService.getCoverUrl(manga)}
+                                coverUrl={mangaProvider.getCoverUrl(manga)}
                                 progressLabel={history[manga.id] ? `Cap. ${history[manga.id].chapterNumber}` : undefined}
                                 onClick={() => router.push(`/manga/${manga.id}`)}
                               />
@@ -265,15 +266,21 @@ const LibraryPage: React.FC = () => {
                       </IonGrid>
                     ) : (
                       <div className="library-list-container">
-                        {filteredFollowed.map((manga: any) => (
+                        {filteredFollowed.map((manga: any) => {
+                           const prog = history[manga.id];
+                           return (
                            <div key={manga.id} className="library-list-item" onClick={() => router.push(`/manga/${manga.id}`)}>
-                             <img src={mangadexService.getCoverUrl(manga)} alt="cover" className="list-item-cover" />
+                             <img src={mangaProvider.getCoverUrl(manga)} alt="cover" className="list-item-cover" />
                              <div className="list-item-info">
-                               <h3 className="list-item-title">{mangadexService.getLocalizedTitle(manga)}</h3>
-                               <p className="list-item-format">MangaDex Sync</p>
+                               <h3 className="list-item-title">{mangaProvider.getLocalizedTitle(manga) as React.ReactNode}</h3>
+                               {prog && (
+                                 <IonBadge color="success" mode="ios" style={{ fontSize: '10px' }}>
+                                   LEYENDO CAP. {prog.chapterNumber}
+                                 </IonBadge>
+                               )}
                              </div>
                            </div>
-                        ))}
+                        )})}
                       </div>
                     )}
                   </div>

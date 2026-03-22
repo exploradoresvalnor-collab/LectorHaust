@@ -317,7 +317,7 @@ export const mangadexService = {
     async getFullyTranslatedMasterpieces(origin: string | null = null, lang = 'es', limit = 10, offset = 0, genre: string | null = null, fullColor = false, allowNSFW = false) {
         // 1. Try Cache First (Fast Path)
         // Updated cache version (v2) to force fresh validation with new rules
-        const cacheKey = `masterpieces_v2_${origin || 'ALL'}_${lang}_${genre || 'NONE'}_${fullColor}_${allowNSFW}`;
+        const cacheKey = `masterpieces_v2_${origin || 'ALL'}_${lang}_${genre || 'NONE'}_${fullColor}_${allowNSFW}_${offset}`;
         const cached = localStorage.getItem(cacheKey);
         if (cached) {
             try {
