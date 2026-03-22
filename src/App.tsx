@@ -30,7 +30,6 @@ import ProfilePage from './pages/ProfilePage';
 import ChatPage from './pages/ChatPage';
 import PrivateChatPage from './pages/PrivateChatPage';
 import SocialPage from './pages/SocialPage';
-import AnimeExplorer from './pages/AnimeExplorer';
 import { useState, useEffect, useRef } from 'react';
 import { useLibraryStore } from './store/useLibraryStore';
 import { checkUpdatesForLibrary, MangaUpdate } from './services/updateService';
@@ -267,7 +266,6 @@ const AppContent: React.FC = () => {
           </Route>
           <Route exact path="/chat/:friendId" component={PrivateChatPage} />
           <Route exact path="/social" component={SocialPage} />
-          <Route exact path="/anime" component={AnimeExplorer} />
           <Route exact path="/">
             <Redirect to="/home" />
           </Route>
