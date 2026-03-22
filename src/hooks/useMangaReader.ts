@@ -23,6 +23,7 @@ export function useMangaReader(chapterId?: string) {
   const [currentMangaPage, setCurrentMangaPage] = useState(0);
   const [showUi, setShowUi] = useState(true);
   const [showEndSection, setShowEndSection] = useState(false);
+  const [fitMode, setFitMode] = useState<'fitWidth' | 'fitScreen'>('fitScreen');
   
   const saveProgress = useLibraryStore(state => state.saveProgress);
   const markAsRead = useLibraryStore(state => state.markAsRead);
@@ -57,6 +58,7 @@ export function useMangaReader(chapterId?: string) {
           if (entry.isIntersecting) {
             const pageIdx = parseInt(entry.target.getAttribute('data-index') || '0');
             currentPageIndex.current = pageIdx;
+            setCurrentMangaPage(pageIdx);
           }
         });
       },
@@ -181,6 +183,14 @@ export function useMangaReader(chapterId?: string) {
 
     return () => { isMounted = false; };
   }, [chapterId, dataSaverMode, markAsRead]);
+  
+  // Auto-ocultar UI para inmersión inicial
+  useEffect(() => {
+    if (!loading && !error && pages.length > 0) {
+      const timer = setTimeout(() => setShowUi(false), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, error, pages.length]);
 
   // Lógica Táctil para el modo paginado
   const handleMangaTap = (e: React.MouseEvent) => {
@@ -224,6 +234,8 @@ export function useMangaReader(chapterId?: string) {
     showEndSection,
     setShowEndSection,
     handleMangaTap,
-    isOffline
+    isOffline,
+    fitMode,
+    setFitMode
   };
 }

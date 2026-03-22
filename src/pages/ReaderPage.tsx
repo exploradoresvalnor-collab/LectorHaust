@@ -11,7 +11,14 @@ import {
   IonIcon,
   useIonRouter
 } from '@ionic/react';
-import { chevronBackOutline, chevronForwardOutline } from 'ionicons/icons';
+import { 
+  chevronBackOutline, 
+  chevronForwardOutline,
+  expandOutline,
+  contractOutline,
+  imageOutline
+} from 'ionicons/icons';
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { useParams } from 'react-router-dom';
 import { mangaProvider } from '../services/mangaProvider';
 import CommentSection from '../components/CommentSection';
@@ -40,7 +47,9 @@ const ReaderPage: React.FC = () => {
     setShowUi,
     showEndSection,
     handleMangaTap,
-    isOffline
+    isOffline,
+    fitMode,
+    setFitMode
   } = useMangaReader(chapterId);
 
   // Keyboard navigation for Desktop
@@ -113,6 +122,9 @@ const ReaderPage: React.FC = () => {
               </span>
             </div>
             <IonButtons slot="end">
+              <IonButton fill="clear" onClick={() => setFitMode(fitMode === 'fitWidth' ? 'fitScreen' : 'fitWidth')} className="fit-toggle-btn">
+                <IonIcon slot="icon-only" icon={fitMode === 'fitWidth' ? contractOutline : expandOutline} />
+              </IonButton>
               <IonButton fill="clear" onClick={() => setIsWebtoon(!isWebtoon)} className="mode-toggle-btn">
                 {isWebtoon ? '⬇️ Scroll' : '⬅️ Pag'}
               </IonButton>
@@ -160,18 +172,32 @@ const ReaderPage: React.FC = () => {
 
             {/* --- MODO MANGA (PAGINADO JAPONÉS RTL) --- */}
             {!isWebtoon && (
-              <div className="manga-pager-container" onClick={handlePageTap}>
+              <div className={`manga-pager-container ${fitMode === 'fitWidth' ? 'fit-width' : ''}`} onClick={handlePageTap}>
                 {!showEndSection ? (
-                  <>
-                    <img 
-                      key={currentMangaPage} // Fuerza re-render al cambiar página
-                      src={pages[currentMangaPage].includes('mangadex') ? mangaProvider.getProxiedUrl(pages[currentMangaPage]) : pages[currentMangaPage]} 
-                      className="manga-page-single loaded fade-in" 
-                      alt={`Página ${currentMangaPage + 1}`}
-                      decoding="async"
-                    />
+                  <div className={`manga-zoom-wrapper ${fitMode}`}>
+                    <TransformWrapper
+                      initialScale={1}
+                      minScale={1}
+                      maxScale={4}
+                      centerOnInit={true}
+                      wheel={{ disabled: true }}
+                      doubleClick={{ step: 0.5 }}
+                    >
+                      <TransformComponent
+                        wrapperStyle={{ width: '100%', height: '100%' }}
+                        contentStyle={{ width: '100%', height: '100%' }}
+                      >
+                        <img 
+                          key={currentMangaPage} 
+                          src={pages[currentMangaPage].includes('mangadex') ? mangaProvider.getProxiedUrl(pages[currentMangaPage]) : pages[currentMangaPage]} 
+                          className={`manga-page-single loaded fade-in ${fitMode}`} 
+                          alt={`Página ${currentMangaPage + 1}`}
+                          decoding="async"
+                        />
+                      </TransformComponent>
+                    </TransformWrapper>
                     
-                    {/* Precargador de alta prioridad a nivel de red */}
+                    {/* Precargador remains outside TransformWrapper for efficiency */}
                     {currentMangaPage + 1 < pages.length && (
                       <link 
                         rel="preload" 
@@ -179,7 +205,7 @@ const ReaderPage: React.FC = () => {
                         href={pages[currentMangaPage + 1].includes('mangadex') ? mangaProvider.getProxiedUrl(pages[currentMangaPage + 1]) : pages[currentMangaPage + 1]} 
                       />
                     )}
-                  </>
+                  </div>
                 ) : (
                   // Cuando se acaba el manga, mostramos los comentarios y botones
                   <div className="end-section-wrapper" onClick={(e) => e.stopPropagation()}>
@@ -192,6 +218,23 @@ const ReaderPage: React.FC = () => {
           </div>
         )}
       </IonContent>
+
+      {/* Footer que aparece/desaparece */}
+      {!loading && !error && pages.length > 0 && (
+        <div className={`reader-footer-overlay ${showUi ? 'visible' : 'hidden'}`}>
+          <div className="reader-progress-container">
+            <div className="reader-progress-bar">
+              <div 
+                className="progress-fill" 
+                style={{ width: `${((currentMangaPage + 1) / pages.length) * 100}%` }}
+              ></div>
+            </div>
+            <div className="reader-footer-info">
+              <span>{currentMangaPage + 1} / {pages.length}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </IonPage>
   );
 };
