@@ -1,0 +1,375 @@
+/* ==================== VARIABLES GLOBALES ==================== */
+.anime-explorer {
+  --primary-gradient: linear-gradient(135deg, #8c52ff 0%, #5a3d9a 100%);
+  --card-bg: rgba(255, 255, 255, 0.03);
+  --card-border: rgba(140, 82, 255, 0.2);
+  --hover-bg: rgba(140, 82, 255, 0.1);
+  --text-primary: #ffffff;
+  --text-secondary: #b0b0b0;
+  --padding: 1.5rem;
+  padding: var(--padding);
+  background: radial-gradient(circle at top right, rgba(140, 82, 255, 0.05), transparent);
+}
+
+/* ==================== SECCIONES ==================== */
+.search-section,
+.trending-section,
+.recent-section,
+.commands-section {
+  margin-bottom: 3rem;
+  animation: fadeIn 0.4s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.search-section h2,
+.trending-section h2,
+.recent-section h2,
+.commands-section h2 {
+  font-size: 1.8rem;
+  margin: 0 0 1.5rem 0;
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.results-section,
+.trending-section {
+  margin-bottom: 3rem;
+}
+
+.results-section h3,
+.trending-section h3,
+.recent-section h3 {
+  margin-bottom: 1.5rem;
+  font-size: 1.3rem;
+  color: var(--text-primary);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ==================== GRID DE TARJETAS ==================== */
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+
+.anime-card {
+  margin: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.anime-card:hover {
+  background: var(--hover-bg);
+  border-color: var(--ion-color-primary);
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 12px 48px rgba(140, 82, 255, 0.3);
+  border: 2px solid var(--ion-color-primary);
+}
+
+.anime-card:hover .genre-overlay {
+  height: 50px;
+}
+
+.anime-card h4 {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ==================== SECCIÓN DE INFORMACIÓN ==================== */
+.info-section {
+  background: linear-gradient(135deg, rgba(140, 82, 255, 0.08) 0%, rgba(90, 61, 154, 0.05) 100%);
+  border: 1px solid var(--card-border);
+  padding: 2rem;
+  border-radius: 16px;
+  margin-bottom: 3rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  animation: slideIn 0.5s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.info-section h2 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.info-section h3 {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  color: var(--text-primary);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.info-section h4 {
+  margin-top: 1.5rem;
+  color: var(--ion-color-secondary);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.anime-details-container {
+  animation: fadeIn 0.4s ease-in;
+}
+
+/* ==================== LOG SECTION ==================== */
+.log-section {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(0, 255, 0, 0.1);
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  backdrop-filter: blur(10px);
+}
+
+.log-section h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #00ff88;
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.log-box {
+  background: rgba(0, 20, 10, 0.6);
+  border: 1px solid rgba(0, 255, 100, 0.2);
+  border-radius: 8px;
+  padding: 1.2rem;
+  max-height: 250px;
+  overflow-y: auto;
+  font-size: 0.8rem;
+  font-family: 'Courier New', monospace;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.log-box div {
+  color: #00ff88;
+  text-shadow: 0 0 5px rgba(0, 255, 100, 0.3);
+  word-break: break-all;
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+
+/* ==================== EPISODE BUTTONS ==================== */
+.episode-button {
+  background: linear-gradient(135deg, rgba(140, 82, 255, 0.15) 0%, rgba(90, 61, 154, 0.1) 100%) !important;
+  border: 1px solid var(--card-border) !important;
+  transition: all 0.2s ease;
+}
+
+.episode-button:hover {
+  background: var(--hover-bg) !important;
+  border-color: var(--ion-color-primary) !important;
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(140, 82, 255, 0.3);
+}
+
+/* ==================== ANIMACIONES PERSONALIZADAS ==================== */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(140, 82, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(140, 82, 255, 0.6);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.anime-card {
+  animation: slideIn 0.5s ease-out;
+  animation-fill-mode: both;
+}
+
+.anime-card:nth-child(1) { animation-delay: 0.05s; }
+.anime-card:nth-child(2) { animation-delay: 0.1s; }
+.anime-card:nth-child(3) { animation-delay: 0.15s; }
+.anime-card:nth-child(4) { animation-delay: 0.2s; }
+.anime-card:nth-child(5) { animation-delay: 0.25s; }
+
+/* ==================== RESPONSIVE DESIGN ==================== */
+@media (max-width: 1024px) {
+  .anime-explorer {
+    --padding: 1rem;
+  }
+
+  .results-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 1rem;
+  }
+
+  .info-section {
+    padding: 1.5rem;
+  }
+
+  .info-section h2 {
+    font-size: 1.6rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .anime-explorer {
+    --padding: 0.8rem;
+  }
+
+  .results-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.8rem;
+  }
+
+  .anime-details-container {
+    flex-direction: column !important;
+  }
+
+  .info-section {
+    flex-direction: column;
+    padding: 1.2rem;
+    border-radius: 12px;
+  }
+
+  .info-section img {
+    width: 100% !important;
+    height: auto !important;
+    margin-bottom: 1rem;
+  }
+
+  .search-section h2,
+  .trending-section h2,
+  .recent-section h2,
+  .commands-section h2 {
+    font-size: 1.4rem;
+  }
+
+  .results-section h3,
+  .trending-section h3,
+  .recent-section h3 {
+    font-size: 1.1rem;
+  }
+
+  .log-box {
+    max-height: 200px;
+    font-size: 0.7rem;
+    padding: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .anime-explorer {
+    --padding: 0.5rem;
+  }
+
+  .results-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 0.5rem;
+  }
+
+  .anime-card h4 {
+    font-size: 0.8rem;
+  }
+
+  .info-section {
+    padding: 1rem;
+  }
+
+  .info-section h2 {
+    font-size: 1.3rem;
+  }
+
+  .info-section h3 {
+    font-size: 1rem;
+  }
+
+  /* Ocultar API log en móvil por espacio */
+  .log-section {
+    display: none;
+  }
+}
+
+/* ==================== SCROLL BARS ==================== */
+.log-box::-webkit-scrollbar {
+  width: 6px;
+}
+
+.log-box::-webkit-scrollbar-track {
+  background: rgba(0, 255, 100, 0.05);
+  border-radius: 10px;
+}
+
+.log-box::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 100, 0.3);
+  border-radius: 10px;
+}
+
+.log-box::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 100, 0.6);
+}
