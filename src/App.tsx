@@ -284,10 +284,6 @@ const AppContent: React.FC = () => {
             <IonIcon aria-hidden="true" icon={search} />
             <IonLabel>{getTranslation('tabs.explore', currentLang)}</IonLabel>
           </IonTabButton>
-          <IonTabButton tab="anime" href="/anime" onClick={() => hapticsService.lightImpact()}>
-            <IonIcon aria-hidden="true" icon={tvOutline} />
-            <IonLabel>Anime</IonLabel>
-          </IonTabButton>
           <IonTabButton tab="chat" href="/social" onClick={() => hapticsService.lightImpact()}>
             <IonIcon aria-hidden="true" icon={chatbubbles} />
             {(pendingRequests > 0 || totalUnread > 0 || hasUnreadChat) && (
