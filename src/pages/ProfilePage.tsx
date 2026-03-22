@@ -23,7 +23,8 @@ import {
   IonToggle,
   IonSkeletonText,
   useIonToast,
-  IonAlert
+  IonAlert,
+  IonActionSheet
 } from '@ionic/react';
 import { 
   personCircleOutline,
@@ -74,6 +75,8 @@ const ProfilePage: React.FC = () => {
   const [isStatsLoading, setIsStatsLoading] = useState(true);
   const [profileBackground, setProfileBackground] = useState<string>('');
   const [showBackgroundSearchAlert, setShowBackgroundSearchAlert] = useState(false);
+  const [showArtActionSheet, setShowArtActionSheet] = useState(false);
+  const [pendingArtUrl, setPendingArtUrl] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const history = useHistory();
 
@@ -185,16 +188,48 @@ const ProfilePage: React.FC = () => {
     }
   };
 
+  const handleApplyArtChoice = async (choice: 'banner' | 'avatar' | 'both') => {
+    if (!user || !pendingArtUrl) return;
+    
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      const updates: any = {};
+      
+      if (choice === 'banner' || choice === 'both') {
+        setProfileBackground(pendingArtUrl);
+        updates.profileBackground = pendingArtUrl;
+      }
+      
+      if (choice === 'avatar' || choice === 'both') {
+        // 1. Update Firebase Auth
+        await updateProfile(user, { photoURL: pendingArtUrl });
+        // 2. Prepare Firestore Update
+        updates.avatar = pendingArtUrl;
+        updates.avatarUrl = pendingArtUrl;
+        // 3. Update local state
+        setUser({ ...user, photoURL: pendingArtUrl } as User);
+      }
+      
+      await updateDoc(userRef, updates);
+      presentToast({ 
+        message: choice === 'both' ? '¡Banner y Avatar actualizados! ✨' : (choice === 'banner' ? '¡Banner actualizado! 🎨' : '¡Avatar actualizado! 👤'), 
+        duration: 2000, 
+        color: 'success' 
+      });
+    } catch (error) {
+      console.error("Error applying art choice:", error);
+      presentToast({ message: 'Error al aplicar cambios', duration: 2000, color: 'danger' });
+    }
+  };
+
   const handleRandomizeBackground = async () => {
     if (!user) return;
     
     try {
       const bg = await artService.getOneRandomBackground();
       if (bg) {
-        setProfileBackground(bg);
-        const userRef = doc(db, 'users', user.uid);
-        await updateDoc(userRef, { profileBackground: bg });
-        presentToast({ message: '¡Nuevo fondo de arte aplicado! 🎨', duration: 2000, color: 'success' });
+        setPendingArtUrl(bg);
+        setShowArtActionSheet(true);
       }
     } catch (err) {
       console.error("Failed to randomize background:", err);
@@ -206,14 +241,11 @@ const ProfilePage: React.FC = () => {
     if (!user || !tagName) return;
     setIsStatsLoading(true);
     try {
-      // Safebooru likes tags separated by + or spaces
       const formattedTag = tagName.trim().replace(/\s+/g, '_');
       const bg = await artService.getOneRandomBackground(`${formattedTag}+rating:safe`);
       if (bg) {
-        setProfileBackground(bg);
-        const userRef = doc(db, 'users', user.uid);
-        await updateDoc(userRef, { profileBackground: bg });
-        presentToast({ message: `Fondo de "${tagName}" aplicado 🎨`, duration: 2500, color: 'success' });
+        setPendingArtUrl(bg);
+        setShowArtActionSheet(true);
       } else {
         presentToast({ message: `No se encontró arte para "${tagName}"`, duration: 3000, color: 'warning' });
       }
@@ -617,13 +649,13 @@ const ProfilePage: React.FC = () => {
         <IonAlert
           isOpen={showBackgroundSearchAlert}
           onDidDismiss={() => setShowBackgroundSearchAlert(false)}
-          header="Fondo de Perfil"
-          message="Elige un arte aleatorio o busca tu personaje/serie favorita (ej: Luffy, One Piece, Cyberpunk)"
+          header="Buscar Arte en Safebooru"
+          message="Busca tu personaje o serie favorita para decorar tu perfil (ej: Luffy, One Piece, Cyberpunk)"
           inputs={[
             {
               name: 'Tag',
               type: 'text',
-              placeholder: 'Etiqueta de búsqueda...'
+              placeholder: 'Etiqueta...'
             }
           ]}
           buttons={[
@@ -642,6 +674,33 @@ const ProfilePage: React.FC = () => {
               }
             },
             { text: 'Cancelar', role: 'cancel' }
+          ]}
+        />
+        <IonActionSheet
+          isOpen={showArtActionSheet}
+          onDidDismiss={() => setShowArtActionSheet(false)}
+          header="¿Dónde quieres aplicar este arte?"
+          buttons={[
+            {
+              text: 'Aplicar como BANNER',
+              icon: colorPaletteOutline,
+              handler: () => handleApplyArtChoice('banner')
+            },
+            {
+              text: 'Aplicar como AVATAR',
+              icon: personCircleOutline,
+              handler: () => handleApplyArtChoice('avatar')
+            },
+            {
+              text: 'Aplicar en AMBOS',
+              icon: diamondOutline,
+              handler: () => handleApplyArtChoice('both')
+            },
+            {
+              text: 'Cancelar',
+              role: 'cancel',
+              icon: alertCircleOutline
+            }
           ]}
         />
         <IonAlert
