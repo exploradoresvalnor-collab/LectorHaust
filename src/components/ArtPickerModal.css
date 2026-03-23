@@ -1,0 +1,176 @@
+.art-picker-modal {
+    --background: #0f0f12;
+    --border-radius: 24px;
+    --height: 90%;
+    --width: 100%;
+}
+
+.art-picker-toolbar {
+    --background: #0f0f12;
+    --color: #fff;
+    --border-style: none;
+    padding-top: 10px;
+}
+
+.art-picker-search-toolbar {
+    --background: #0f0f12;
+    --border-style: none;
+    padding: 0 8px 10px;
+}
+
+.premium-searchbar {
+    --background: rgba(255, 255, 255, 0.05);
+    --border-radius: 16px;
+    --color: #fff;
+    --placeholder-color: rgba(255, 255, 255, 0.4);
+    --icon-color: var(--ion-color-primary);
+    padding: 0;
+}
+
+.art-picker-content {
+    --background: #0f0f12;
+}
+
+.art-grid {
+    padding: 5px;
+}
+
+.art-col {
+    padding: 5px;
+}
+
+.art-item-card {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #1a1a1a;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 0.3s ease;
+}
+
+.art-item-card:hover {
+    transform: scale(0.98);
+}
+
+.art-item-card.selected {
+    border: 2px solid var(--ion-color-primary);
+    box-shadow: 0 0 15px rgba(var(--ion-color-primary-rgb), 0.4);
+}
+
+.art-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    animation: fadeIn 0.8s ease-out;
+}
+
+.selection-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(var(--ion-color-primary-rgb), 0.8);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+}
+
+.art-loader, .art-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.art-loader p {
+    margin-top: 15px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.empty-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    opacity: 0.2;
+}
+
+/* Footer & Actions */
+.art-picker-footer {
+    --background: transparent;
+}
+
+.selected-preview-banner {
+    background: rgba(20, 20, 25, 0.9);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    padding: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 30px 30px 0 0;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.preview-info {
+    margin-bottom: 16px;
+}
+
+.preview-info p {
+    font-size: 0.75rem;
+    margin: 8px 0 0;
+    opacity: 0.7;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.selection-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+}
+
+.selection-actions ion-button {
+    margin: 0;
+    flex: 1;
+    --border-radius: 12px;
+    font-weight: 800;
+    font-size: 0.65rem;
+    letter-spacing: 0.5px;
+    --padding-start: 4px;
+    --padding-end: 4px;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(1.1); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+
+.animate-slide-up {
+    animation: slideUp 0.4s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
+}
+
+@media (min-width: 768px) {
+    .art-picker-modal {
+        --width: 600px;
+        --height: 80vh;
+    }
+    .selection-actions ion-button {
+        font-size: 0.8rem;
+    }
+}

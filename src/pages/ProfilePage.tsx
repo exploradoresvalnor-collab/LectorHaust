@@ -54,6 +54,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { artService } from '../services/artService';
 import { getDoc } from 'firebase/firestore';
+import ArtPickerModal from '../components/ArtPickerModal';
 import './ProfilePage.css';
 
 const ProfilePage: React.FC = () => {
@@ -74,8 +75,7 @@ const ProfilePage: React.FC = () => {
   });
   const [isStatsLoading, setIsStatsLoading] = useState(true);
   const [profileBackground, setProfileBackground] = useState<string>('');
-  const [showBackgroundSearchAlert, setShowBackgroundSearchAlert] = useState(false);
-  const [showArtActionSheet, setShowArtActionSheet] = useState(false);
+  const [showArtPicker, setShowArtPicker] = useState(false);
   const [pendingArtUrl, setPendingArtUrl] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const history = useHistory();
@@ -222,39 +222,9 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  const handleRandomizeBackground = async () => {
-    if (!user) return;
-    
-    try {
-      const bg = await artService.getOneRandomBackground();
-      if (bg) {
-        setPendingArtUrl(bg);
-        setShowArtActionSheet(true);
-      }
-    } catch (err) {
-      console.error("Failed to randomize background:", err);
-      presentToast({ message: 'Error al obtener fondo', duration: 2000, color: 'danger' });
-    }
-  };
-
-  const handleSearchBackground = async (tagName: string) => {
-    if (!user || !tagName) return;
-    setIsStatsLoading(true);
-    try {
-      const formattedTag = tagName.trim().replace(/\s+/g, '_');
-      const bg = await artService.getOneRandomBackground(`${formattedTag}+rating:safe`);
-      if (bg) {
-        setPendingArtUrl(bg);
-        setShowArtActionSheet(true);
-      } else {
-        presentToast({ message: `No se encontró arte para "${tagName}"`, duration: 3000, color: 'warning' });
-      }
-    } catch (err) {
-      console.error("Search background failed:", err);
-      presentToast({ message: 'Error en la búsqueda', duration: 2000, color: 'danger' });
-    } finally {
-      setIsStatsLoading(false);
-    }
+  const handleArtSelected = (url: string, choice: 'banner' | 'avatar' | 'both') => {
+    setPendingArtUrl(url);
+    handleApplyArtChoice(choice);
   };
 
   const handleGhostLogin = async () => {
@@ -389,10 +359,10 @@ const ProfilePage: React.FC = () => {
             fill="clear" 
             size="small" 
             className="random-bg-btn animate-fade-in" 
-            onClick={() => setShowBackgroundSearchAlert(true)}
+            onClick={() => setShowArtPicker(true)}
           >
             <IonIcon icon={colorPaletteOutline} slot="start" />
-            Personalizar
+            Galería de Arte
           </IonButton>
         </div>
 
@@ -646,62 +616,10 @@ const ProfilePage: React.FC = () => {
             }
           ]}
         />
-        <IonAlert
-          isOpen={showBackgroundSearchAlert}
-          onDidDismiss={() => setShowBackgroundSearchAlert(false)}
-          header="Buscar Arte en Safebooru"
-          message="Busca tu personaje o serie favorita para decorar tu perfil (ej: Luffy, One Piece, Cyberpunk)"
-          inputs={[
-            {
-              name: 'Tag',
-              type: 'text',
-              placeholder: 'Etiqueta...'
-            }
-          ]}
-          buttons={[
-            {
-              text: '🎲 Aleatorio',
-              cssClass: 'alert-button-secondary',
-              handler: () => {
-                handleRandomizeBackground();
-              }
-            },
-            {
-              text: '🔍 Buscar',
-              handler: (data) => {
-                if (data.Tag) handleSearchBackground(data.Tag);
-                else handleRandomizeBackground();
-              }
-            },
-            { text: 'Cancelar', role: 'cancel' }
-          ]}
-        />
-        <IonActionSheet
-          isOpen={showArtActionSheet}
-          onDidDismiss={() => setShowArtActionSheet(false)}
-          header="¿Dónde quieres aplicar este arte?"
-          buttons={[
-            {
-              text: 'Aplicar como BANNER',
-              icon: colorPaletteOutline,
-              handler: () => handleApplyArtChoice('banner')
-            },
-            {
-              text: 'Aplicar como AVATAR',
-              icon: personCircleOutline,
-              handler: () => handleApplyArtChoice('avatar')
-            },
-            {
-              text: 'Aplicar en AMBOS',
-              icon: diamondOutline,
-              handler: () => handleApplyArtChoice('both')
-            },
-            {
-              text: 'Cancelar',
-              role: 'cancel',
-              icon: alertCircleOutline
-            }
-          ]}
+        <ArtPickerModal 
+          isOpen={showArtPicker} 
+          onClose={() => setShowArtPicker(false)}
+          onSelect={handleArtSelected}
         />
         <IonAlert
           isOpen={showLogoutGhostAlert}

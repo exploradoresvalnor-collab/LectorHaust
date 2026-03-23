@@ -10,8 +10,9 @@ export interface SafebooruPost {
   tags: string;
   width: number;
   height: number;
-  sample_url?: string;
-  file_url?: string;
+  sample_url: string;
+  file_url: string;
+  preview_url: string;
 }
 
 class ArtService {
@@ -22,7 +23,7 @@ class ArtService {
    * @param tags Tag string (e.g. "scenery+landscape+rating:safe")
    * @param limit Number of results
    */
-  async getRandomBackgrounds(tags: string = 'scenery+landscape+rating:safe', limit: number = 20): Promise<string[]> {
+  async getRandomBackgrounds(tags: string = 'scenery+landscape+rating:safe', limit: number = 20): Promise<SafebooruPost[]> {
     try {
       const apiUrl = `${this.baseUrl}?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(tags)}&limit=${limit}`;
       const requestUrl = Capacitor.isNativePlatform() ? apiUrl : `${PROXY_URL}${encodeURIComponent(apiUrl)}`;
@@ -34,14 +35,29 @@ class ArtService {
         return [];
       }
 
-      // Construct full URLs
-      // Safebooru images are stored at https://safebooru.org/images/{directory}/{image}
-      return response.data.map((post: SafebooruPost) => {
-        let rawUrl = post.file_url || `https://safebooru.org/images/${post.directory}/${post.image}`;
-        if (!rawUrl.startsWith('http')) rawUrl = `https:${rawUrl}`;
+      // Construct and proxy all URLs
+      return response.data.map((post: any) => {
+        const proxy = (url: string) => {
+          if (!url) return '';
+          const full = url.startsWith('http') ? url : `https:${url.startsWith('//') ? url.substring(2) : url}`;
+          return Capacitor.isNativePlatform() ? full : `${PROXY_URL}${encodeURIComponent(full)}`;
+        };
+
+        const imageBase = `https://safebooru.org/images/${post.directory}/${post.image}`;
+        // Safebooru usually has consistent naming for thumbnails and samples
+        const previewBase = `https://safebooru.org/thumbnails/${post.directory}/thumbnail_${post.image.replace(/\.[^/.]+$/, ".jpg")}`;
         
-        // Proxy images too on web to avoid mixed content or referer issues
-        return Capacitor.isNativePlatform() ? rawUrl : `${PROXY_URL}${encodeURIComponent(rawUrl)}`;
+        return {
+          id: post.id,
+          image: post.image,
+          directory: post.directory,
+          tags: post.tags,
+          width: post.width,
+          height: post.height,
+          preview_url: proxy(post.preview_url || previewBase),
+          sample_url: proxy(post.sample_url || imageBase), // Fallback to full for sample if missing
+          file_url: proxy(post.file_url || imageBase)
+        };
       });
     } catch (error) {
       console.error('[ArtService] Failed to fetch backgrounds:', error);
@@ -50,9 +66,9 @@ class ArtService {
   }
 
   /**
-   * Gets a single random background URL.
+   * Gets a single random background post.
    */
-  async getOneRandomBackground(tags: string = 'scenery+landscape+rating:safe'): Promise<string | null> {
+  async getOneRandomBackground(tags: string = 'scenery+landscape+rating:safe'): Promise<SafebooruPost | null> {
     const images = await this.getRandomBackgrounds(tags, 50);
     if (images.length === 0) return null;
     return images[Math.floor(Math.random() * images.length)];
