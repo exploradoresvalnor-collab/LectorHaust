@@ -491,7 +491,7 @@ export const mangadexService = {
             const typeMap: Record<string, string> = { 'manga': 'ja', 'manhwa': 'ko', 'manhua': 'zh' };
             const targetOrigin = typeMap[typeValue] || typeValue;
             
-            let url = `/manga?limit=${limit}&offset=${offset}&includes[]=cover_art&includes[]=author&order[latestUploadedChapter]=desc&originalLanguage[]=${targetOrigin}`;
+            let url = `/manga?limit=${limit}&offset=${offset}&hasAvailableChapters=true&includes[]=cover_art&includes[]=author&order[latestUploadedChapter]=desc&originalLanguage[]=${targetOrigin}`;
             url += this.getContentRatingParams(allowNSFW);
             
             if (lang === 'all') {
