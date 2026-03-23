@@ -175,9 +175,14 @@ const ReaderPage: React.FC = () => {
             {!isWebtoon && (
               <div className={`manga-pager-container ${fitMode === 'fitWidth' ? 'fit-width' : ''}`} onClick={handlePageTap}>
                 
-                {/* Indicadores Visuales de Tap (Solo visibles brevemente o con baja opacidad) */}
-                <div className="tap-zone tap-next"><IonIcon icon={chevronBackOutline} /></div>
-                <div className="tap-zone tap-prev"><IonIcon icon={chevronForwardOutline} /></div>
+                {/* Indicadores Visuales de Tap (Zonas clicables) */}
+                <div className="tap-zone tap-next" onClick={(e) => { e.stopPropagation(); handlePageTap({ clientX: 100 } as any); }}>
+                  <IonIcon icon={chevronBackOutline} />
+                </div>
+                <div className="tap-zone tap-prev" onClick={(e) => { e.stopPropagation(); handlePageTap({ clientX: window.innerWidth - 100 } as any); }}>
+                  <IonIcon icon={chevronForwardOutline} />
+                </div>
+                <div className="tap-zone tap-center" onClick={(e) => { e.stopPropagation(); toggleUi(); }}></div>
 
                 {!showEndSection ? (
                   <div className={`manga-zoom-wrapper ${fitMode}`}>
@@ -190,8 +195,8 @@ const ReaderPage: React.FC = () => {
                       doubleClick={{ step: 0.5 }}
                     >
                       <TransformComponent
-                        wrapperStyle={{ width: '100%', height: '100%' }}
-                        contentStyle={{ width: '100%', height: '100%' }}
+                        wrapperStyle={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        contentStyle={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
                         <img 
                           key={currentMangaPage} 

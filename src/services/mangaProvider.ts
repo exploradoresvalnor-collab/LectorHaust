@@ -93,30 +93,52 @@ export const mangaProvider = {
      */
     async searchManga(query: string, filters: any = {}, limit = 20, offset = 0, order?: any, allowNSFW = false) {
         try {
-            // Priority 1: MangaDex (Official metadata and Spanish content)
-            const mdResults = await mangadexService.searchManga(query, filters, limit, offset, order, allowNSFW);
+            console.log(`[Search] Cascade for: "${query}" | Filters:`, filters);
             
-            // If we have plenty of results, return them immediately
-            if (mdResults.data && mdResults.data.length >= 10) {
-                return mdResults;
+            // Si el usuario ha seleccionado un idioma ESPECÍFICO (es, en, etc.), lo respetamos estrictamente.
+            // No hacemos cascada de idiomas si hay una elección explícita.
+            const userLang = filters.lang || null;
+            
+            if (userLang && userLang !== 'all') {
+                console.log(`[Search] Using explicit language filter: ${userLang}`);
+                return mangadexService.searchManga(query, filters, limit, offset, order, allowNSFW);
             }
 
-            // Priority 2: Cascade fallback for more content
-            console.log('[SearchCascade] MangaDex returned few results. Searching WeebCentral & MangaPill...');
+            // --- Lógica de Priorización de Español (Default) ---
             
-            const [wcResults, mpResults] = await Promise.all([
-                weebcentralService.searchManga(query).catch(() => []),
-                mangapillService.searchManga(query).catch(() => [])
-            ]);
+            // Etapa 1: MangaDex buscando estrictamente ESPAÑOL
+            const mdSpanishResults = await mangadexService.searchManga(query, { ...filters, lang: 'es' }, limit, offset, order, allowNSFW);
+            
+            let allResults = mdSpanishResults.data || [];
+            
+            // Si tenemos pocos resultados en español, buscamos en otras fuentes e inglés como respaldo
+            if (allResults.length < 8) {
+                console.log('[Search] Low Spanish results. Triggering cascade fallbacks...');
+                
+                // Inteligencia de Selección de Fuente:
+                // Si buscan Manhwa (ko), priorizar WeebCentral. Si buscan Manga (ja), priorizar MangaPill.
+                const origin = filters.origin || null;
+                const isManhwaSearch = origin === 'ko';
+                const isMangaSearch = origin === 'ja';
 
-            // Combine and deduplicate
-            const combined = deduplicateResults([
-                ...(mdResults.data || []),
-                ...(wcResults as any[] || []),
-                ...(mpResults as any[] || [])
-            ]);
+                const [mdEnglishResults, wcResults, mpResults] = await Promise.all([
+                    // Stage 2: Fallback to English on MangaDex
+                    mangadexService.searchManga(query, { ...filters, lang: 'en' }, 10, 0, order, allowNSFW).catch(() => ({ data: [] })),
+                    // Stage 3: External sources tailored to format
+                    (!isMangaSearch ? weebcentralService.searchManga(query) : Promise.resolve([])).catch(() => []),
+                    (!isManhwaSearch ? mangapillService.searchManga(query) : Promise.resolve([])).catch(() => [])
+                ]);
 
-            console.log(`[SearchCascade] Final results: ${combined.length} unique (MD: ${mdResults.data?.length || 0} + WC: ${wcResults.length} + MP: ${mpResults.length})`);
+                allResults = [
+                    ...allResults,
+                    ...((mdEnglishResults as any).data || []),
+                    ...(wcResults as any[] || []),
+                    ...(mpResults as any[] || [])
+                ];
+            }
+
+            // Deduplicar (MangaDex Español siempre queda arriba)
+            const combined = deduplicateResults(allResults);
 
             return {
                 data: combined.slice(0, limit),

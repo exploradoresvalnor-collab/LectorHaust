@@ -138,6 +138,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  z-index: 1;
 }
 
 .manga-zoom-wrapper.fit-width {
@@ -166,16 +168,24 @@
   position: absolute;
   top: 0;
   height: 100%;
-  width: 15%;
+  width: 25%;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10;
-  pointer-events: none; /* El tap lo maneja el contenedor */
+  z-index: 50; /* Por encima de TransformWrapper */
+  pointer-events: auto; /* IMPORTANTE: Ahora reciben clics */
   opacity: 0;
   transition: opacity 0.3s ease;
-  color: rgba(255, 255, 255, 0.3);
-  font-size: 2rem;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 2.5rem;
+  cursor: pointer;
+}
+
+.tap-center {
+  left: 25%;
+  width: 50%;
+  z-index: 49;
+  background: transparent;
 }
 
 .manga-pager-container:hover .tap-zone {
