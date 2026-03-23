@@ -66,17 +66,6 @@ const HomePage: React.FC = () => {
     setLoading
   } = useHomeData();
 
-  const [previewData, setPreviewData] = React.useState<{ 
-    url: string, 
-    title: string, 
-    desc: string,
-    id: string,
-    tags: string[],
-    author: string,
-    status: string,
-    format: string
-  } | null>(null);
-
   const [showToast, setShowToast] = React.useState(false);
   const [toastMsg, setToastMsg] = React.useState('');
 
@@ -119,16 +108,6 @@ const HomePage: React.FC = () => {
     }
   };
 
-  // Hide TabBar when preview is active
-  React.useEffect(() => {
-    if (previewData) {
-      document.body.classList.add('hide-tabs');
-    } else {
-      document.body.classList.remove('hide-tabs');
-    }
-    return () => document.body.classList.remove('hide-tabs');
-  }, [previewData]);
-
   const handleProfileClick = async () => {
     router.push('/profile');
   };
@@ -139,23 +118,23 @@ const HomePage: React.FC = () => {
         <IonToolbar className="main-header">
           <IonTitle slot="start">
             <div className="brand-container" onClick={() => fetchData(true)}>
-              <img src="/logolh.webp" alt="Lector Haus Logo" className="brand-logo-img" />
+              <img src="/logolh.webp" alt="Lector Haus Logo" className="brand-logo-img" width="48" height="42" />
               <span className="brand-name-text">lector<span style={{ marginRight: '10px' }}>Haus</span></span>
             </div>
           </IonTitle>
           <IonButtons slot="end">
-            <IonButton className="profile-btn" onClick={handleProfileClick}>
+            <IonButton className="profile-btn" onClick={handleProfileClick} aria-label="Ver perfil">
               {currentUser ? (
                 <div className="profile-avatar-wrapper">
                   {currentUser.photoURL ? (
                     <div className="user-avatar-small animate-pop-in">
-                      <img src={currentUser.photoURL} alt="user" />
+                      <img src={currentUser.photoURL} alt="user avatar" width="32" height="32" />
                     </div>
                   ) : currentUser.isAnonymous ? (
                     <div className="user-ghost-icon animate-pop-in">👻</div>
                   ) : (
                     <div className="user-mascot-golden animate-pop-in">
-                      <img src="/Buho.png" alt="pro" />
+                      <img src="/Buho.png" alt="pro mascot" width="32" height="32" />
                     </div>
                   )}
                   {unreadNotifications > 0 && (
@@ -166,7 +145,9 @@ const HomePage: React.FC = () => {
                 <div className="user-icon-blank animate-pop-in">
                   <img 
                     src="/Buho.png" 
-                    alt="guest" 
+                    alt="guest avatar" 
+                    width="32"
+                    height="32"
                     style={{ width: '32px', height: '32px', objectFit: 'contain', filter: 'drop-shadow(0 0 5px rgba(140, 82, 255, 0.4))' }}
                     onError={(e) => (e.currentTarget.src = '/logolh.webp')} 
                   />
@@ -357,6 +338,8 @@ const HomePage: React.FC = () => {
                         src={mangaProvider.getCoverUrl(manga)} 
                         className="carousel-cover" 
                         alt={mangaProvider.getLocalizedTitle(manga) as string} 
+                        width={130}
+                        height={190}
                       />
                       <div className="carousel-title">{mangaProvider.getLocalizedTitle(manga) as React.ReactNode}</div>
                     </div>
@@ -448,8 +431,10 @@ const HomePage: React.FC = () => {
                       <div className="promo-content">
                         <SmartImage 
                           src={mangaProvider.getCoverUrl(featuredMasterpiece, '512')} 
-                          alt="promo" 
+                          alt="featured cover" 
                           className="promo-image" 
+                          width={140}
+                          height={200}
                         />
                         <div className="promo-text">
                           <span className="promo-label">
@@ -496,19 +481,8 @@ const HomePage: React.FC = () => {
                               src={mangaProvider.getCoverUrl(manga, '256')} 
                               alt={mangaTitle as string} 
                               className="list-item-cover" 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setPreviewData({
-                                  url: mangaProvider.getCoverUrl(manga, 'original'),
-                                  title: mangaProvider.getLocalizedTitle(manga) as string,
-                                  desc: (mangaProvider.getLocalizedDescription(manga) as string) || 'Sin descripción disponible.',
-                                  id: manga.id,
-                                  tags: tags || [],
-                                  author: manga.relationships?.find((r: any) => r.type === 'author')?.attributes?.name || 'Autor desconocido',
-                                  status: manga.attributes?.status || 'unknown',
-                                  format: formatLabel
-                                });
-                              }}
+                              width={80}
+                              height={110}
                             >
                               <div className="list-item-lang-badge">
                                 {(() => {
@@ -585,58 +559,6 @@ const HomePage: React.FC = () => {
           className="custom-toast"
           color="dark"
         />
-        {/* Image Preview Overlay (Lightbox) */}
-        {previewData && (
-          <div className="image-preview-overlay" onClick={() => setPreviewData(null)}>
-            <div className="preview-container" onClick={(e) => e.stopPropagation()}>
-              <img src={previewData.url} alt="Cover Preview" className="preview-img" />
-              
-              <div className="preview-info-card">
-                <div className="preview-header-meta">
-                   <span className={`status-badge ${previewData.status}`}>{previewData.status}</span>
-                   <span className="author-name">{previewData.author}</span>
-                </div>
-                <h2 className="preview-title">{previewData.title}</h2>
-                
-                {previewData.tags.length > 0 && (
-                  <div className="preview-tags">
-                    {previewData.tags.slice(0, 4).map((tag, i) => (
-                      <span key={i} className="preview-tag-item">{tag}</span>
-                    ))}
-                  </div>
-                )}
-
-                <p className="preview-desc">{previewData.desc}</p>
-                <div className="preview-footer">
-                  <IonButton 
-                    expand="block" 
-                    fill="solid" 
-                    color="primary" 
-                    className="preview-btn-main"
-                    onClick={() => {
-                        // Limpiar foco para evitar error aria-hidden en transiciones
-                        if (document.activeElement instanceof HTMLElement) {
-                            document.activeElement.blur();
-                        }
-                        setPreviewData(null);
-                        setTimeout(() => {
-                            router.push(`/manga/${previewData.id}`);
-                        }, 150);
-                    }}
-                  >
-                    Leer {previewData.format === 'WEBTOON' ? 'Manhwa' : 
-                         previewData.format === 'MANHUA' ? 'Manhua' : 
-                         previewData.format === 'MANHWA' ? 'Manhwa' : 'Manga'}
-                  </IonButton>
-                </div>
-              </div>
-
-              <button className="close-preview-btn fixed-close" onClick={() => setPreviewData(null)}>
-                <IonIcon icon={closeOutline} />
-              </button>
-            </div>
-          </div>
-        )}
       </IonContent>
     </IonPage>
   );

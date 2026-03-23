@@ -55,7 +55,14 @@ const TrendingStrip: React.FC<{ items: any[] }> = ({ items }) => {
           const cover = mangaProvider.getCoverUrl(item, '256');
           return (
             <div key={item.id} className="trending-strip-card" onClick={() => router.push(`/manga/${item.id}`)}>
-              <SmartImage src={cover} alt={title} className="trending-strip-img" wrapperClassName="trending-strip-img-wrapper" />
+              <SmartImage 
+                src={cover} 
+                alt={title} 
+                className="trending-strip-img" 
+                wrapperClassName="trending-strip-img-wrapper" 
+                width={80}
+                height={120}
+              />
               <div className="trending-strip-rank">#{i + 1}</div>
               <p className="trending-strip-title">{title}</p>
             </div>
@@ -91,7 +98,11 @@ const SearchPage: React.FC = () => {
       <IonHeader className="ion-no-border">
         <IonToolbar className="glass-effect" style={{ padding: '10px 0' }}>
           <IonButtons slot="start" style={{ position: 'absolute', left: 0, zIndex: 10 }}>
-            <IonButton onClick={() => router.canGoBack() ? router.goBack() : router.push('/home', 'back')} style={{ color: 'white' }}>
+            <IonButton 
+              onClick={() => router.canGoBack() ? router.goBack() : router.push('/home', 'back')} 
+              style={{ color: 'white' }}
+              aria-label="Volver"
+            >
               <IonIcon icon={chevronBackOutline} size="large" />
             </IonButton>
           </IonButtons>
@@ -130,6 +141,7 @@ const SearchPage: React.FC = () => {
                   fill="clear" 
                   className={`filter-toggle-btn ${showFilters ? 'active' : ''}`}
                   onClick={() => setShowFilters(!showFilters)}
+                  aria-label={showFilters ? "Ocultar filtros" : "Mostrar filtros"}
                 >
                   <IonIcon icon={filterOutline} slot="icon-only" />
                 </IonButton>

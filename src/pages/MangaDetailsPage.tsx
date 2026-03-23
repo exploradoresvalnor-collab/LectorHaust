@@ -283,7 +283,7 @@ const MangaDetailsPage: React.FC = () => {
           </IonButtons>
           <IonTitle>{title}</IonTitle>
           <IonButtons slot="end">
-            <IonButton onClick={handleToggleFavorite}>
+            <IonButton onClick={handleToggleFavorite} aria-label={isFavorite(id) ? "Quitar de favoritos" : "Añadir a favoritos"}>
               <IonIcon slot="icon-only" icon={isFavorite(id) ? heart : heartOutline} color="danger" />
             </IonButton>
           </IonButtons>
@@ -300,7 +300,10 @@ const MangaDetailsPage: React.FC = () => {
               className="main-details-cover" 
               wrapperClassName="main-details-cover-wrapper"
               alt={title} 
-            />            <div className="title-section">
+              width={180}
+              height={260}
+            />
+            <div className="title-section">
               <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
                 <span className="badge-type">{manga?.attributes?.status}</span>
                 {lastReadChapterNum && (
@@ -385,6 +388,7 @@ const MangaDetailsPage: React.FC = () => {
                 hapticsService.lightImpact();
                 setShowShareSheet(true);
               }}
+              aria-label="Compartir manga"
             >
               <IonIcon slot="icon-only" icon={shareSocialOutline} color="primary" />
             </IonButton>
@@ -417,7 +421,12 @@ const MangaDetailsPage: React.FC = () => {
               <div className="characters-scroll">
                 {aniData.characters.edges.map((edge: any) => (
                   <div key={edge.node.id} className="character-card">
-                    <SmartImage src={mangaProvider.getOptimizedUrl(edge.node.image.medium)} alt={edge.node.name.full} />
+                    <SmartImage 
+                      src={mangaProvider.getOptimizedUrl(edge.node.image.medium)} 
+                      alt={edge.node.name.full} 
+                      width={60}
+                      height={60}
+                    />
                     <p>{edge.node.name.full}</p>
                     <span>{edge.role.replace('_', ' ')}</span>
                   </div>
@@ -463,6 +472,7 @@ const MangaDetailsPage: React.FC = () => {
                 hapticsService.lightImpact();
                 setChapterOrder(prev => prev === 'asc' ? 'desc' : 'asc');
               }}
+              aria-label={chapterOrder === 'asc' ? "Cambiar a orden descendente" : "Cambiar a orden ascendente"}
             >
               <IonIcon icon={chapterOrder === 'asc' ? playSkipForwardOutline : playSkipBackOutline} style={{ transform: 'rotate(90deg)' }} />
               <span>{chapterOrder === 'asc' ? 'Primero' : 'Último'}</span>
@@ -682,10 +692,12 @@ const MangaDetailsPage: React.FC = () => {
                       onClick={() => router.push(`/manga/${rec.mdId}`)}
                     >
                       <div className="recommendation-cover-wrapper">
-                        <SmartImage 
-                          src={mangaProvider.getOptimizedUrl(rec.coverImage)} 
-                          alt={rec.title} 
-                        />
+                         <SmartImage 
+                           src={mangaProvider.getOptimizedUrl(rec.coverImage)} 
+                           alt={rec.title} 
+                           width={100}
+                           height={150}
+                         />
                         <div className="recommendation-score">
                           <IonIcon icon={star} />
                           {rec.score ? (rec.score / 10).toFixed(1) : '?.?'}
@@ -704,14 +716,15 @@ const MangaDetailsPage: React.FC = () => {
         </div>
       </IonContent>
 
-      <IonModal
-        isOpen={showShareSheet}
-        onDidDismiss={() => setShowShareSheet(false)}
-        initialBreakpoint={0.4}
-        breakpoints={[0, 0.4, 0.6]}
-        handle={true}
-        className="premium-bottom-sheet"
-      >
+       <IonModal
+         isOpen={showShareSheet}
+         onDidDismiss={() => setShowShareSheet(false)}
+         initialBreakpoint={0.4}
+         breakpoints={[0, 0.4, 0.6]}
+         handle={true}
+         className="premium-bottom-sheet"
+         aria-label="Opciones de compartir"
+       >
         <div className="share-sheet-content">
           <div className="share-sheet-header">
             <h3>Compartir en...</h3>

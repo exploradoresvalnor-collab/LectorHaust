@@ -41,6 +41,8 @@ const MangaCard: React.FC<MangaCardProps> = ({ title, coverUrl, format, tags = [
           src={coverUrl.includes('res.cloudinary.com') || coverUrl.includes('anilist.co') || coverUrl.includes('s4.anilist.co') ? coverUrl : mangadexService.getOptimizedUrl(coverUrl)} 
           alt={title} 
           className="card-img" 
+          width={150}
+          height={225}
         />
         <div className="card-overlay">
           <div className="card-content-bottom">

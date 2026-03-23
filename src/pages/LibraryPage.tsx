@@ -115,18 +115,24 @@ const LibraryPage: React.FC = () => {
             <div className="view-toggles" style={{ display: 'flex', gap: '8px' }}>
               <IonIcon 
                 icon={gridOutline} 
+                className="clickable-icon"
                 style={{ fontSize: '1.4rem', color: viewMode === 'grid' ? 'var(--ion-color-primary)' : 'gray' }} 
                 onClick={() => setViewMode('grid')}
+                aria-label="Ver en cuadrícula"
               />
               <IonIcon 
                 icon={listOutline} 
+                className="clickable-icon"
                 style={{ fontSize: '1.4rem', color: viewMode === 'list' ? 'var(--ion-color-primary)' : 'gray' }} 
                 onClick={() => setViewMode('list')}
+                aria-label="Ver en lista"
               />
               <IonIcon 
                 icon={refreshCircleOutline} 
+                className="clickable-icon"
                 style={{ fontSize: '1.4rem', color: 'var(--ion-color-warning, #ffc409)' }} 
                 onClick={clearCache}
+                aria-label="Limpiar cache"
               />
             </div>
           </div>
@@ -163,7 +169,7 @@ const LibraryPage: React.FC = () => {
                   >
                     <div className="history-hero-cover-wrapper">
                       {cover ? (
-                        <img src={cover} alt={title} className="history-hero-cover" />
+                        <img src={cover} alt={title} className="history-hero-cover" width={110} height={160} />
                       ) : (
                         <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, var(--ion-color-primary), var(--ion-color-secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>📖</div>
                       )}
@@ -231,7 +237,7 @@ const LibraryPage: React.FC = () => {
                       <div className="library-list-container">
                         {filteredFavorites.map((manga: any) => (
                            <div key={manga.id} className="library-list-item" onClick={() => router.push(`/manga/${manga.id}`)}>
-                             <img src={manga.cover} alt="cover" className="list-item-cover" />
+                             <img src={manga.cover} alt="cover" className="list-item-cover" width={40} height={60} />
                              <div className="list-item-info">
                                <h3 className="list-item-title">{manga.title}</h3>
                                <p className="list-item-format">Formato Local</p>
@@ -270,7 +276,7 @@ const LibraryPage: React.FC = () => {
                            const prog = history[manga.id];
                            return (
                            <div key={manga.id} className="library-list-item" onClick={() => router.push(`/manga/${manga.id}`)}>
-                             <img src={mangaProvider.getCoverUrl(manga)} alt="cover" className="list-item-cover" />
+                             <img src={mangaProvider.getCoverUrl(manga)} alt="cover" className="list-item-cover" width={40} height={60} />
                              <div className="list-item-info">
                                <h3 className="list-item-title">{mangaProvider.getLocalizedTitle(manga) as React.ReactNode}</h3>
                                {prog && (
@@ -308,7 +314,7 @@ const LibraryPage: React.FC = () => {
                       return (
                         <div key={entry.mangaId} className="history-detailed-item" onClick={() => router.push(`/manga/${entry.mangaId}`)}>
                           {cover ? (
-                            <img src={cover} alt={title} className="history-detailed-cover" />
+                            <img src={cover} alt={title} className="history-detailed-cover" width={50} height={70} />
                           ) : (
                             <div className="history-detailed-cover" style={{ background: 'linear-gradient(135deg, var(--ion-color-primary), var(--ion-color-secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', borderRadius: '8px', width: '50px', height: '70px' }}>📖</div>
                           )}
@@ -318,7 +324,7 @@ const LibraryPage: React.FC = () => {
                             <p className="history-detailed-date">Leído el {dateStr}</p>
                           </div>
                           <IonButton fill="clear" color="primary" onClick={(e) => { e.stopPropagation(); router.push(`/reader/${entry.chapterId}`) }}>
-                            <IonIcon icon={playOutline} slot="icon-only" />
+                            <IonIcon icon={playOutline} slot="icon-only" aria-label="Continuar leyendo capítulo" />
                           </IonButton>
                         </div>
                       )
@@ -352,13 +358,13 @@ const LibraryPage: React.FC = () => {
                           setStorageInfo({ totalMB: '0', chapterCount: 0 });
                         }
                       }}>
-                        <IonIcon icon={trashOutline} slot="start" /> Borrar todo
+                        <IonIcon icon={trashOutline} slot="start" aria-label="Borrar todas las descargas" /> Borrar todo
                       </IonButton>
                     </div>
                     {Object.entries(downloadedMangas).map(([mangaId, manga]) => (
                       <div key={mangaId} className="download-manga-group" style={{ marginBottom: '20px', background: 'var(--bg-surface, #1a1a2e)', borderRadius: '14px', padding: '15px', border: '1px solid rgba(255,255,255,0.05)' }}>
                         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '10px', cursor: 'pointer' }} onClick={() => router.push(`/manga/${mangaId}`)}>
-                          {manga.cover && <img src={manga.cover} alt="" style={{ width: '45px', height: '65px', borderRadius: '8px', objectFit: 'cover' }} />}
+                          {manga.cover && <img src={manga.cover} alt="" width={45} height={65} style={{ width: '45px', height: '65px', borderRadius: '8px', objectFit: 'cover' }} />}
                           <div>
                             <h4 style={{ margin: 0, fontWeight: 700, fontSize: '1rem' }}>{manga.title}</h4>
                             <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{manga.chapters.length} capítulos descargados</p>

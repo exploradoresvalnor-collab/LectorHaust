@@ -145,16 +145,40 @@ export const manhwawebService = {
   /**
    * Get chapter page images
    */
-  async getChapterPages(chapterId: string): Promise<string[]> {
+  async getChapterPages(chapterId: string): Promise<{ pages: string[] }> {
     const cleanId = chapterId.replace('mweb:', '');
     const data = await apiFetch(`/chapters/see/${cleanId}`);
     
     if (!data?.chapter?.img) {
       console.warn('[ManhwaWeb] No images found for chapter:', cleanId);
-      return [];
+      return { pages: [] };
     }
 
-    return data.chapter.img.filter((url: string) => url && url.startsWith('http'));
+    const pages = data.chapter.img.filter((url: string) => url && url.startsWith('http'));
+    return { pages };
+  },
+
+  /**
+   * Get single chapter metadata
+   */
+  async getChapter(chapterId: string): Promise<any> {
+    const cleanId = chapterId.replace('mweb:', '');
+    const data = await apiFetch(`/chapters/see/${cleanId}`);
+    
+    return {
+      data: {
+        id: chapterId,
+        type: 'chapter',
+        attributes: {
+          chapter: data?.chapter?.chapter_number || '1',
+          title: data?.chapter?.name || '',
+          translatedLanguage: 'es'
+        },
+        relationships: [
+          { id: data?.chapter?.manhwa_link || '', type: 'manga' }
+        ]
+      }
+    };
   },
 
   /**

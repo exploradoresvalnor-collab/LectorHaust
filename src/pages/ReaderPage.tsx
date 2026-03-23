@@ -216,34 +216,21 @@ const ReaderPage: React.FC = () => {
                       panning={{ excluded: ['input', 'button', '.zoom-controls-overlay'] }}
                     >
                       {({ zoomIn, zoomOut, resetTransform }: any) => (
-                        <React.Fragment>
-                          <TransformComponent
-                            wrapperStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                          >
-                            <div className={`image-centering-container ${fitMode}`}>
-                              <img 
-                                key={`img-${currentMangaPage}`} 
-                                src={pages[currentMangaPage].includes('mangadex') ? mangaProvider.getOptimizedUrl(pages[currentMangaPage]) : pages[currentMangaPage]} 
-                                className={`manga-page-single loaded page-flip-anim ${fitMode}`} 
-                                alt={`Página ${currentMangaPage + 1}`}
-                                decoding="async"
-                                style={{ pointerEvents: 'none' }} 
-                              />
-                            </div>
-                          </TransformComponent>
-                          <div className={`zoom-controls-overlay ${showUi ? 'visible' : 'hidden'}`}>
-                            <IonButton fill="clear" className="zoom-btn" onClick={(e) => { e.stopPropagation(); zoomIn(0.5); }}>
-                              <IonIcon icon={addCircleOutline} />
-                            </IonButton>
-                            <IonButton fill="clear" className="zoom-btn" onClick={(e) => { e.stopPropagation(); resetTransform(); }}>
-                              <IonIcon icon={refreshCircleOutline} />
-                            </IonButton>
-                            <IonButton fill="clear" className="zoom-btn" onClick={(e) => { e.stopPropagation(); zoomOut(0.5); }}>
-                              <IonIcon icon={removeCircleOutline} />
-                            </IonButton>
+                        <TransformComponent
+                          wrapperStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <div className={`image-centering-container ${fitMode}`}>
+                            <img 
+                              key={`img-${currentMangaPage}`} 
+                              src={pages[currentMangaPage].includes('mangadex') ? mangaProvider.getOptimizedUrl(pages[currentMangaPage]) : pages[currentMangaPage]} 
+                              className={`manga-page-single loaded page-flip-anim ${fitMode}`} 
+                              alt={`Página ${currentMangaPage + 1}`}
+                              decoding="async"
+                              style={{ pointerEvents: 'none' }} 
+                            />
                           </div>
-                        </React.Fragment>
+                        </TransformComponent>
                       )}
                     </TransformWrapper>
                     

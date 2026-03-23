@@ -10,6 +10,8 @@ interface SmartImageProps {
   timeout?: number;
   placeholder?: string;
   children?: React.ReactNode; // For badges/overlays
+  width?: string | number;
+  height?: string | number;
 }
 
 /**
@@ -27,7 +29,9 @@ const SmartImage: React.FC<SmartImageProps> = ({
   onClick,
   timeout = 8000,
   placeholder = 'https://placehold.co/512x768/222222/cccccc?text=Tiempo+Agotado',
-  children
+  children,
+  width,
+  height
 }) => {
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
   const statusRef = React.useRef(status);

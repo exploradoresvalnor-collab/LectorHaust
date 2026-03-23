@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://lector-haust.vercel.app/sitemap.xml

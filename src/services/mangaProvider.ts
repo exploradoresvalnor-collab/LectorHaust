@@ -410,127 +410,106 @@ export const mangaProvider = {
         const normalizedTargets = targetTitles.map(t => normalizeTitle(t)).filter(Boolean);
         if (normalizedTargets.length === 0) return null;
 
-        // 2. Determinar el mejor término de búsqueda
         const searchTitle = (typeof manga.attributes.title === 'string' ? manga.attributes.title : (manga.attributes.title?.['en'] || manga.attributes.title?.['ja-ro'] || targetTitles[0]));
-
         const isManhwa = manga.attributes?.originalLanguage === 'ko' || manga.attributes?.originalLanguage === 'zh';
+        
+        // Leetspeak mapping to handle 'Solo L3vel1ng' -> 'solo leveling'
+        const deLeet = (s: string) => s.replace(/3/g, 'e').replace(/1/g, 'i').replace(/0/g, 'o').replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't');
+        const deLeetedTargets = normalizedTargets.map(t => deLeet(t));
 
         try {
-            console.log(`[Intelligence] Searching for accurate match: "${searchTitle}"... (Manhwa: ${isManhwa})`);
+            // Try different search terms (Primary, then alternative titles)
+            const searchQueries = [...new Set([searchTitle, ...targetTitles])].filter(q => q && (q as string).length > 2);
             
-            // Priority logic based on content type
-            if (isManhwa) {
-                // For Manhwas/Manhuas, WeebCentral is the absolute best
-                const wcResults = await weebcentralService.searchManga(searchTitle as string);
-                if (wcResults && wcResults.length > 0) {
-                    for (const result of wcResults) {
-                        const resultTitle = normalizeTitle(result.attributes?.title?.['en'] || '');
-                        const isMatch = normalizedTargets.some(target => 
-                            target === resultTitle || 
-                            (target.length > 5 && resultTitle.includes(target)) || 
-                            (resultTitle.length > 5 && target.includes(resultTitle))
-                        );
-                        if (isMatch) {
-                            console.log(`[Intelligence] ✅ Accurate Manhwa match verified on WeebCentral: "${result.attributes?.title?.['en']}"`);
-                            return { id: result.id, source: 'weebcentral' };
-                        }
-                    }
-                }
-
-                // Fallback for Manhwa to MangaPill
-                const mpResults = await mangapillService.searchManga(searchTitle as string);
-                if (mpResults && mpResults.length > 0) {
-                    for (const result of mpResults) {
-                        const resultTitle = normalizeTitle(result.attributes?.title?.['en'] || '');
-                        const isMatch = normalizedTargets.some(target => 
-                            target === resultTitle || 
-                            (target.length > 5 && resultTitle.includes(target)) || 
-                            (resultTitle.length > 5 && target.includes(resultTitle))
-                        );
-                        if (isMatch) {
-                            console.log(`[Intelligence] ✅ Accurate Manhwa match verified on MangaPill (Fallback): "${result.attributes?.title?.['en']}"`);
-                            return { id: result.id, source: 'mangapill' };
-                        }
-                    }
-                }
-            } else {
-                // For regular Manga, MangaPill is fast
-                const mpResults = await mangapillService.searchManga(searchTitle as string);
-                if (mpResults && mpResults.length > 0) {
-                    for (const result of mpResults) {
-                        const resultTitle = normalizeTitle(result.attributes?.title?.['en'] || '');
-                        const isMatch = normalizedTargets.some(target => 
-                            target === resultTitle || 
-                            (target.length > 5 && resultTitle.includes(target)) || 
-                            (resultTitle.length > 5 && target.includes(resultTitle))
-                        );
-                        if (isMatch) {
-                            console.log(`[Intelligence] ✅ Accurate Manga match verified on MangaPill: "${result.attributes?.title?.['en']}"`);
-                            return { id: result.id, source: 'mangapill' };
-                        }
-                    }
-                }
+            for (const query of searchQueries) {
+                console.log(`[Intelligence] 🌐 Searching "${query}" on external sources...`);
                 
-                // Final fallback for Manga to WeebCentral
-                const wcResults = await weebcentralService.searchManga(searchTitle as string);
-                if (wcResults && wcResults.length > 0) {
-                    for (const result of wcResults) {
-                        const resultTitle = normalizeTitle(result.attributes?.title?.['en'] || '');
-                        const isMatch = normalizedTargets.some(target => 
-                            target === resultTitle || 
-                            (target.length > 5 && resultTitle.includes(target)) || 
-                            (resultTitle.length > 5 && target.includes(resultTitle))
-                        );
-                        if (isMatch) {
-                            console.log(`[Intelligence] ✅ Accurate match verified on WeebCentral (Final Fallback): "${result.attributes?.title?.['en']}"`);
-                            return { id: result.id, source: 'weebcentral' };
-                        }
-                    }
-                }
-            }
-            
-            // ─── ULTIMATE FALLBACK: ManhwaWeb (Spanish content) ───
-            // For licensed titles like Solo Leveling that aren't on any EN scraper
-            try {
-                // Try searching with the primary title first
-                const titlesToTry = [searchTitle];
-                // Add the first alternative title if it's different enough
-                const altTitleCandidate = targetTitles.find(t => normalizeTitle(t) !== normalizeTitle(searchTitle as string));
-                if (altTitleCandidate) titlesToTry.push(altTitleCandidate);
-
-                for (const query of titlesToTry) {
-                    console.log(`[Intelligence] 🌐 Trying ManhwaWeb (ES) with query: "${query}"`);
+                // 1. ManhwaWeb (Spanish - High Priority for ES users)
+                try {
                     const mwebResults = await manhwawebService.searchManga(query as string);
                     if (mwebResults && mwebResults.length > 0) {
                         for (const result of mwebResults) {
-                            const rawResultTitle = result.attributes?.title?.['en'] || result.attributes?.title?.['es'] || '';
-                            const resultTitleNom = normalizeTitle(rawResultTitle);
+                            const resultTitle = result.attributes?.title?.['en'] || result.attributes?.title?.['es'] || '';
+                            const resultNom = normalizeTitle(resultTitle);
+                            const resultDeleeted = deLeet(resultNom);
                             
-                            // Leetspeak mapping to handle 'Solo L3vel1ng' -> 'solo leveling'
-                            const deLeet = (s: string) => s.replace(/3/g, 'e').replace(/1/g, 'i').replace(/0/g, 'o').replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't');
-                            const resultTitleDeleeted = deLeet(resultTitleNom);
+                            const isMatch = normalizedTargets.some((target, idx) => {
+                                const targetDeleeted = deLeetedTargets[idx];
+                                
+                                // Exact or DeLeeted match is perfect
+                                if (target === resultNom || targetDeleeted === resultDeleeted) return true;
 
-                            const isMatch = normalizedTargets.some(target => {
-                                const targetDeleeted = deLeet(target);
-                                return target === resultTitleNom || 
-                                       target === resultTitleDeleeted ||
-                                       targetDeleeted === resultTitleDeleeted ||
-                                       (target.length > 5 && resultTitleNom.includes(target)) ||
-                                       (resultTitleNom.length > 5 && target.includes(resultTitleNom));
+                                // If result is significantly longer, it might be a sequel (e.g. "Solo Leveling Ragnarok")
+                                // Only allow inclusion if the target is also long or the result doesn't have "sequel" keywords
+                                const sequelKeywords = ['ragnarok', 'sequel', 'side story', 'gaiden', 'anthology', 'spin off', 'special', 'arise', 'hunter origin', 'hunter-origin', 'origin'];
+                                const resultHasSequelWord = sequelKeywords.some(word => resultNom.includes(word));
+                                const targetHasSequelWord = sequelKeywords.some(word => target.includes(word));
+
+                                if (resultHasSequelWord && !targetHasSequelWord) return false;
+
+                                // Exact de-leeted check without extra words
+                                if (resultDeleeted === targetDeleeted) return true;
+
+                                // Length-based fuzzy match for short titles
+                                if (target.length > 8) {
+                                   return (resultNom.includes(target) || target.includes(resultNom)) && 
+                                          Math.abs(resultNom.length - target.length) < 10;
+                                }
+                                return false;
                             });
-
+                            
                             if (isMatch) {
-                                console.log(`[Intelligence] ✅ Accurate match on ManhwaWeb (ES): "${rawResultTitle}"`);
+                                console.log(`[Intelligence] ✅ Accurate match on ManhwaWeb (ES): "${resultTitle}"`);
                                 return { id: result.id, source: 'manhwaweb' };
                             }
                         }
                     }
+                } catch (e) { console.warn('[Intelligence] ManhwaWeb search failed for query:', query); }
+
+                // 2. WeebCentral (Manhwas/Manhuas)
+                if (isManhwa) {
+                    const wcResults = await weebcentralService.searchManga(query as string);
+                    if (wcResults && wcResults.length > 0) {
+                        for (const result of wcResults) {
+                            const resultTitle = result.attributes?.title?.['en'] || '';
+                            const resultNom = normalizeTitle(resultTitle);
+                            const resultDeleeted = deLeet(resultNom);
+
+                            const isMatch = normalizedTargets.some((target, idx) => {
+                                const targetDeleeted = deLeetedTargets[idx];
+                                return target === resultNom || targetDeleeted === resultDeleeted;
+                            });
+
+                            if (isMatch) {
+                                console.log(`[Intelligence] ✅ Accurate Manhwa match on WeebCentral: "${resultTitle}"`);
+                                return { id: result.id, source: 'weebcentral' };
+                            }
+                        }
+                    }
                 }
-            } catch (mwebErr) {
-                console.warn('[Intelligence] ManhwaWeb search failed:', mwebErr);
+
+                // 3. MangaPill 
+                const mpResults = await mangapillService.searchManga(query as string);
+                if (mpResults && mpResults.length > 0) {
+                    for (const result of mpResults) {
+                        const resultTitle = result.attributes?.title?.['en'] || '';
+                        const resultNom = normalizeTitle(resultTitle);
+                        const resultDeleeted = deLeet(resultNom);
+
+                        const isMatch = normalizedTargets.some((target, idx) => {
+                            const targetDeleeted = deLeetedTargets[idx];
+                            return target === resultNom || targetDeleeted === resultDeleeted;
+                        });
+
+                        if (isMatch) {
+                            console.log(`[Intelligence] ✅ Accurate match on MangaPill: "${resultTitle}"`);
+                            return { id: result.id, source: 'mangapill' };
+                        }
+                    }
+                }
             }
             
-            console.warn(`[Intelligence] ⚠️ No accurate match found among results for: ${searchTitle}`);
+            console.warn(`[Intelligence] ⚠️ No accurate match found after trying all titles for: ${searchTitle}`);
         } catch (err) {
             console.error('[Intelligence] Fallback search failed:', err);
         }
