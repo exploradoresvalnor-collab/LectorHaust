@@ -256,11 +256,11 @@
 /* Hero Section */
 .hero-container {
     padding: 0;
-    margin: -16px -16px 0; /* Break out of Ionic content padding */
-    width: calc(100% + 32px); /* Spans the full viewport even with padding */
-    height: 100svh; /* Occupy full screen viewport height */
+    margin: -16px -16px 0 !important; /* Force break out */
+    width: calc(100% + 32px) !important;
+    height: 100svh;
     position: relative;
-    overflow: hidden; /* Prevent horizontal scrolling */
+    overflow: hidden;
 }
 
 /* Base card styling for Mobile (Overlay) */
@@ -276,20 +276,19 @@
 }
 
 .hero-img-wrapper {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 0;
-    display: block;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 0 !important;
 }
 
 .hero-img-layer {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center top;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    object-position: center top !important;
     transition: all 0.5s ease;
     image-rendering: -webkit-optimize-contrast;
     image-rendering: high-quality;
@@ -339,10 +338,10 @@
         justify-content: flex-start; /* Text on left */
     }
     
-    .hero-img-layer {
-        left: auto;
-        right: 0;
-        width: 65%; /* Image only takes up right side */
+    .hero-img-wrapper {
+        left: auto !important;
+        right: 0 !important;
+        width: 65% !important; /* Image only takes up right side */
         /* Smooth mask to blend right image into the solid dark background on the left */
         -webkit-mask-image: linear-gradient(to right, transparent 0%, black 30%);
         mask-image: linear-gradient(to right, transparent 0%, black 30%);
@@ -368,45 +367,86 @@
     }
 }
 
-/* Subtle Login Prompt */
+/* Metallic Gold Floating Login Pill (Overlay) */
 .subtle-login-prompt {
-    margin: 10px 16px;
-    padding: 10px 16px;
-    background: rgba(255, 255, 255, 0.04);
-    backdrop-filter: blur(15px);
-    -webkit-backdrop-filter: blur(15px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 22px;
+    width: fit-content;
+    max-width: 90%;
+    /* High-contrast metallic gold gradient */
+    background: linear-gradient(135deg, 
+        rgba(255, 215, 0, 0.45) 0%, 
+        rgba(184, 134, 11, 0.2) 50%, 
+        rgba(255, 215, 0, 0.45) 100%
+    );
+    background-size: 200% auto;
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    border: 1.5px solid #FFD700;
+    border-radius: 30px;
     display: flex;
     align-items: center;
     gap: 12px;
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 0.9rem;
-    font-weight: 600;
+    color: #FFF; /* White text for better legibility over gold */
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    font-size: 0.88rem;
+    font-weight: 800;
     cursor: pointer;
-    transition: all 0.2s ease;
-    z-index: 50;
-    position: relative;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 200; /* Above EVERYTHING in hero */
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.5), 
+        0 0 20px rgba(255, 215, 0, 0.3),
+        inset 0 0 10px rgba(255, 255, 255, 0.2);
+    animation: gold-shimmer 4s linear infinite;
+}
+
+@keyframes gold-shimmer {
+    0% { background-position: 0% center; }
+    100% { background-position: 200% center; }
 }
 
 .subtle-login-prompt:hover {
-    background: rgba(255, 255, 255, 0.08);
-    transform: translateY(-2px);
+    transform: translateX(-50%) translateY(-5px) scale(1.05);
+    box-shadow: 
+        0 12px 40px rgba(0, 0, 0, 0.6), 
+        0 0 30px rgba(255, 215, 0, 0.5);
+    border-color: #FFF;
 }
 
 .sparkle-icon {
     font-size: 1.2rem;
-    color: var(--ion-color-primary);
+    color: #FFD700;
+    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.8));
 }
 
 .login-prompt-btn {
-    margin-left: auto;
-    --border-radius: 8px;
-    font-size: 0.8rem;
-    text-transform: none;
-    font-weight: 800;
-    height: 32px;
-    padding: 0 12px;
+    margin-left: 10px;
+    --border-radius: 14px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: 950;
+    height: 30px;
+    --background: #FFD700;
+    --color: #000;
+    padding: 0 14px;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Hide scrollbars globally but allow scrolling */
+::-webkit-scrollbar {
+    width: 0px;
+    height: 0px;
+    background: transparent; /* make scrollbar transparent */
+}
+
+* {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE 10+ */
 }
 
 .close-prompt {
