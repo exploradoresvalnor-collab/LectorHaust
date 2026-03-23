@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   IonModal,
   IonHeader,
@@ -16,7 +16,12 @@ import {
   IonImg,
   IonFooter,
   IonText,
-  IonBadge
+  IonBadge,
+  IonSkeletonText,
+  IonList,
+  IonItem,
+  IonLabel,
+  IonRippleEffect
 } from '@ionic/react';
 import { 
   closeOutline, 
@@ -25,7 +30,11 @@ import {
   colorPaletteOutline, 
   checkmarkCircle,
   searchOutline,
-  sparklesOutline
+  sparklesOutline,
+  chevronUpOutline,
+  diamondOutline,
+  brushOutline,
+  flashOutline
 } from 'ionicons/icons';
 import { artService, SafebooruPost } from '../services/artService';
 import './ArtPickerModal.css';
@@ -37,13 +46,22 @@ interface ArtPickerModalProps {
 }
 
 const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSelect }) => {
+  // Search States
   const [searchText, setSearchText] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  
+  // Gallery States
   const [arts, setArts] = useState<SafebooruPost[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedArt, setSelectedArt] = useState<SafebooruPost | null>(null);
+  
+  // Refs
+  const modalRef = useRef<HTMLIonModalElement>(null);
 
   const fetchArt = useCallback(async (tags: string = 'highres wallpaper scenery landscape') => {
     setLoading(true);
+    setShowSuggestions(false);
     try {
       const results = await artService.getRandomBackgrounds(tags, 40);
       setArts(results);
@@ -56,22 +74,37 @@ const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSele
 
   useEffect(() => {
     if (isOpen) {
-      fetchArt(); // Initial load
+      fetchArt();
     } else {
       setSearchText('');
+      setSuggestions([]);
       setSelectedArt(null);
     }
   }, [isOpen, fetchArt]);
 
-  const handleSearch = (e: CustomEvent) => {
-    const query = e.detail.value;
-    setSearchText(query);
-    if (!query) {
-      fetchArt();
+  // Autocomplete Logic
+  useEffect(() => {
+    if (searchText.length > 1 && !loading) {
+      const delayDebounceFn = setTimeout(async () => {
+        const suggs = await artService.getTagSuggestions(searchText);
+        setSuggestions(suggs);
+        setShowSuggestions(suggs.length > 0);
+      }, 400);
+      return () => clearTimeout(delayDebounceFn);
     } else {
-      // Use spaces instead of + for cleaner encoding in artService
-      fetchArt(query.trim());
+      setSuggestions([]);
+      setShowSuggestions(false);
     }
+  }, [searchText]);
+
+  const handleSearchInput = (e: CustomEvent) => {
+    setSearchText(e.detail.value || '');
+  };
+
+  const handleSelectSuggestion = (tag: string) => {
+    setSearchText(tag);
+    fetchArt(tag);
+    setShowSuggestions(false);
   };
 
   const selectAndApply = (type: 'banner' | 'avatar' | 'both') => {
@@ -81,110 +114,160 @@ const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSele
     }
   };
 
+  const renderSkeletons = () => {
+    return Array(12).fill(0).map((_, i) => (
+      <IonCol size="6" sizeMd="4" key={`skel-${i}`} className="art-col">
+        <div className="art-item-skeleton">
+          <IonSkeletonText animated style={{ width: '100%', height: '100%' }} />
+        </div>
+      </IonCol>
+    ));
+  };
+
   return (
-    <IonModal isOpen={isOpen} onDidDismiss={onClose} className="art-picker-modal">
+    <IonModal 
+      ref={modalRef}
+      isOpen={isOpen} 
+      onDidDismiss={onClose} 
+      className="art-picker-modal ultra-pro"
+      breakpoints={[0, 0.4, 0.7, 0.95]}
+      initialBreakpoint={0.7}
+      handle={true}
+    >
       <IonHeader className="ion-no-border">
         <IonToolbar className="art-picker-toolbar">
           <IonButtons slot="start">
-            <IonButton onClick={onClose}>
-              <IonIcon icon={closeOutline} slot="icon-only" />
+            <IonButton onClick={onClose} className="close-btn-round">
+              <IonIcon icon={closeOutline} />
             </IonButton>
           </IonButtons>
-          <IonTitle>Galería de Arte Elite</IonTitle>
+          <IonTitle>Galería Haus Elite</IonTitle>
           <IonButtons slot="end">
-            <IonButton onClick={() => fetchArt()} disabled={loading}>
-              <IonIcon icon={sparklesOutline} slot="icon-only" />
+            <IonButton onClick={() => fetchArt()} disabled={loading} className="sparkle-btn">
+              <IonIcon icon={sparklesOutline} color="primary" />
             </IonButton>
           </IonButtons>
         </IonToolbar>
-        <IonToolbar className="art-picker-search-toolbar">
+        
+        <div className="search-container-premium">
           <IonSearchbar 
             value={searchText} 
-            onIonInput={handleSearch}
-            placeholder="Buscar personaje o tema..."
-            className="premium-searchbar"
-            debounce={1000}
+            onIonInput={handleSearchInput}
+            onKeyPress={(e) => e.key === 'Enter' && fetchArt(searchText)}
+            placeholder="Escribe un personaje o tema..."
+            className="ultra-searchbar"
+            debounce={0}
+            animated={true}
           />
-          <div className="quick-filters-scroll">
-            <div className="quick-filters">
-              <button className={`filter-chip ${searchText === '' ? 'active' : ''}`} onClick={() => { setSearchText(''); fetchArt('highres wallpaper scenery landscape'); }}>✨ Elite</button>
-              <button className="filter-chip" onClick={() => { setSearchText('oficial'); fetchArt('official_art highres'); }}>🏆 Oficial</button>
-              <button className="filter-chip" onClick={() => { setSearchText('paisajes'); fetchArt('scenery landscape highres'); }}>🌅 Paisajes</button>
-              <button className="filter-chip" onClick={() => { setSearchText('ciudad'); fetchArt('cityscape urban neon'); }}>🏙️ Ciudad</button>
-              <button className="filter-chip" onClick={() => { setSearchText('arte'); fetchArt('traditional_media watercolor aesthetic'); }}>🎨 Artístico</button>
-              <button className="filter-chip" onClick={() => { setSearchText('cyber'); fetchArt('cyberpunk night_city'); }}>🌃 Cyber</button>
-              <button className="filter-chip" onClick={() => { setSearchText('portada'); fetchArt('official_art book_cover'); }}>📚 Portadas</button>
+          
+          {showSuggestions && (
+            <div className="suggestions-dropdown animate-fade-in">
+              <IonList className="suggestions-list">
+                {suggestions.map((tag) => (
+                  <IonItem 
+                    button 
+                    key={tag} 
+                    onClick={() => handleSelectSuggestion(tag)}
+                    className="suggestion-item"
+                    detail={false}
+                  >
+                    <IonIcon icon={flashOutline} slot="start" color="primary" style={{ fontSize: '0.8rem' }} />
+                    <IonLabel>{tag.replace(/_/g, ' ')}</IonLabel>
+                  </IonItem>
+                ))}
+              </IonList>
             </div>
+          )}
+        </div>
+
+        <div className="quick-filters-scroll premium-curation">
+          <div className="quick-filters">
+            <button className={`filter-chip ${searchText === '' ? 'active' : ''}`} onClick={() => { setSearchText(''); fetchArt('highres wallpaper scenery landscape'); }}>✨ Elite</button>
+            <button className="filter-chip" onClick={() => { setSearchText('official'); fetchArt('official_art highres'); }}>🏆 Oficial</button>
+            <button className="filter-chip" onClick={() => { setSearchText('landscape'); fetchArt('scenery landscape highres'); }}>🌅 Paisajes</button>
+            <button className="filter-chip" onClick={() => { setSearchText('urban'); fetchArt('cityscape urban neon'); }}>🏙️ Ciudad</button>
+            <button className="filter-chip" onClick={() => { setSearchText('watercolor'); fetchArt('traditional_media watercolor aesthetic'); }}>🎨 Arte</button>
+            <button className="filter-chip" onClick={() => { setSearchText('cyber'); fetchArt('cyberpunk night_city'); }}>🌃 Cyber</button>
           </div>
-        </IonToolbar>
+        </div>
       </IonHeader>
 
-      <IonContent className="art-picker-content">
-        {loading ? (
-          <div className="art-loader">
-            <IonSpinner name="crescent" color="primary" />
-            <p>Descifrando grimorios visuales...</p>
-          </div>
-        ) : (
-          <IonGrid className="art-grid">
-            <IonRow>
-              {arts.map((art) => (
-                <IonCol size="6" sizeMd="4" key={art.id} className="art-col">
-                  <div 
-                    className={`art-item-card ${selectedArt?.id === art.id ? 'selected' : ''}`}
-                    onClick={() => setSelectedArt(art)}
-                  >
-                    <div className="card-backdrop-glow"></div>
-                    <IonImg src={art.preview_url} className="art-thumb" />
-                    <div className="art-card-info">
-                        <span className="res-badge">{art.width}x{art.height}</span>
-                    </div>
-                    {selectedArt?.id === art.id && (
-                      <div className="selection-overlay">
-                        <IonIcon icon={checkmarkCircle} />
+      <IonContent className="art-picker-content glass-content">
+        <div className="content-padding">
+          {loading ? (
+            <IonGrid className="art-grid">
+              <IonRow>{renderSkeletons()}</IonRow>
+            </IonGrid>
+          ) : (
+            <IonGrid className="art-grid">
+              <IonRow>
+                {arts.map((art) => (
+                  <IonCol size="6" sizeMd="4" key={art.id} className="art-col">
+                    <div 
+                      className={`art-item-card ultra-card ${selectedArt?.id === art.id ? 'selected' : ''}`}
+                      onClick={() => setSelectedArt(art)}
+                    >
+                      <IonImg src={art.preview_url} className="art-thumb" />
+                      <div className="art-badge-overlay">
+                         <span className="res-tag">{art.width}x{art.height}</span>
                       </div>
-                    )}
-                  </div>
-                </IonCol>
-              ))}
-            </IonRow>
-          </IonGrid>
-        )}
+                      <IonRippleEffect />
+                    </div>
+                  </IonCol>
+                ))}
+              </IonRow>
+            </IonGrid>
+          )}
 
-        {!loading && arts.length === 0 && (
-          <div className="art-empty">
-            <IonIcon icon={searchOutline} className="empty-icon" />
-            <h3>No se encontró este arte</h3>
-            <p>Prueba con etiquetas más simples en inglés (ej: blue_sky, luffy, red_eyes)</p>
-          </div>
-        )}
+          {!loading && arts.length === 0 && (
+            <div className="art-empty-state">
+              <div className="empty-icon-wrapper">
+                <IonIcon icon={searchOutline} />
+              </div>
+              <h3>Grimorio Vacío</h3>
+              <p>No encontramos arte con esa esencia. Prueba etiquetas más simples.</p>
+            </div>
+          )}
+        </div>
       </IonContent>
 
       {selectedArt && (
-        <IonFooter className="art-picker-footer animate-slide-up">
-          <div className="selected-preview-banner">
-             <div className="preview-info">
-                <IonBadge color="primary">ID: {selectedArt.id}</IonBadge>
-                <IonText color="light">
-                  <p>{selectedArt.tags.split(' ').slice(0, 5).join(', ')}...</p>
-                </IonText>
-             </div>
-             <div className="selection-actions">
-                <IonButton fill="outline" size="small" onClick={() => selectAndApply('banner')}>
+        <div className="immersive-preview-overlay animate-slide-up">
+            <div className="preview-header">
+                <IonButton fill="clear" onClick={() => setSelectedArt(null)} className="back-btn">
+                    <IonIcon icon={closeOutline} />
+                </IonButton>
+                <div className="preview-meta">
+                   <h3>Vista Previa</h3>
+                   <p>{selectedArt.tags.split(' ').slice(0, 3).join(', ')}</p>
+                </div>
+                <IonBadge color="primary">{selectedArt.width}x{selectedArt.height}</IonBadge>
+            </div>
+            
+            <div className="preview-body">
+              <div className="preview-image-container">
+                <IonImg src={selectedArt.sample_url} className="full-preview-img" />
+                <div className="preview-glow"></div>
+              </div>
+            </div>
+
+            <div className="preview-footer-actions">
+              <div className="action-row">
+                <IonButton expand="block" fill="outline" className="action-btn-pill" onClick={() => selectAndApply('banner')}>
                   <IonIcon icon={colorPaletteOutline} slot="start" />
                   BANNER
                 </IonButton>
-                <IonButton fill="outline" size="small" onClick={() => selectAndApply('avatar')}>
+                <IonButton expand="block" fill="outline" className="action-btn-pill" onClick={() => selectAndApply('avatar')}>
                   <IonIcon icon={personCircleOutline} slot="start" />
                   AVATAR
                 </IonButton>
-                <IonButton fill="solid" size="small" color="primary" onClick={() => selectAndApply('both')}>
-                  <IonIcon icon={imageOutline} slot="start" />
-                  AMBOS
-                </IonButton>
-             </div>
-          </div>
-        </IonFooter>
+              </div>
+              <IonButton expand="block" fill="solid" color="primary" className="apply-both-btn" onClick={() => selectAndApply('both')}>
+                <IonIcon icon={diamondOutline} slot="start" />
+                APLICAR COMO MAESTRO (AMBOS)
+              </IonButton>
+            </div>
+        </div>
       )}
     </IonModal>
   );

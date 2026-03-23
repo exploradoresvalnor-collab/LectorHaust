@@ -106,6 +106,32 @@ class ArtService {
     if (images.length === 0) return null;
     return images[Math.floor(Math.random() * images.length)];
   }
+
+  /**
+   * Fetches tag autocomplete suggestions from Safebooru.
+   * Returns a list of tag names.
+   */
+  async getTagSuggestions(query: string, limit: number = 10): Promise<string[]> {
+    if (!query || query.length < 2) return [];
+    try {
+      // Safebooru Tag API uses name_pattern with % wildcard
+      const apiUrl = `${this.baseUrl}?page=dapi&s=tag&q=index&name_pattern=${encodeURIComponent(query)}%&limit=${limit}`;
+      const requestUrl = Capacitor.isNativePlatform() ? apiUrl : `${PROXY_URL}${encodeURIComponent(apiUrl)}`;
+
+      const response = await axios.get(requestUrl, { 
+        responseType: 'text',
+        timeout: 5000 
+      });
+      
+      const xml = response.data;
+      // Simple but effective regex to extract 'name' from <tag name="..." ... />
+      const matches = [...xml.matchAll(/name="([^"]+)"/g)];
+      return matches.map(m => m[1]);
+    } catch (error) {
+      console.error('[ArtService] Failed to fetch tag suggestions:', error);
+      return [];
+    }
+  }
 }
 
 export const artService = new ArtService();
