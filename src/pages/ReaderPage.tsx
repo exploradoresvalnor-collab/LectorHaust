@@ -9,6 +9,7 @@ import {
   IonSpinner, 
   IonButton,
   IonIcon,
+  IonRange,
   useIonRouter
 } from '@ionic/react';
 import { 
@@ -49,18 +50,32 @@ const ReaderPage: React.FC = () => {
     handleMangaTap,
     isOffline,
     fitMode,
-    setFitMode
+    setFitMode,
+    initialScrollPage,
+    setCurrentMangaPage
   } = useMangaReader(chapterId);
+
+  // NUEVO EFFECT: Hace el salto automático a la página para Manhwas (Webtoons)
+  React.useEffect(() => {
+    if (isWebtoon && initialScrollPage !== null && pages.length > 0) {
+      setTimeout(() => {
+        const targetElement = document.querySelector(`[data-index="${initialScrollPage}"]`);
+        if (targetElement) {
+          targetElement.scrollIntoView({ behavior: 'instant', block: 'start' }); 
+        }
+      }, 300);
+    }
+  }, [isWebtoon, initialScrollPage, pages.length]);
 
   // Keyboard navigation for Desktop
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isWebtoon) return;
       if (e.key === 'ArrowRight') {
-        const tapEvent = { clientX: window.innerWidth * 0.1 } as any; // Simula tap en zona "atrás" (RTL)
+        const tapEvent = { clientX: window.innerWidth * 0.9 } as any; // Simula tap en zona "adelante" (LTR)
         handleMangaTap(tapEvent);
       } else if (e.key === 'ArrowLeft') {
-        const tapEvent = { clientX: window.innerWidth * 0.9 } as any; // Simula tap en zona "adelante" (RTL)
+        const tapEvent = { clientX: window.innerWidth * 0.1 } as any; // Simula tap en zona "atrás" (LTR)
         handleMangaTap(tapEvent);
       }
     };
@@ -108,26 +123,33 @@ const ReaderPage: React.FC = () => {
 
   return (
     <IonPage className="reader-page">
-      {/* Header que aparece/desaparece */}
+      {/* UI PERSISTENTE (SIEMPRE VISIBLE) */}
+      <div className="reader-persistent-bar">
+        <div className="persistent-left">
+          <IonButton fill="clear" onClick={() => router.back()} className="persistent-back">
+            <IonIcon icon={chevronBackOutline} />
+          </IonButton>
+          <span className="persistent-chapter">
+            Cap. {chapterNum} {!isWebtoon && pages.length > 0 && <span className="persistent-page">({currentMangaPage + 1}/{pages.length})</span>}
+          </span>
+        </div>
+        <div className="persistent-right">
+          <IonButton fill="clear" onClick={() => setIsWebtoon(!isWebtoon)} className="persistent-mode">
+            <IonIcon icon={isWebtoon ? bookOutline : listOutline} slot="start" />
+            {isWebtoon ? 'Cascada' : 'Páginas'}
+          </IonButton>
+        </div>
+      </div>
+
+      {/* Header Expandible (EXTRA) */}
       <div className={`reader-header-overlay ${showUi ? 'visible' : 'hidden'}`}>
         <IonHeader className="ion-no-border">
           <IonToolbar className="reader-toolbar-transparent">
-            <IonButtons slot="start">
-              <IonBackButton text="" defaultHref="/home" className="reader-back-btn" />
-            </IonButtons>
-            <div className="reader-title-container">
-              <span className={`reader-chapter-badge ${isOffline ? 'is-offline' : ''}`}>
-                {isOffline && <IonIcon icon={cloudDownloadOutline} style={{ marginRight: '5px' }} />}
-                Cap. {chapterNum} {isWebtoon ? '' : `(${currentMangaPage + 1}/${pages.length})`}
-              </span>
-            </div>
+            {/* Espacio reservado para no tapar el persistent */}
+            <div style={{ height: '40px' }}></div>
             <IonButtons slot="end">
               <IonButton fill="clear" onClick={() => setFitMode(fitMode === 'fitWidth' ? 'fitScreen' : 'fitWidth')} className="fit-toggle-btn">
                 <IonIcon slot="icon-only" icon={fitMode === 'fitWidth' ? contractOutline : expandOutline} />
-              </IonButton>
-              <IonButton fill="clear" onClick={() => setIsWebtoon(!isWebtoon)} className="mode-toggle-btn">
-                <IonIcon slot="start" icon={isWebtoon ? bookOutline : listOutline} />
-                {isWebtoon ? 'Cascada' : 'Páginas'}
               </IonButton>
             </IonButtons>
           </IonToolbar>
@@ -159,7 +181,7 @@ const ReaderPage: React.FC = () => {
                 {pages.map((page, index) => (
                   <div key={index} className="page-wrapper" data-index={index} style={{ contentVisibility: 'auto' }}>
                     <img 
-                      src={page.includes('mangadex') ? mangaProvider.getProxiedUrl(page) : page} 
+                      src={page.includes('mangadex') ? mangaProvider.getOptimizedUrl(page) : page} 
                       className="manga-page loaded" 
                       alt={`Página ${index + 1}`}
                       loading={index < 3 ? "eager" : "lazy"}
@@ -173,38 +195,36 @@ const ReaderPage: React.FC = () => {
 
             {/* --- MODO MANGA (PAGINADO JAPONÉS RTL) --- */}
             {!isWebtoon && (
-              <div className={`manga-pager-container ${fitMode === 'fitWidth' ? 'fit-width' : ''}`} onClick={handlePageTap}>
-                
-                {/* Indicadores Visuales de Tap (Zonas clicables) */}
-                <div className="tap-zone tap-next" onClick={(e) => { e.stopPropagation(); handlePageTap({ clientX: 100 } as any); }}>
-                  <IonIcon icon={chevronBackOutline} />
-                </div>
-                <div className="tap-zone tap-prev" onClick={(e) => { e.stopPropagation(); handlePageTap({ clientX: window.innerWidth - 100 } as any); }}>
-                  <IonIcon icon={chevronForwardOutline} />
-                </div>
-                <div className="tap-zone tap-center" onClick={(e) => { e.stopPropagation(); toggleUi(); }}></div>
-
+              <div 
+                className={`manga-pager-container ${fitMode === 'fitWidth' ? 'fitWidth' : ''}`} 
+                onClick={handlePageTap} // El tap ahora se maneja globalmente sin bloquear el zoom
+              >
                 {!showEndSection ? (
                   <div className={`manga-zoom-wrapper ${fitMode}`}>
                     <TransformWrapper
+                      key={`zoom-wrapper-${chapterId}-${currentMangaPage}`}
                       initialScale={1}
                       minScale={1}
                       maxScale={4}
                       centerOnInit={true}
-                      wheel={{ disabled: true }}
+                      wheel={{ step: 0.1 }}
                       doubleClick={{ step: 0.5 }}
+                      panning={{ excluded: ['input', 'button'] }}
                     >
                       <TransformComponent
-                        wrapperStyle={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        contentStyle={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        wrapperStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
-                        <img 
-                          key={currentMangaPage} 
-                          src={pages[currentMangaPage].includes('mangadex') ? mangaProvider.getProxiedUrl(pages[currentMangaPage]) : pages[currentMangaPage]} 
-                          className={`manga-page-single loaded page-flip-anim ${fitMode}`} 
-                          alt={`Página ${currentMangaPage + 1}`}
-                          decoding="async"
-                        />
+                        <div className={`image-centering-container ${fitMode}`}>
+                          <img 
+                            key={`img-${currentMangaPage}`} 
+                            src={pages[currentMangaPage].includes('mangadex') ? mangaProvider.getOptimizedUrl(pages[currentMangaPage]) : pages[currentMangaPage]} 
+                            className={`manga-page-single loaded page-flip-anim ${fitMode}`} 
+                            alt={`Página ${currentMangaPage + 1}`}
+                            decoding="async"
+                            style={{ pointerEvents: 'none' }} 
+                          />
+                        </div>
                       </TransformComponent>
                     </TransformWrapper>
                     
@@ -213,7 +233,8 @@ const ReaderPage: React.FC = () => {
                       <link 
                         rel="preload" 
                         as="image" 
-                        href={pages[currentMangaPage + 1].includes('mangadex') ? mangaProvider.getProxiedUrl(pages[currentMangaPage + 1]) : pages[currentMangaPage + 1]} 
+                        href={pages[currentMangaPage + 1].includes('mangadex') ? mangaProvider.getOptimizedUrl(pages[currentMangaPage + 1]) : pages[currentMangaPage + 1]} 
+                        fetchPriority="high"
                       />
                     )}
                   </div>
@@ -230,18 +251,29 @@ const ReaderPage: React.FC = () => {
         )}
       </IonContent>
 
-      {/* Footer que aparece/desaparece */}
+      {/* Footer Interactivo Premium */}
       {!loading && !error && pages.length > 0 && (
         <div className={`reader-footer-overlay ${showUi ? 'visible' : 'hidden'}`}>
           <div className="reader-progress-container">
-            <div className="reader-progress-bar">
-              <div 
-                className="progress-fill" 
-                style={{ width: `${((currentMangaPage + 1) / pages.length) * 100}%` }}
-              ></div>
-            </div>
+            
+            {/* Slider interactivo para cambiar de página rápido */}
+            {!isWebtoon && (
+              <IonRange 
+                className="reader-slider"
+                min={0} 
+                max={pages.length - 1} 
+                value={currentMangaPage} 
+                onIonChange={(e: any) => {
+                  const newPage = e.detail.value as number;
+                  setCurrentMangaPage(newPage);
+                  hapticsService.lightImpact();
+                }}
+                color="primary"
+              />
+            )}
+
             <div className="reader-footer-info">
-              <span>{currentMangaPage + 1} / {pages.length}</span>
+              <span className="page-counter">{currentMangaPage + 1} / {pages.length}</span>
             </div>
           </div>
         </div>

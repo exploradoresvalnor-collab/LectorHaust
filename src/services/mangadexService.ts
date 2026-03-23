@@ -4,11 +4,11 @@ import { Capacitor } from '@capacitor/core';
  * MangaDex API Service
  */
 
-// Eliminamos la validación de isLocalhost. 
-// Ahora TODOS (Local y Vercel) usarán el proxy para evitar bloqueos de operadoras.
+// 1. Detectamos si estamos en desarrollo local
+const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
 const isNative = Capacitor.isNativePlatform();
-// En local/Vercel usas el proxy relativo. En App Nativa usas el proxy remoto de Vercel.
-const API_BASE = isNative ? 'https://lector-haust.vercel.app/api-md' : '/api-md';
+const baseUrl = '/api-md';
 const UPLOADS_URL = 'https://uploads.mangadex.org';
 const CLOUDINARY_CLOUD_NAME = 'djzak5yb2';
 
@@ -16,31 +16,42 @@ const CLOUDINARY_CLOUD_NAME = 'djzak5yb2';
  * Simple rate limiter: ensures minimum 200ms between requests (≤5 req/s)
  */
 let lastRequestTime = 0;
-async function rateLimitedFetch(url: string): Promise<Response> {
+// 3. Añadimos soporte para opciones (RequestInit) para poder abortar peticiones colgadas
+async function rateLimitedFetch(url: string, options?: RequestInit): Promise<Response> {
     const now = Date.now();
     const elapsed = now - lastRequestTime;
     if (elapsed < 200) {
         await new Promise(r => setTimeout(r, 200 - elapsed));
     }
     lastRequestTime = Date.now();
-    return fetch(url);
+    return fetch(url, options);
 }
 
 /**
  * Helper to construct proxied URLs for MangaDex
  */
 function getProxyUrl(endpoint: string) {
-    const fullUrl = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
+    if (isLocalhost) {
+        return `/api-md${endpoint}`;
+    }
+    // En producción / Vercel
+    const fullUrl = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
     return fullUrl;
 }
 
 /**
  * Helper to fetch from MangaDex using proxy with automatic retry for 500 errors
  */
-async function apiFetch(endpoint: string, retries = 2, delay = 1000) {
+async function apiFetch(endpoint: string, retries = 2, delay = 1000): Promise<any> {
     const proxiedUrl = getProxyUrl(endpoint);
     try {
-        const response = await rateLimitedFetch(proxiedUrl);
+        // 4. EL "KILL SWITCH": Creamos un abortador automático de 10 segundos
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        // Pasamos el signal al fetch
+        const response = await rateLimitedFetch(proxiedUrl, { signal: controller.signal });
+        clearTimeout(timeoutId); // Limpiamos el timeout si responde rápido
         
         if (!response.ok) {
             if (response.status >= 500 && retries > 0) {
@@ -50,14 +61,15 @@ async function apiFetch(endpoint: string, retries = 2, delay = 1000) {
             }
             throw new Error(`MangaDex API Error: ${response.status}`);
         }
-        return response.json();
-    } catch (err) {
+        return await response.json();
+    } catch (err: any) {
+        // Si falló por timeout (AbortError) o por red, intentar de nuevo
         if (retries > 0) {
-            console.warn(`[MangaDex] Global Fetch Error. Retrying in ${delay}ms... (${retries} left)`, err);
+            console.warn(`[MangaDex] Fetch Hang/Error. Retrying in ${delay}ms... (${retries} left)`, err.message);
             await new Promise(res => setTimeout(res, delay));
             return apiFetch(endpoint, retries - 1, delay * 2);
         }
-        throw err;
+        throw err; // Si ya no hay reintentos, lanzamos el error para quitar el "Cargando..."
     }
 }
 
@@ -855,8 +867,8 @@ export const mangadexService = {
         // Evitar doble prefijo si ya está optimizada
         if (url.includes('res.cloudinary.com') || url.includes('i0.wp.com')) return url;
 
-        // Para TODOS los assets de MangaDex (uploads, api, network), usamos Photon (i0.wp.com).
-        // WordPress Photon es extremadamente fiable, bypassa bloqueos de ISP y maneja CORS perfectamente.
+        // Para TODOS los assets de MangaDex (uploads, api, network):
+        // Usamos WordPress Photon (i0.wp.com) que funciona perfecto en localhost y producción
         if (url.includes('mangadex.org') || url.includes('mangadex.network')) {
             return `https://i0.wp.com/${url.replace(/^https?:\/\//, '')}`;
         }

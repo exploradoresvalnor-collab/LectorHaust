@@ -28,6 +28,20 @@ export default defineConfig({
           'Origin': 'https://mangadex.org'
         }
       },
+      '/uploads-md': {
+        target: 'https://uploads.mangadex.org',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/uploads-md/, ''),
+        headers: {
+          'User-Agent': 'Mozilla/5.0',
+          'Referer': 'https://mangadex.org'
+        }
+      },
+      '/proxy-wp': {
+        target: 'https://i0.wp.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/proxy-wp/, '')
+      },
       '/api-aniwatch': {
         target: 'https://apideaniwatch.vercel.app',
         changeOrigin: true,

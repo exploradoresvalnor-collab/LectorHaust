@@ -26,8 +26,12 @@ export function useMangaReader(chapterId?: string) {
   const [showEndSection, setShowEndSection] = useState(false);
   const [fitMode, setFitMode] = useState<'fitWidth' | 'fitScreen'>('fitScreen');
   
+  // Estado para avisar a la UI que debe hacer scroll automáticamente al abrir Webtoon
+  const [initialScrollPage, setInitialScrollPage] = useState<number | null>(null);
+  
   const saveProgress = useLibraryStore(state => state.saveProgress);
   const markAsRead = useLibraryStore(state => state.markAsRead);
+  const getProgress = useLibraryStore(state => state.getProgress);
   const dataSaverMode = useSettingsStore(state => state.dataSaverMode);
   
   const currentPageIndex = useRef(0);
@@ -97,6 +101,7 @@ export function useMangaReader(chapterId?: string) {
 
         let pagesLoaded = false;
         let downloaded = false;
+        let finalPagesCount = 0;
 
         try {
           // 🔌 OFFLINE FIRST: Check if chapter is downloaded locally
@@ -119,6 +124,7 @@ export function useMangaReader(chapterId?: string) {
             const localPages = await offlineService.getLocalPages(chapterId).catch(() => []);
             if (localPages.length > 0 && isMounted) {
               setPages(localPages);
+              finalPagesCount = localPages.length;
               setIsOffline(true);
               markAsRead(chapterId);
               pagesLoaded = true;
@@ -129,25 +135,35 @@ export function useMangaReader(chapterId?: string) {
           console.warn('[Reader] ⚠️ Offline storage access blocked or failed:', storageErr);
         }
 
+        // Enforce hard 15-second timeout on network fetch to prevent silent UI hangs
+        const withTimeout = <T = any>(promise: Promise<T>, ms = 15000): Promise<T> => 
+          Promise.race([
+            promise, 
+            new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Network timeout')), ms))
+          ]);
+
         // If no offline pages, fetch from network
         if (!pagesLoaded) {
-          const data = await mangaProvider.getChapterPages(chapterId, dataSaverMode ? 'data-saver' : 'data');
+          console.log('[Reader] Fetching pages from network...');
+          const data = await withTimeout(mangaProvider.getChapterPages(chapterId, dataSaverMode ? 'data-saver' : 'data'));
           if (!isMounted) return;
           if (data && data.pages) {
             setPages(data.pages);
+            finalPagesCount = data.pages.length;
             markAsRead(chapterId);
             if (auth.currentUser) userStatsService.awardChapterXP(auth.currentUser.uid);
           }
         }
 
+        console.log('[Reader] Fetching chapter metadata...');
         // Always fetch chapter metadata for navigation (prev/next) in parallel with details
-        const [chapterInfo, _] = await Promise.all([
+        const [chapterInfo, _] = await withTimeout(Promise.all([
           mangaProvider.getChapter(chapterId),
           (async () => {
              // award XP if online
              if (!downloaded && auth.currentUser) userStatsService.awardChapterXP(auth.currentUser.uid);
           })()
-        ]);
+        ]));
 
         if (!isMounted) return;
 
@@ -173,6 +189,24 @@ export function useMangaReader(chapterId?: string) {
           if (webtoonStatus) {
             setFitMode('fitWidth');
           }
+
+          // --- NUEVA LÓGICA DE RESTAURACIÓN DE PROGRESO ---
+          const savedProgress = getProgress(mangaRel.id);
+          // Si el progreso existe, pertenece a ESTE MISMO capítulo y es mayor a la página 1
+          if (savedProgress && savedProgress.chapterId === chapterId && savedProgress.pageIndex > 1) {
+             let targetPage = savedProgress.pageIndex - 1; // Convertir de vuelta a base 0
+             // Evitar errores si la página guardada es mayor al total de páginas
+             if (targetPage >= finalPagesCount) targetPage = finalPagesCount - 1;
+             
+             setCurrentMangaPage(targetPage);
+             currentPageIndex.current = targetPage;
+             
+             // Si es Webtoon, enviamos la señal a ReaderPage.tsx para que haga scroll físico
+             if (webtoonStatus) {
+                 setInitialScrollPage(targetPage);
+             }
+          }
+          // ------------------------------------------------
 
           // Parallelize manga info and chapters scan
           Promise.all([
@@ -202,7 +236,8 @@ export function useMangaReader(chapterId?: string) {
           ]).catch(err => console.warn('Reader background tasks failed', err));
         }
       } catch (err: any) {
-        if (isMounted) setError(err.message || 'Error al cargar las páginas.');
+        console.error('[Reader] Fatal fetch error:', err);
+        if (isMounted) setError(err.message || 'Error al cargar las páginas o timeout excedido.');
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -210,7 +245,7 @@ export function useMangaReader(chapterId?: string) {
     fetchPages();
 
     return () => { isMounted = false; };
-  }, [chapterId, dataSaverMode, markAsRead]);
+  }, [chapterId, dataSaverMode, markAsRead, getProgress]);
   
   // Auto-ocultar UI para inmersión inicial
   useEffect(() => {
@@ -273,6 +308,7 @@ export function useMangaReader(chapterId?: string) {
     handleMangaTap,
     isOffline,
     fitMode,
-    setFitMode
+    setFitMode,
+    initialScrollPage
   };
 }
