@@ -370,12 +370,12 @@
 /* Metallic Gold Floating Login Pill (Overlay) */
 .subtle-login-prompt {
     position: absolute;
-    top: 20px;
+    top: 85px; /* Moved down to clear the absolute header */
     left: 50%;
     transform: translateX(-50%);
-    padding: 10px 22px;
+    padding: 8px 18px;
     width: fit-content;
-    max-width: 90%;
+    max-width: 92%;
     /* High-contrast metallic gold gradient */
     background: linear-gradient(135deg, 
         rgba(255, 215, 0, 0.45) 0%, 
@@ -444,9 +444,22 @@
     background: transparent; /* make scrollbar transparent */
 }
 
-* {
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE 10+ */
+@media (max-width: 480px) {
+    .subtle-login-prompt {
+        top: 75px;
+        padding: 6px 14px;
+        gap: 8px;
+        font-size: 0.8rem;
+    }
+    .login-prompt-btn {
+        height: 24px;
+        font-size: 0.68rem;
+        padding: 0 8px;
+        margin-left: 5px;
+    }
+    .sparkle-icon {
+        font-size: 1rem;
+    }
 }
 
 .close-prompt {
