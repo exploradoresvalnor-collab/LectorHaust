@@ -42,7 +42,7 @@ const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSele
   const [loading, setLoading] = useState(false);
   const [selectedArt, setSelectedArt] = useState<SafebooruPost | null>(null);
 
-  const fetchArt = useCallback(async (tags: string = 'scenery landscape') => {
+  const fetchArt = useCallback(async (tags: string = 'highres wallpaper scenery landscape') => {
     setLoading(true);
     try {
       const results = await artService.getRandomBackgrounds(tags, 40);
@@ -107,13 +107,13 @@ const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSele
           />
           <div className="quick-filters-scroll">
             <div className="quick-filters">
-              <button className={`filter-chip ${searchText === '' ? 'active' : ''}`} onClick={() => { setSearchText(''); fetchArt('scenery landscape'); }}>🌌 Paisajes</button>
-              <button className="filter-chip" onClick={() => { setSearchText('cyberpunk'); fetchArt('cyberpunk'); }}>🌃 Cyberpunk</button>
-              <button className="filter-chip" onClick={() => { setSearchText('retro'); fetchArt('90s retro'); }}>📻 Retro</button>
-              <button className="filter-chip" onClick={() => { setSearchText('fantasy'); fetchArt('fantasy magical'); }}>🧙 Fantasía</button>
-              <button className="filter-chip" onClick={() => { setSearchText('lofi'); fetchArt('lofi aesthetic'); }}>🎧 Lofi</button>
-              <button className="filter-chip" onClick={() => { setSearchText('chibi'); fetchArt('chibi'); }}>🧸 Chibi</button>
-              <button className="filter-chip" onClick={() => { setSearchText('space'); fetchArt('space galaxy'); }}>🚀 Espacio</button>
+              <button className={`filter-chip ${searchText === '' ? 'active' : ''}`} onClick={() => { setSearchText(''); fetchArt('highres wallpaper scenery landscape'); }}>✨ Elite</button>
+              <button className="filter-chip" onClick={() => { setSearchText('oficial'); fetchArt('official_art highres'); }}>🏆 Oficial</button>
+              <button className="filter-chip" onClick={() => { setSearchText('paisajes'); fetchArt('scenery landscape highres'); }}>🌅 Paisajes</button>
+              <button className="filter-chip" onClick={() => { setSearchText('ciudad'); fetchArt('cityscape urban neon'); }}>🏙️ Ciudad</button>
+              <button className="filter-chip" onClick={() => { setSearchText('arte'); fetchArt('traditional_media watercolor aesthetic'); }}>🎨 Artístico</button>
+              <button className="filter-chip" onClick={() => { setSearchText('cyber'); fetchArt('cyberpunk night_city'); }}>🌃 Cyber</button>
+              <button className="filter-chip" onClick={() => { setSearchText('portada'); fetchArt('official_art book_cover'); }}>📚 Portadas</button>
             </div>
           </div>
         </IonToolbar>
@@ -134,7 +134,11 @@ const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSele
                     className={`art-item-card ${selectedArt?.id === art.id ? 'selected' : ''}`}
                     onClick={() => setSelectedArt(art)}
                   >
+                    <div className="card-backdrop-glow"></div>
                     <IonImg src={art.preview_url} className="art-thumb" />
+                    <div className="art-card-info">
+                        <span className="res-badge">{art.width}x{art.height}</span>
+                    </div>
                     {selectedArt?.id === art.id && (
                       <div className="selection-overlay">
                         <IonIcon icon={checkmarkCircle} />
