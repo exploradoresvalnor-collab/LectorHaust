@@ -255,7 +255,7 @@ const ProfilePage: React.FC = () => {
           <div className="welcome-container animate-fade-in">
             <div className="welcome-mascot-container">
               <img 
-                src="/Buho.png" 
+                src="/Buho.webp" 
                 alt="Mascot" 
                 className="welcome-mascot"
                 onError={(e) => (e.currentTarget.src = '/logolh.webp')} 

@@ -189,7 +189,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ mangaId, chapterId, tit
                   <img src={comment.userAvatar} alt="user" />
                 ) : (
                   <div className="mascot-avatar-small">
-                    <img src="/Buho.png" alt="pro" />
+                    <img src="/Buho.webp" alt="pro" />
                   </div>
                 )}
               </IonAvatar>

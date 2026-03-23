@@ -134,7 +134,7 @@ const HomePage: React.FC = () => {
                     <div className="user-ghost-icon animate-pop-in">👻</div>
                   ) : (
                     <div className="user-mascot-golden animate-pop-in">
-                      <img src="/Buho.png" alt="pro mascot" width="32" height="32" />
+                      <img src="/Buho.webp" alt="pro mascot" width="32" height="32" />
                     </div>
                   )}
                   {unreadNotifications > 0 && (
@@ -144,7 +144,7 @@ const HomePage: React.FC = () => {
               ) : (
                 <div className="user-icon-blank animate-pop-in">
                   <img 
-                    src="/Buho.png" 
+                    src="/Buho.webp" 
                     alt="guest avatar" 
                     width="32"
                     height="32"

@@ -285,7 +285,7 @@ const SocialPage: React.FC = () => {
             ) : (
               <div className="empty-state">
                 <div className="empty-mascot-wrapper">
-                  <img src="/Buho.png" alt="Mascot" className="empty-mascot" onError={(e) => (e.currentTarget.src = '/logolh.webp')} />
+                  <img src="/Buho.webp" alt="Mascot" className="empty-mascot" onError={(e) => (e.currentTarget.src = '/logolh.webp')} />
                 </div>
                 <h3>No hay Nakamas</h3>
                 <p>Socializa en el chat global para forjar nuevas alianzas.</p>
@@ -321,7 +321,7 @@ const SocialPage: React.FC = () => {
             ) : (
               <div className="empty-state">
                 <div className="empty-mascot-wrapper">
-                  <img src="/Buho.png" alt="Mascot" className="empty-mascot" onError={(e) => (e.currentTarget.src = '/logolh.webp')} style={{ transform: 'scaleX(-1)' }} />
+                  <img src="/Buho.webp" alt="Mascot" className="empty-mascot" onError={(e) => (e.currentTarget.src = '/logolh.webp')} style={{ transform: 'scaleX(-1)' }} />
                 </div>
                 <h3>Buzón Vacío</h3>
                 <p>Aquí aparecerán los exploradores que quieran ser tus Nakamas.</p>
