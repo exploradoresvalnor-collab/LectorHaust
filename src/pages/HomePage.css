@@ -275,18 +275,23 @@
     padding: 40px 20px calc(110px + env(safe-area-inset-bottom));
 }
 
-.hero-img-layer {
+.hero-img-wrapper {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-size: cover;
-    background-position: center center;
-    background-repeat: no-repeat;
     z-index: 0;
+    display: block;
+}
+
+.hero-img-layer {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
     transition: all 0.5s ease;
-    image-rendering: -webkit-optimize-contrast; /* Mejora la nitidez en navegadores basados en Chrome */
+    image-rendering: -webkit-optimize-contrast;
     image-rendering: high-quality;
 }
 
@@ -363,129 +368,58 @@
     }
 }
 
-/* Premium Entry Modal Styling */
-.premium-entry-modal::part(content) {
-  border-radius: 32px 32px 0 0;
-  background: rgba(15, 15, 15, 0.8) !important;
-  backdrop-filter: blur(25px) saturate(180%);
-  -webkit-backdrop-filter: blur(25px) saturate(180%);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 -20px 50px rgba(0, 0, 0, 0.7);
+/* Subtle Login Prompt */
+.subtle-login-prompt {
+    margin: 10px 16px;
+    padding: 10px 16px;
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 50;
+    position: relative;
 }
 
-.premium-modal-content {
-  padding: 24px 20px calc(40px + env(safe-area-inset-bottom));
-  color: white;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  position: relative;
+.subtle-login-prompt:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-2px);
 }
 
-.login-modal-header.minimal {
-  margin-bottom: 16px;
-  text-align: center;
+.sparkle-icon {
+    font-size: 1.2rem;
+    color: var(--ion-color-primary);
 }
 
-.premium-title {
-  text-align: center;
-  font-size: 1.4rem; /* Reduced from 1.7rem */
-  font-weight: 850;
-  margin: 0 0 4px;
-  letter-spacing: -0.5px;
+.login-prompt-btn {
+    margin-left: auto;
+    --border-radius: 8px;
+    font-size: 0.8rem;
+    text-transform: none;
+    font-weight: 800;
+    height: 32px;
+    padding: 0 12px;
 }
 
-.premium-title .highlight {
-  background: linear-gradient(90deg, #a78bfa 0%, #f472b6 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.premium-subtitle {
-  text-align: center;
-  font-size: 0.85rem; /* Reduced from 0.95rem */
-  color: rgba(255, 255, 255, 0.5);
-  margin: 0 0 20px;
-}
-
-.premium-perks-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px; /* Reduced from 12px */
-  margin-bottom: 24px;
-}
-
-.premium-perks-grid.minimal {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 20px;
-  background: rgba(255, 255, 255, 0.02);
-  padding: 12px;
-  border-radius: 16px;
-}
-
-.perk-item-compact {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.perk-tiny-icon {
-  font-size: 1.1rem;
-}
-
-.perk-tiny-icon.sync { color: #60a5fa; }
-.perk-tiny-icon.social { color: #4ade80; }
-.perk-tiny-icon.rank { color: #fbbf24; }
-
-.premium-actions-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.action-btn {
-  margin: 0;
-  height: 44px; /* Slimmer buttons for a more elegant look */
-  --border-radius: 12px;
-  font-weight: 700;
-  font-size: 0.9rem;
-  letter-spacing: 0.5px;
-}
-
-.action-btn.google {
-  --background: #fff;
-  --color: #000;
-  box-shadow: 0 10px 25px rgba(255, 255, 255, 0.1);
-}
-
-.action-btn.ghost {
-  --color: rgba(255, 255, 255, 0.6);
-  font-size: 0.85rem;
-  --background-hover: rgba(255, 255, 255, 0.05);
-}
-
-/* PC Modal Adaptability */
-@media (min-width: 1024px) {
-  .premium-entry-modal::part(content) {
-    --width: 420px;
-    --height: auto;
-    border-radius: 24px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    margin: auto;
-    background: rgba(18, 18, 18, 0.98) !important;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  }
-  
-  #latest-section {
-    text-align: center;
+.close-prompt {
+    padding: 6px;
+    color: rgba(255, 255, 255, 0.3);
+    display: flex;
+    align-items: center;
     justify-content: center;
-  }
+    transition: color 0.2s;
+}
+
+.close-prompt:hover {
+    color: white;
 }
 
 .modal-close-handle {

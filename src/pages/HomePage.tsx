@@ -158,62 +158,19 @@ const HomePage: React.FC = () => {
         </IonToolbar>
       </IonHeader>
       <IonContent fullscreen className="ion-padding">
-        {/* Modern Bottom Sheet Login Promt  */}
-        {/* Premium Entry Card / Login Prompt */}
-        <IonModal 
-          isOpen={showLoginHint && (!currentUser || currentUser.isAnonymous)} 
-          initialBreakpoint={0.55} 
-          breakpoints={[0, 0.55, 0.75, 1]} 
-          onDidDismiss={() => setShowLoginHint(false)}
-          className="premium-entry-modal"
-          backdropDismiss={true}
-        >
-          <div className="premium-modal-content animate-fade-in">
-            <div className="modal-close-handle" onClick={() => setShowLoginHint(false)}>
+        {/* Subtle Sign-in Prompt */}
+        {showLoginHint && (!currentUser || currentUser.isAnonymous) && (
+          <div className="subtle-login-prompt animate-fade-in" onClick={() => router.push('/profile')}>
+            <IonIcon icon={sparklesOutline} className="sparkle-icon" />
+            <span>Inicia sesión y disfruta más</span>
+            <IonButton fill="clear" size="small" className="login-prompt-btn">
+              Entrar
+            </IonButton>
+            <div className="close-prompt" onClick={(e) => { e.stopPropagation(); setShowLoginHint(false); }}>
               <IonIcon icon={closeOutline} />
             </div>
-            
-            <div className="login-modal-header minimal">
-              <h2 className="premium-title">Tu Aventura <span className="highlight">Nakama</span></h2>
-              <p className="premium-subtitle">Desbloquea el nivel Hunter</p>
-            </div>
-            
-            <div className="premium-perks-grid minimal">
-              <div className="perk-item-compact">
-                <IonIcon icon={cloudUploadOutline} className="perk-tiny-icon sync" />
-                <span>Sincronización Total</span>
-              </div>
-              <div className="perk-item-compact">
-                <IonIcon icon={chatbubblesOutline} className="perk-tiny-icon social" />
-                <span>Muro Nakama</span>
-              </div>
-              <div className="perk-item-compact">
-                <IonIcon icon={trophyOutline} className="perk-tiny-icon rank" />
-                <span>Progreso Hunter</span>
-              </div>
-            </div>
-
-            <div className="premium-actions-stack">
-              <IonButton className="action-btn google" expand="block" onClick={async () => {
-                hapticsService.mediumImpact();
-                await firebaseAuthService.loginWithGoogle();
-                setShowLoginHint(false);
-              }}>
-                <IonIcon icon={logoGoogle} slot="start" />
-                Entrar con Google
-              </IonButton>
-              
-              <IonButton fill="clear" className="action-btn ghost" expand="block" onClick={async () => {
-                hapticsService.lightImpact();
-                await handleAnonymousLogin();
-                setShowLoginHint(false);
-              }}>
-                <IonIcon icon={personOutline} slot="start" />
-                Modo Fantasma (Invitado)
-              </IonButton>
-            </div>
           </div>
-        </IonModal>
+        )}
 
         <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
           <IonRefresherContent 
@@ -257,12 +214,12 @@ const HomePage: React.FC = () => {
               key={heroIndex}
               onClick={() => handleMangaClick(currentHero)}
             >
-              <div 
+              <SmartImage 
+                src={mangaProvider.getCoverUrl(currentHero, '512')}
+                alt={mangaProvider.getLocalizedTitle(currentHero) as string}
                 className="hero-img-layer"
-                style={{ 
-                  backgroundImage: `url(${mangaProvider.getCoverUrl(currentHero, '512')})`,
-                  backgroundPosition: 'center top'
-                }}
+                wrapperClassName="hero-img-wrapper"
+                loading="eager"
               />
               <div className="hero-gradient-overlay" />
               <div className="hero-info">
@@ -276,7 +233,7 @@ const HomePage: React.FC = () => {
                 </IonButton>
               </div>
               <div className="hero-dots">
-                {heroMangas.map((_, i) => (
+                {heroMangas.map((_: any, i: number) => (
                   <span 
                     key={i} 
                     className={`hero-dot ${i === heroIndex ? 'active' : ''}`}

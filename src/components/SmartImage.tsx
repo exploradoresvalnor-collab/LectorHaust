@@ -12,6 +12,7 @@ interface SmartImageProps {
   children?: React.ReactNode; // For badges/overlays
   width?: string | number;
   height?: string | number;
+  loading?: 'lazy' | 'eager';
 }
 
 /**
@@ -31,7 +32,8 @@ const SmartImage: React.FC<SmartImageProps> = ({
   placeholder = 'https://placehold.co/512x768/222222/cccccc?text=Tiempo+Agotado',
   children,
   width,
-  height
+  height,
+  loading = 'lazy'
 }) => {
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
   const statusRef = React.useRef(status);
@@ -67,7 +69,7 @@ const SmartImage: React.FC<SmartImageProps> = ({
         src={finalSrc}
         alt={alt}
         className={`smart-img smooth-image ${className} ${status !== 'loading' ? 'img-loaded' : ''}`}
-        loading="lazy"
+        loading={loading}
         decoding="async"
         onLoad={handleLoad}
         onError={handleError}

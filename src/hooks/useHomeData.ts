@@ -24,7 +24,26 @@ export function useHomeData() {
   const heroTimer = useRef<NodeJS.Timeout | null>(null);
   const pollTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // --- 3. LATEST UPDATES (Infinite Scroll) ---
+  // --- 2. MASTERPIECES (JP/Hero prioritized) ---
+  const { 
+    data: masterpieces, 
+    isLoading: loadingMasterpieces,
+    refetch: refetchMasterpieces
+  } = useQuery({
+    queryKey: ['masterpieces', currentSource, latestLang, showNSFW],
+    queryFn: async () => {
+      // Faster fetch: Only JP masterpieces first (highest weight/quality)
+      const jpMD = await mangaProvider.getFullyTranslatedMasterpieces('JP', latestLang, 8, 0, null, false, showNSFW);
+      const jpData = jpMD.data || [];
+      
+      // We return JP immediately for Hero/Carousel. KR/CN can be fetched in a second pass or background if needed,
+      // but to solve the 6s delay, we minimize the first critical query.
+      return jpData;
+    },
+    staleTime: 1000 * 60 * 60 * 4, // 4 hours
+  });
+
+  // --- 3. LATEST UPDATES (Staggered) ---
   const {
     data: latestData,
     fetchNextPage,
@@ -35,13 +54,14 @@ export function useHomeData() {
   } = useInfiniteQuery({
     queryKey: ['latest', currentSource, latestLang, latestType, showNSFW],
     queryFn: ({ pageParam = 0 }) => 
-      mangaProvider.getLatestUpdatedManga(30, pageParam as number, latestLang, latestType, showNSFW),
+      mangaProvider.getLatestUpdatedManga(15, pageParam as number, latestLang, latestType, showNSFW),
     initialPageParam: 0,
     getNextPageParam: (lastPage: any, allPages: any[]) => {
-      const currentCount = allPages.length * 30;
-      return lastPage.data?.length === 30 ? currentCount : undefined;
+      const currentCount = allPages.length * 15;
+      return lastPage.data?.length === 15 ? currentCount : undefined;
     },
     staleTime: 1000 * 60 * 5, // 5 minutes fresh
+    enabled: !!masterpieces || !loadingMasterpieces, // STAGGERED: Wait for masterpieces or until they fail/load
   });
 
   const latest = useMemo(() => {
@@ -53,46 +73,6 @@ export function useHomeData() {
       return true;
     });
   }, [latestData]);
-
-  // --- 2. MASTERPIECES (JP + background KR/CN) ---
-  const { 
-    data: masterpieces, 
-    isLoading: loadingMasterpieces,
-    refetch: refetchMasterpieces
-  } = useQuery({
-    queryKey: ['masterpieces', currentSource, latestLang, showNSFW],
-    queryFn: async () => {
-      // Use stable offsets — randomization is done once via staleTime (4h) refresh
-      const jpMD = await mangaProvider.getFullyTranslatedMasterpieces('JP', latestLang, 6, 0, null, false, showNSFW);
-      const jpData = jpMD.data || [];
-
-      // Background fetch KR/CN for variety (stable offsets)
-      const [krMD, cnMD] = await Promise.allSettled([
-      
-        mangaProvider.getFullyTranslatedMasterpieces('KR', latestLang, 4, 0, null, false, showNSFW),
-        mangaProvider.getFullyTranslatedMasterpieces('CN', latestLang, 4, 0, null, false, showNSFW)
-      ]);
-
-      const krData = krMD.status === 'fulfilled' ? krMD.value.data || [] : [];
-      const cnData = cnMD.status === 'fulfilled' ? cnMD.value.data || [] : [];
-
-      // Interleave for diversity and DEDUPLICATE
-      const combined: any[] = [];
-      const seen = new Set();
-      const max = Math.max(jpData.length, krData.length, cnData.length);
-      
-      for (let i = 0; i < max; i++) {
-        [jpData[i], krData[i], cnData[i]].forEach(item => {
-          if (item && !seen.has(item.id)) {
-            combined.push(item);
-            seen.add(item.id);
-          }
-        });
-      }
-      return combined;
-    },
-    staleTime: 1000 * 60 * 60 * 4, // 4 hours
-  });
 
   const heroMangas = useMemo(() => masterpieces?.slice(0, 5) || [], [masterpieces]);
   const featuredMasterpiece = useMemo(() => masterpieces?.[0] || null, [masterpieces]);
