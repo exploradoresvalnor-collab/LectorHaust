@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   IonModal,
   IonHeader,
@@ -12,31 +12,29 @@ import {
   IonRow,
   IonCol,
   IonIcon,
-  IonSpinner,
   IonImg,
   IonFooter,
-  IonText,
   IonBadge,
   IonSkeletonText,
   IonList,
   IonItem,
   IonLabel,
-  IonRippleEffect
+  IonRippleEffect,
+  isPlatform
 } from '@ionic/react';
 import { 
   closeOutline, 
-  imageOutline, 
   personCircleOutline, 
   colorPaletteOutline, 
-  checkmarkCircle,
-  searchOutline,
+  searchOutline, 
   sparklesOutline,
-  chevronDownOutline,
   diamondOutline,
-  brushOutline,
   flashOutline,
-  arrowBackOutline
+  arrowBackOutline,
+  expandOutline,
+  refreshOutline
 } from 'ionicons/icons';
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { artService, SafebooruPost } from '../services/artService';
 import './ArtPickerModal.css';
 
@@ -47,16 +45,15 @@ interface ArtPickerModalProps {
 }
 
 const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSelect }) => {
-  // Search States
   const [searchText, setSearchText] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  
-  // Gallery States
   const [arts, setArts] = useState<SafebooruPost[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedArt, setSelectedArt] = useState<SafebooruPost | null>(null);
   
+  const isDesktop = isPlatform('desktop') || isPlatform('tablet');
+
   const fetchArt = useCallback(async (tags: string = 'highres wallpaper scenery landscape') => {
     setLoading(true);
     setShowSuggestions(false);
@@ -80,7 +77,6 @@ const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSele
     }
   }, [isOpen, fetchArt]);
 
-  // Autocomplete Logic
   useEffect(() => {
     if (searchText.length > 1 && !loading) {
       const delayDebounceFn = setTimeout(async () => {
@@ -115,7 +111,7 @@ const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSele
 
   const renderSkeletons = () => {
     return Array(12).fill(0).map((_, i) => (
-      <IonCol size="6" sizeMd="4" key={`skel-${i}`} className="art-col">
+      <IonCol size="6" sizeMd="4" sizeLg="3" key={`skel-${i}`} className="art-col">
         <div className="art-item-skeleton">
           <IonSkeletonText animated style={{ width: '100%', height: '100%' }} />
         </div>
@@ -125,14 +121,14 @@ const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSele
 
   return (
     <>
-      {/* 1. Main Gallery Modal */}
+      {/* 1. Main Gallery Modal - Still a Sheet on Mobile, centered on PC */}
       <IonModal 
         isOpen={isOpen} 
         onDidDismiss={onClose} 
-        className="art-picker-modal ultra-pro"
-        breakpoints={[0, 0.4, 0.7, 0.95]}
-        initialBreakpoint={0.7}
-        handle={true}
+        className={`art-picker-modal elite-adaptive ${isDesktop ? 'desktop-view' : 'mobile-view'}`}
+        breakpoints={isDesktop ? undefined : [0, 0.4, 0.7, 0.95]}
+        initialBreakpoint={isDesktop ? undefined : 0.7}
+        handle={!isDesktop}
       >
         <IonHeader className="ion-no-border">
           <IonToolbar className="art-picker-toolbar">
@@ -141,10 +137,10 @@ const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSele
                 <IonIcon icon={closeOutline} />
               </IonButton>
             </IonButtons>
-            <IonTitle>Galería Haus Elite</IonTitle>
+            <IonTitle>Haus Elite • Galería</IonTitle>
             <IonButtons slot="end">
               <IonButton onClick={() => fetchArt()} disabled={loading} className="sparkle-btn">
-                <IonIcon icon={sparklesOutline} color="primary" />
+                <IonIcon icon={sparklesOutline} color="secondary" />
               </IonButton>
             </IonButtons>
           </IonToolbar>
@@ -154,7 +150,7 @@ const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSele
               value={searchText} 
               onIonInput={handleSearchInput}
               onKeyPress={(e) => e.key === 'Enter' && fetchArt(searchText)}
-              placeholder="Buscar personaje o tema..."
+              placeholder="Explorar arte (ej. 'cyberpunk', 'naruto')..."
               className="ultra-searchbar"
               debounce={0}
               animated={true}
@@ -164,14 +160,8 @@ const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSele
               <div className="suggestions-dropdown animate-fade-in">
                 <IonList className="suggestions-list">
                   {suggestions.map((tag) => (
-                    <IonItem 
-                      button 
-                      key={tag} 
-                      onClick={() => handleSelectSuggestion(tag)}
-                      className="suggestion-item"
-                      detail={false}
-                    >
-                      <IonIcon icon={flashOutline} slot="start" color="primary" style={{ fontSize: '0.8rem' }} />
+                    <IonItem button key={tag} onClick={() => handleSelectSuggestion(tag)} className="suggestion-item">
+                      <IonIcon icon={flashOutline} slot="start" color="secondary" />
                       <IonLabel>{tag.replace(/_/g, ' ')}</IonLabel>
                     </IonItem>
                   ))}
@@ -182,18 +172,17 @@ const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSele
 
           <div className="quick-filters-scroll premium-curation">
             <div className="quick-filters">
-              <button className={`filter-chip ${searchText === '' ? 'active' : ''}`} onClick={() => { setSearchText(''); fetchArt('highres wallpaper scenery landscape'); }}>✨ Elite</button>
+              <button className={`filter-chip ${searchText === '' ? 'active' : ''}`} onClick={() => { setSearchText(''); fetchArt(); }}>🚀 Destacados</button>
               <button className="filter-chip" onClick={() => { setSearchText('oficial'); fetchArt('official_art highres'); }}>🏆 Oficial</button>
-              <button className="filter-chip" onClick={() => { setSearchText('paisajes'); fetchArt('scenery landscape highres'); }}>🌅 Paisajes</button>
-              <button className="filter-chip" onClick={() => { setSearchText('ciudad'); fetchArt('cityscape urban neon'); }}>🏙️ Ciudad</button>
-              <button className="filter-chip" onClick={() => { setSearchText('arte'); fetchArt('traditional_media watercolor aesthetic'); }}>🎨 Arte</button>
-              <button className="filter-chip" onClick={() => { setSearchText('cyber'); fetchArt('cyberpunk night_city'); }}>🌃 Cyber</button>
+              <button className="filter-chip" onClick={() => { setSearchText('sky'); fetchArt('sky scenery highres'); }}>☁️ Cielos</button>
+              <button className="filter-chip" onClick={() => { setSearchText('city'); fetchArt('cityscape night_sky highres'); }}>🏙️ Ciudad</button>
+              <button className="filter-chip" onClick={() => { setSearchText('art'); fetchArt('traditional_media watercolor aesthetic'); }}>🎨 Arte</button>
             </div>
           </div>
         </IonHeader>
 
-        <IonContent className="art-picker-content glass-content">
-          <div className="content-padding">
+        <IonContent className="art-picker-content glass-content" forceOverscroll={true}>
+          <div className="gallery-wrapper">
             {loading ? (
               <IonGrid className="art-grid">
                 <IonRow>{renderSkeletons()}</IonRow>
@@ -202,15 +191,10 @@ const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSele
               <IonGrid className="art-grid">
                 <IonRow>
                   {arts.map((art) => (
-                    <IonCol size="6" sizeMd="4" key={art.id} className="art-col">
-                      <div 
-                        className={`art-item-card ultra-card ${selectedArt?.id === art.id ? 'selected' : ''}`}
-                        onClick={() => setSelectedArt(art)}
-                      >
+                    <IonCol size="6" sizeMd="4" sizeLg="3" key={art.id} className="art-col">
+                      <div className={`art-item-card ultra-card ${selectedArt?.id === art.id ? 'selected' : ''}`} onClick={() => setSelectedArt(art)}>
                         <IonImg src={art.preview_url} className="art-thumb" />
-                        <div className="art-badge-overlay">
-                           <span className="res-tag">{art.width}x{art.height}</span>
-                        </div>
+                        <div className="res-overlay"><span className="res-tag">{art.width}x{art.height}</span></div>
                         <IonRippleEffect />
                       </div>
                     </IonCol>
@@ -218,82 +202,82 @@ const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSele
                 </IonRow>
               </IonGrid>
             )}
-
             {!loading && arts.length === 0 && (
               <div className="art-empty-state">
-                <div className="empty-icon-wrapper">
-                  <IonIcon icon={searchOutline} />
-                </div>
-                <h3>Grimorio Vacío</h3>
-                <p>No encontramos arte con esa esencia.</p>
+                <IonIcon icon={searchOutline} className="empty-icon" />
+                <h3>Sin Resonancia</h3>
+                <p>Prueba con otras etiquetas mágicas.</p>
               </div>
             )}
           </div>
         </IonContent>
       </IonModal>
 
-      {/* 2. Pro Detail Modal (Native Scroll & Bottom Safe) */}
+      {/* 2. Pro Adaptive Detail Modal - No Sheet here to fix scroll wheel/touch */}
       <IonModal 
         isOpen={!!selectedArt} 
         onDidDismiss={() => setSelectedArt(null)}
-        className="art-detail-modal"
-        breakpoints={[0, 0.95]}
-        initialBreakpoint={0.95}
-        handle={true}
+        className={`art-detail-modal-pro ${isDesktop ? 'desktop-card' : 'mobile-full'}`}
       >
         <IonHeader className="ion-no-border">
           <IonToolbar className="detail-header-toolbar">
             <IonButtons slot="start">
-              <IonButton onClick={() => setSelectedArt(null)} className="back-btn-square">
-                <IonIcon icon={arrowBackOutline} />
+              <IonButton onClick={() => setSelectedArt(null)} className="back-btn-elite">
+                <IonIcon icon={isDesktop ? closeOutline : arrowBackOutline} />
+                {!isDesktop && <span style={{ marginLeft: '5px' }}>Volver</span>}
               </IonButton>
             </IonButtons>
-            <IonTitle>Vista Elite</IonTitle>
+            <IonTitle>{isDesktop ? 'Inspección de Arte' : ''}</IonTitle>
             <IonButtons slot="end">
-               {selectedArt && <IonBadge color="primary" className="detail-res-badge">{selectedArt.width}x{selectedArt.height}</IonBadge>}
+               {selectedArt && <IonBadge color="secondary" className="detail-res-badge">{selectedArt.width}x{selectedArt.height}</IonBadge>}
             </IonButtons>
           </IonToolbar>
         </IonHeader>
 
-        <IonContent className="art-detail-content">
+        <IonContent className="art-detail-content-pro" forceOverscroll={true}>
           {selectedArt && (
-            <div className="detail-body-wrapper">
-              <div className="detail-meta-header">
-                <h3>{selectedArt.tags.split(' ').slice(0, 4).join(', ').replace(/_/g, ' ')}</h3>
-                <p>Inspiración Maestra • Safebooru Elite</p>
-              </div>
-              
-              <div className="preview-frame animate-fade-in">
-                <IonImg src={selectedArt.sample_url} className="ultra-preview-img" />
-                <div className="frame-glow"></div>
+            <div className={`detail-adaptive-container ${isDesktop ? 'layout-row' : 'layout-col'}`}>
+              <div className="preview-inspection-zone">
+                <TransformWrapper initialScale={1} minScale={1} maxScale={4}>
+                  <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }}>
+                    <div className="zoom-image-wrapper">
+                      <IonImg src={selectedArt.sample_url} className="ultra-pro-img" />
+                    </div>
+                  </TransformComponent>
+                </TransformWrapper>
+                <div className="zoom-hint">
+                  <IonIcon icon={expandOutline} />
+                  <span>{isDesktop ? 'Usa la rueda para zoom' : 'Pellizca para ampliar'}</span>
+                </div>
               </div>
 
-              <div className="usage-tip">
-                 <IonIcon icon={imageOutline} />
-                 <span>Puedes deslizar para ver toda la imagen</span>
+              <div className="art-meta-sidebar">
+                <div className="meta-info-pro">
+                  <h3>{selectedArt.tags.split(' ').slice(0, 5).join(', ').replace(/_/g, ' ')}</h3>
+                  <div className="meta-pills">
+                    <IonBadge color="light" fill="outline">Premium Content</IonBadge>
+                    <IonBadge color="light" fill="outline">Safebooru Elite</IonBadge>
+                  </div>
+                </div>
+
+                <div className="detail-actions-elite">
+                  <IonButton expand="block" fill="outline" className="elite-action-btn" onClick={() => selectAndApply('banner')}>
+                    <IonIcon icon={colorPaletteOutline} slot="start" />
+                    APLICAR BANNER
+                  </IonButton>
+                  <IonButton expand="block" fill="outline" className="elite-action-btn" onClick={() => selectAndApply('avatar')}>
+                    <IonIcon icon={personCircleOutline} slot="start" />
+                    APLICAR AVATAR
+                  </IonButton>
+                  <IonButton expand="block" fill="solid" color="secondary" className="elite-master-btn" onClick={() => selectAndApply('both')}>
+                    <IonIcon icon={diamondOutline} slot="start" />
+                    PERFIL COMPLETO (MASTER)
+                  </IonButton>
+                </div>
               </div>
             </div>
           )}
         </IonContent>
-
-        <IonFooter className="ion-no-border detail-footer">
-          <div className="action-pill-container">
-            <div className="action-row">
-              <IonButton fill="outline" className="pro-action-btn" onClick={() => selectAndApply('banner')}>
-                <IonIcon icon={colorPaletteOutline} slot="start" />
-                BANNER
-              </IonButton>
-              <IonButton fill="outline" className="pro-action-btn" onClick={() => selectAndApply('avatar')}>
-                <IonIcon icon={personCircleOutline} slot="start" />
-                AVATAR
-              </IonButton>
-            </div>
-            <IonButton expand="block" fill="solid" color="primary" className="pro-master-btn" onClick={() => selectAndApply('both')}>
-              <IonIcon icon={diamondOutline} slot="start" />
-              APLICAR EN PERFIL COMPLETO
-            </IonButton>
-          </div>
-        </IonFooter>
       </IonModal>
     </>
   );
