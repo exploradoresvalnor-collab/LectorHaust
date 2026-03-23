@@ -25,10 +25,15 @@ class ArtService {
    */
   async getRandomBackgrounds(tags: string = 'scenery landscape', limit: number = 20): Promise<SafebooruPost[]> {
     try {
-      // Safebooru can be picky about + vs %20. We'll use spaces in the string and let encodeURIComponent handle it.
+      // Safebooru can be picky about + vs %20. We'll use spaces in the initial string.
       const cleanTags = tags.replace(/\+/g, ' ').trim();
-      const apiUrl = `${this.baseUrl}?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(cleanTags)}&limit=${limit}`;
-      const requestUrl = Capacitor.isNativePlatform() ? apiUrl : `${PROXY_URL}${encodeURIComponent(apiUrl)}`;
+      
+      // CRITICAL: Construct the apiUrl WITHOUT pre-encoding tags separately if using proxy,
+      // because the proxy encoding covers the whole string. Double encoding (e.g. %2520) breaks Booru searches.
+      const apiUrl = `${this.baseUrl}?page=dapi&s=post&q=index&json=1&tags=${cleanTags}&limit=${limit}`;
+      const requestUrl = Capacitor.isNativePlatform() 
+        ? apiUrl.replace(/ /g, '%20') 
+        : `${PROXY_URL}${encodeURIComponent(apiUrl)}`;
 
       console.log('[ArtService] Fetching from:', requestUrl);
 

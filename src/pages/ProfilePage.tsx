@@ -188,31 +188,31 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  const handleApplyArtChoice = async (choice: 'banner' | 'avatar' | 'both') => {
-    if (!user || !pendingArtUrl) return;
+  const handleApplyArtChoice = async (url: string, choice: 'banner' | 'avatar' | 'both') => {
+    if (!user || !url) return;
     
     try {
       const userRef = doc(db, 'users', user.uid);
       const updates: any = {};
       
       if (choice === 'banner' || choice === 'both') {
-        setProfileBackground(pendingArtUrl);
-        updates.profileBackground = pendingArtUrl;
+        setProfileBackground(url);
+        updates.profileBackground = url;
       }
       
       if (choice === 'avatar' || choice === 'both') {
         // 1. Update Firebase Auth
-        await updateProfile(user, { photoURL: pendingArtUrl });
+        await updateProfile(user, { photoURL: url });
         // 2. Prepare Firestore Update
-        updates.avatar = pendingArtUrl;
-        updates.avatarUrl = pendingArtUrl;
+        updates.avatar = url;
+        updates.avatarUrl = url;
         // 3. Update local state
-        setUser({ ...user, photoURL: pendingArtUrl } as User);
+        setUser({ ...user, photoURL: url } as User);
       }
       
       await updateDoc(userRef, updates);
       presentToast({ 
-        message: choice === 'both' ? '¡Banner y Avatar actualizados! ✨' : (choice === 'banner' ? '¡Banner actualizado! 🎨' : '¡Avatar actualizado! 👤'), 
+        message: choice === 'both' ? '¡Perfil actualizado con éxito! ✨' : (choice === 'banner' ? '¡Banner actualizado! 🎨' : '¡Avatar actualizado! 👤'), 
         duration: 2000, 
         color: 'success' 
       });
@@ -223,8 +223,8 @@ const ProfilePage: React.FC = () => {
   };
 
   const handleArtSelected = (url: string, choice: 'banner' | 'avatar' | 'both') => {
-    setPendingArtUrl(url);
-    handleApplyArtChoice(choice);
+    setPendingArtUrl(url); // Still useful for other UI if needed
+    handleApplyArtChoice(url, choice);
   };
 
   const handleGhostLogin = async () => {

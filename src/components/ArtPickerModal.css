@@ -27,6 +27,49 @@
     padding: 0;
 }
 
+.quick-filters-scroll {
+    overflow-x: auto;
+    padding: 2px 8px 15px;
+    margin-top: 5px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.quick-filters-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+.quick-filters {
+    display: flex;
+    gap: 8px;
+    width: max-content;
+}
+
+.filter-chip {
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    cursor: pointer;
+}
+
+.filter-chip.active {
+    background: var(--ion-color-primary);
+    color: #fff;
+    border-color: var(--ion-color-primary);
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(var(--ion-color-primary-rgb), 0.4);
+}
+
+.filter-chip:active {
+    transform: scale(0.95);
+}
+
 .art-picker-content {
     --background: #0f0f12;
 }

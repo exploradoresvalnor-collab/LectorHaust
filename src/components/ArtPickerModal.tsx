@@ -105,6 +105,17 @@ const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSele
             className="premium-searchbar"
             debounce={1000}
           />
+          <div className="quick-filters-scroll">
+            <div className="quick-filters">
+              <button className={`filter-chip ${searchText === '' ? 'active' : ''}`} onClick={() => { setSearchText(''); fetchArt('scenery landscape'); }}>🌌 Paisajes</button>
+              <button className="filter-chip" onClick={() => { setSearchText('cyberpunk'); fetchArt('cyberpunk'); }}>🌃 Cyberpunk</button>
+              <button className="filter-chip" onClick={() => { setSearchText('retro'); fetchArt('90s retro'); }}>📻 Retro</button>
+              <button className="filter-chip" onClick={() => { setSearchText('fantasy'); fetchArt('fantasy magical'); }}>🧙 Fantasía</button>
+              <button className="filter-chip" onClick={() => { setSearchText('lofi'); fetchArt('lofi aesthetic'); }}>🎧 Lofi</button>
+              <button className="filter-chip" onClick={() => { setSearchText('chibi'); fetchArt('chibi'); }}>🧸 Chibi</button>
+              <button className="filter-chip" onClick={() => { setSearchText('space'); fetchArt('space galaxy'); }}>🚀 Espacio</button>
+            </div>
+          </div>
         </IonToolbar>
       </IonHeader>
 
