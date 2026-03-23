@@ -23,28 +23,56 @@ class ArtService {
    * @param tags Tag string (e.g. "scenery+landscape+rating:safe")
    * @param limit Number of results
    */
-  async getRandomBackgrounds(tags: string = 'scenery+landscape+rating:safe', limit: number = 20): Promise<SafebooruPost[]> {
+  async getRandomBackgrounds(tags: string = 'scenery landscape', limit: number = 20): Promise<SafebooruPost[]> {
     try {
-      const apiUrl = `${this.baseUrl}?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(tags)}&limit=${limit}`;
+      // Safebooru can be picky about + vs %20. We'll use spaces in the string and let encodeURIComponent handle it.
+      const cleanTags = tags.replace(/\+/g, ' ').trim();
+      const apiUrl = `${this.baseUrl}?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(cleanTags)}&limit=${limit}`;
       const requestUrl = Capacitor.isNativePlatform() ? apiUrl : `${PROXY_URL}${encodeURIComponent(apiUrl)}`;
 
-      const response = await axios.get(requestUrl);
+      console.log('[ArtService] Fetching from:', requestUrl);
 
-      if (!Array.isArray(response.data)) {
-        console.warn('[ArtService] No images found or invalid response', response.data);
+      // Force text response to avoid axios parsing issues with certain Content-Types from proxy
+      const response = await axios.get(requestUrl, { 
+        responseType: 'text',
+        timeout: 10000 
+      });
+
+      let data = response.data;
+      if (typeof data === 'string') {
+        const trimmed = data.trim();
+        if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+          try {
+            data = JSON.parse(trimmed);
+          } catch (e) {
+            console.error('[ArtService] JSON Parse Error:', e);
+            return [];
+          }
+        } else {
+          console.warn('[ArtService] Received non-JSON response:', trimmed.substring(0, 100));
+          return [];
+        }
+      }
+
+      if (!Array.isArray(data)) {
+        console.warn('[ArtService] Response is not an array:', data);
         return [];
       }
 
       // Construct and proxy all URLs
-      return response.data.map((post: any) => {
+      return data.map((post: any) => {
         const proxy = (url: string) => {
           if (!url) return '';
-          const full = url.startsWith('http') ? url : `https:${url.startsWith('//') ? url.substring(2) : url}`;
+          // Ensure protocol
+          let full = url;
+          if (url.startsWith('//')) full = `https:${url}`;
+          else if (!url.startsWith('http')) full = `https:${url.startsWith('/') ? '' : '//'}${url}`;
+          
           return Capacitor.isNativePlatform() ? full : `${PROXY_URL}${encodeURIComponent(full)}`;
         };
 
         const imageBase = `https://safebooru.org/images/${post.directory}/${post.image}`;
-        // Safebooru usually has consistent naming for thumbnails and samples
+        // Safebooru usually has consistent naming for thumbnails
         const previewBase = `https://safebooru.org/thumbnails/${post.directory}/thumbnail_${post.image.replace(/\.[^/.]+$/, ".jpg")}`;
         
         return {
@@ -55,7 +83,7 @@ class ArtService {
           width: post.width,
           height: post.height,
           preview_url: proxy(post.preview_url || previewBase),
-          sample_url: proxy(post.sample_url || imageBase), // Fallback to full for sample if missing
+          sample_url: proxy(post.sample_url || imageBase),
           file_url: proxy(post.file_url || imageBase)
         };
       });
@@ -68,7 +96,7 @@ class ArtService {
   /**
    * Gets a single random background post.
    */
-  async getOneRandomBackground(tags: string = 'scenery+landscape+rating:safe'): Promise<SafebooruPost | null> {
+  async getOneRandomBackground(tags: string = 'scenery landscape'): Promise<SafebooruPost | null> {
     const images = await this.getRandomBackgrounds(tags, 50);
     if (images.length === 0) return null;
     return images[Math.floor(Math.random() * images.length)];

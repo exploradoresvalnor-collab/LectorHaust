@@ -42,7 +42,7 @@ const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSele
   const [loading, setLoading] = useState(false);
   const [selectedArt, setSelectedArt] = useState<SafebooruPost | null>(null);
 
-  const fetchArt = useCallback(async (tags: string = 'scenery+landscape+rating:safe') => {
+  const fetchArt = useCallback(async (tags: string = 'scenery landscape') => {
     setLoading(true);
     try {
       const results = await artService.getRandomBackgrounds(tags, 40);
@@ -69,8 +69,8 @@ const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSele
     if (!query) {
       fetchArt();
     } else {
-      // Debounce logic could be added here, but for now simple search
-      fetchArt(`${query.trim().replace(/\s+/g, '_')}+rating:safe`);
+      // Use spaces instead of + for cleaner encoding in artService
+      fetchArt(query.trim());
     }
   };
 
