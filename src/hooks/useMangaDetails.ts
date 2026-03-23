@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { mangaProvider } from '../services/mangaProvider';
+import { useLibraryStore } from '../store/useLibraryStore';
 import { mangapillService } from '../services/mangapillService';
 import { anilistService } from '../services/anilistService';
 
@@ -32,8 +33,10 @@ export function useMangaDetails(id?: string) {
   const [availableLangs, setAvailableLangs] = useState<string[]>([]);
   const [mdStats, setMdStats] = useState<{ rating: number | null, follows: number }>({ rating: null, follows: 0 });
   const [chapterOrder, setChapterOrder] = useState<'asc' | 'desc'>('desc');
-  // Store the MangaPill ID if we had to fallback (for pagination)
-  const mangapillFallbackId = useRef<string | null>(null);
+  const { showNSFW } = useLibraryStore();
+  const [isOptimized, setIsOptimized] = useState(false);
+  // Store the external ID if we had to fallback (for pagination)
+  const externalFallbackId = useRef<string | null>(null);
   const isMounted = useRef(true);
 
   useEffect(() => {
@@ -60,11 +63,11 @@ export function useMangaDetails(id?: string) {
       }
 
       setLoading(true);
-      mangapillFallbackId.current = null; // Reset fallback on each load
+      externalFallbackId.current = null; // Reset fallback on each load
 
       // --- PROVIDER FETCH ---
       try {
-        const data = await mangaProvider.getMangaDetails(id);
+        const data = await mangaProvider.getMangaDetails(id, showNSFW);
         
         if (!isMounted.current) return;
 
@@ -108,42 +111,53 @@ export function useMangaDetails(id?: string) {
         }
         
         // Essential: First page of chapters from primary provider
-        let chaptersData = await mangaProvider.getMangaChapters(id, chapterLang, 20, 0, chapterOrder);
+        let chaptersData = await mangaProvider.getMangaChapters(id, chapterLang, 20, 0, chapterOrder, showNSFW);
         
         // ────────────────────────────────────────────────────────
-        // 🔄 MANGAPILL FALLBACK: If MangaDex returned 0 chapters
-        //    (copyright block), search on MangaPill by title
+        // 🔄 HAUS INTELLIGENT FALLBACK: 
+        //    If MangaDex has 0 chapters OR very few chapters
+        //    compared to what's expected, search on MangaPill.
         // ────────────────────────────────────────────────────────
-        if ((!chaptersData.data || chaptersData.data.length === 0) && title && !mangaProvider.isExternalId(id)) {
-          console.log(`[Details] 0 chapters on MangaDex for "${title}". Trying MangaPill fallback...`);
+        const needsFallback = (!chaptersData.data || chaptersData.data.length === 0) || 
+                             (chaptersData.total < 5 && mangaObj.attributes.status === 'completed');
+
+        if (needsFallback && title && !mangaProvider.isExternalId(id)) {
+          console.log(`[Details] MangaDex content seems restricted for "${title}". Trying Haus Intelligence...`);
           try {
-            const results = await mangapillService.searchManga(title as string);
-            if (results && results.length > 0) {
-              const fullId = results[0].id; // This is now 'mp:5323/mashle'
-              mangapillFallbackId.current = fullId;
+            const bestSource = await mangaProvider.findBestExternalSource(mangaObj);
+            if (bestSource) {
+              const fullId = bestSource.id; 
+              externalFallbackId.current = fullId;
               
-              console.log(`[Details] Found on MangaPill: id=${fullId}. Fetching chapters...`);
-              const mpChaptersData = await mangapillService.getMangaChapters(fullId);
-
+              console.log(`[Details] Haus Optimized: Found accurate source on ${bestSource.source} (${fullId}).`);
+              const extChaptersData = await mangaProvider.getMangaChapters(fullId);
               
-              chaptersData = {
-                data: mpChaptersData.data.map((c: any) => ({
-                  id: c.id,
-                  attributes: {
-                    chapter: c.attributes.chapter,
-                    title: c.attributes.title,
-                    translatedLanguage: 'en' // MangaPill is mostly English
-                  }
-                })),
-                total: mpChaptersData.total
-              };
+              if (extChaptersData.data && extChaptersData.data.length > 0) {
+                chaptersData = {
+                  data: extChaptersData.data.map((c: any) => ({
+                    id: c.id,
+                    attributes: {
+                      chapter: c.attributes.chapter,
+                      title: c.attributes.title,
+                      translatedLanguage: 'en'
+                    }
+                  })),
+                  total: extChaptersData.total
+                };
 
-              if (isMounted.current) {
-                setAvailableLangs(['en']);
+                if (isMounted.current) {
+                  setAvailableLangs(['en']);
+                  setIsOptimized(true);
+                  console.log(`[Details] Haus Optimization Applied via ${bestSource.source}. ${extChaptersData.total} chapters loaded.`);
+                }
+              } else {
+                console.warn(`[Details] Haus Intelligence found a match but it has 0 chapters on ${bestSource.source}.`);
               }
+            } else {
+              if (isMounted.current) setIsOptimized(false);
             }
           } catch (err) {
-            console.warn('[Details] MangaPill fallback failed:', err);
+            console.warn('[Details] Haus Intelligence fallback failed:', err);
           }
         }
 
@@ -198,14 +212,14 @@ export function useMangaDetails(id?: string) {
     setLoadingChapters(true);
     try {
       const offset = (pageIndex - 1) * 20;
-      // Use MangaPill fallback ID if available, otherwise use the original ID
-      const chapterId = mangapillFallbackId.current || id;
+      // Use external fallback ID if available, otherwise use the original ID
+      const chapterId = externalFallbackId.current || id;
       
       let data: any;
-      if (mangapillFallbackId.current) {
-          const mpChaptersData = await mangapillService.getMangaChapters(chapterId);
-          // MangaPill doesn't have offset in scraping easily, so we slice
-          const slice = mpChaptersData.data.slice(offset, offset + 20);
+      if (externalFallbackId.current) {
+          const extChaptersData = await mangaProvider.getMangaChapters(chapterId);
+          // Slice for pagination
+          const slice = extChaptersData.data.slice(offset, offset + 20);
           data = {
               data: slice.map((c: any) => ({
                   id: c.id,
@@ -215,10 +229,10 @@ export function useMangaDetails(id?: string) {
                     translatedLanguage: 'en'
                   }
               })),
-              total: mpChaptersData.total
+              total: extChaptersData.total
           };
       } else {
-          data = await mangaProvider.getMangaChapters(chapterId, chapterLang, 20, offset, chapterOrder);
+          data = await mangaProvider.getMangaChapters(chapterId, chapterLang, 20, offset, chapterOrder, showNSFW);
       }
       if (!isMounted.current) return;
 
@@ -249,6 +263,7 @@ export function useMangaDetails(id?: string) {
     availableLangs,
     mdStats,
     chapterOrder,
+    isOptimized,
     setChapterOrder,
     handleLangChange,
     loadPage

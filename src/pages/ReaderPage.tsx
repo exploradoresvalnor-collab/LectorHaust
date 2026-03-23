@@ -126,7 +126,8 @@ const ReaderPage: React.FC = () => {
                 <IonIcon slot="icon-only" icon={fitMode === 'fitWidth' ? contractOutline : expandOutline} />
               </IonButton>
               <IonButton fill="clear" onClick={() => setIsWebtoon(!isWebtoon)} className="mode-toggle-btn">
-                {isWebtoon ? '⬇️ Scroll' : '⬅️ Pag'}
+                <IonIcon slot="start" icon={isWebtoon ? bookOutline : listOutline} />
+                {isWebtoon ? 'Cascada' : 'Páginas'}
               </IonButton>
             </IonButtons>
           </IonToolbar>
@@ -173,6 +174,11 @@ const ReaderPage: React.FC = () => {
             {/* --- MODO MANGA (PAGINADO JAPONÉS RTL) --- */}
             {!isWebtoon && (
               <div className={`manga-pager-container ${fitMode === 'fitWidth' ? 'fit-width' : ''}`} onClick={handlePageTap}>
+                
+                {/* Indicadores Visuales de Tap (Solo visibles brevemente o con baja opacidad) */}
+                <div className="tap-zone tap-next"><IonIcon icon={chevronBackOutline} /></div>
+                <div className="tap-zone tap-prev"><IonIcon icon={chevronForwardOutline} /></div>
+
                 {!showEndSection ? (
                   <div className={`manga-zoom-wrapper ${fitMode}`}>
                     <TransformWrapper
@@ -190,7 +196,7 @@ const ReaderPage: React.FC = () => {
                         <img 
                           key={currentMangaPage} 
                           src={pages[currentMangaPage].includes('mangadex') ? mangaProvider.getProxiedUrl(pages[currentMangaPage]) : pages[currentMangaPage]} 
-                          className={`manga-page-single loaded fade-in ${fitMode}`} 
+                          className={`manga-page-single loaded page-flip-anim ${fitMode}`} 
                           alt={`Página ${currentMangaPage + 1}`}
                           decoding="async"
                         />

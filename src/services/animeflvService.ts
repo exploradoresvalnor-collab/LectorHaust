@@ -13,15 +13,18 @@ const BASE_URL = 'https://www4.animeflv.net';
 const PROXY_URL = 'https://manga-proxy.mchaustman.workers.dev/?url=';
 
 async function fetchHtml(url: string) {
-    if (Capacitor.isNativePlatform()) {
-        const resp = await fetch(url);
-        if (!resp.ok) throw new Error(`AnimeFLV Error: ${resp.status}`);
-        return resp.text();
-    }
-    
+    // ALWAYS use the proxy to bypass CORS, Referer restrictions and ISP blocks
+    // This is critical for APK production where carriers might block specific domains.
     const proxyUrl = `${PROXY_URL}${encodeURIComponent(url)}`;
     const resp = await fetch(proxyUrl);
-    if (!resp.ok) throw new Error(`Proxy Error: ${resp.status}`);
+    if (!resp.ok) {
+        // Fallback for native if the proxy is down
+        if (Capacitor.isNativePlatform()) {
+            const directResp = await fetch(url);
+            if (directResp.ok) return directResp.text();
+        }
+        throw new Error(`Proxy Error: ${resp.status}`);
+    }
     return resp.text(); 
 }
 
@@ -83,7 +86,9 @@ export const animeflvService = {
       while ((match = regex.exec(html)) !== null) {
           let imgUrl = match[2];
           if (imgUrl.startsWith('/')) imgUrl = `${BASE_URL}${imgUrl}`;
-          results.push({ id: match[1], title: match[3], name: match[3], image: imgUrl });
+          // Use WordPress Photon proxy for images to avoid blocks
+          const proxiedImg = `https://i0.wp.com/${imgUrl.replace(/^https?:\/\//, '')}`;
+          results.push({ id: match[1], title: match[3], name: match[3], image: proxiedImg });
       }
       
       return results;

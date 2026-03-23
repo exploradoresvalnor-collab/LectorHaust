@@ -719,3 +719,18 @@
         height: 220px;
     }
 }
+
+/* Haus Intelligent Optimizer Badge Styling */
+.haus-optimizer-badge {
+  border: 1px solid rgba(var(--ion-color-secondary-rgb), 0.3);
+}
+
+@keyframes pulse-gentle {
+  0% { transform: scale(1); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+  50% { transform: scale(1.02); box-shadow: 0 4px 25px rgba(var(--ion-color-secondary-rgb), 0.3); }
+  100% { transform: scale(1); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+}
+
+.animate-pulse-gentle {
+  animation: pulse-gentle 3s infinite ease-in-out;
+}

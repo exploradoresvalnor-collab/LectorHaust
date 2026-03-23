@@ -384,22 +384,6 @@ const HomePage: React.FC = () => {
               <h2>{getTranslation('home.latest', latestLang as Language)}</h2>
             </div>
             
-            {/* Source Switcher (MangaDex / Comick) */}
-            <div className="home-lang-filters source-filters" style={{ marginBottom: '10px' }}>
-              {[
-                { id: 'mangadex', label: '📖 Servidor Principal' },
-                { id: 'comick', label: '🚀 Servidor Respaldo (Completo)' }
-              ].map(src => (
-                <IonChip 
-                  key={src.id}
-                  outline={currentSource !== src.id}
-                  color={currentSource === src.id ? "warning" : "medium"}
-                  onClick={() => changeSource(src.id as MangaSource)}
-                >
-                  <IonLabel>{src.label}</IonLabel>
-                </IonChip>
-              ))}
-            </div>
 
             {/* Language Filters */}
           <div className="home-lang-filters">

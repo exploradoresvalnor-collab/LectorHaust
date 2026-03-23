@@ -137,7 +137,7 @@ const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSele
                 <IonIcon icon={closeOutline} />
               </IonButton>
             </IonButtons>
-            <IonTitle>Haus Elite • Galería</IonTitle>
+            <IonTitle>Personalización Elite</IonTitle>
             <IonButtons slot="end">
               <IonButton onClick={() => fetchArt()} disabled={loading} className="sparkle-btn">
                 <IonIcon icon={sparklesOutline} color="secondary" />
@@ -182,6 +182,15 @@ const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSele
         </IonHeader>
 
         <IonContent className="art-picker-content glass-content" forceOverscroll={true}>
+          <div className="art-picker-welcome-header">
+            <div className="welcome-badge">
+              <IonIcon icon={sparklesOutline} />
+              <span>Sincronización de Identidad</span>
+            </div>
+            <h1>Galería de Arte High-Res</h1>
+            <p>Elige una obra maestra para lucir en tu banner o avatar.</p>
+          </div>
+
           <div className="gallery-wrapper">
             {loading ? (
               <IonGrid className="art-grid">
@@ -252,12 +261,29 @@ const ArtPickerModal: React.FC<ArtPickerModalProps> = ({ isOpen, onClose, onSele
               </div>
 
               <div className="art-meta-sidebar">
+                <div className="live-preview-elite">
+                  <span className="preview-label">PREVISUALIZACIÓN EN VIVO</span>
+                  <div className="mini-profile-card">
+                    <div className="mini-banner" style={{ backgroundImage: `url(${selectedArt.sample_url})` }}></div>
+                    <div className="mini-avatar-wrapper">
+                       <img src={selectedArt.preview_url} alt="mini-avatar" className="mini-avatar-img" />
+                    </div>
+                    <div className="mini-info">
+                       <div className="mini-line long"></div>
+                       <div className="mini-line short"></div>
+                    </div>
+                  </div>
+                </div>
                 <div className="meta-info-pro">
                   <h3>{selectedArt.tags.split(' ').slice(0, 5).join(', ').replace(/_/g, ' ')}</h3>
                   <div className="meta-pills">
-                    <IonBadge color="light" fill="outline">Premium Content</IonBadge>
-                    <IonBadge color="light" fill="outline">Safebooru Elite</IonBadge>
+                    <IonBadge color="light">{selectedArt.width}x{selectedArt.height}</IonBadge>
                   </div>
+                </div>
+
+                <div className="selection-instruction-elite">
+                   <IonIcon icon={sparklesOutline} />
+                   <span>¿Dónde deseas aplicar esta obra?</span>
                 </div>
 
                 <div className="detail-actions-elite">

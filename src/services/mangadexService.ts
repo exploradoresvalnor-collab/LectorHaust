@@ -609,8 +609,9 @@ export const mangadexService = {
         }
     },
 
-    async getLatestChapters(limit = 12, offset = 0, lang: string | null = null) {
-        let url = `/chapter?limit=${limit}&offset=${offset}&contentRating[]=safe&contentRating[]=suggestive&order[readableAt]=desc&includes[]=manga`;
+    async getLatestChapters(limit = 12, offset = 0, lang: string | null = null, allowNSFW = false) {
+        let url = `/chapter?limit=${limit}&offset=${offset}&order[readableAt]=desc&includes[]=manga`;
+        url += this.getContentRatingParams(allowNSFW);
         
         if (lang === 'all') {
             // World mode: No language filter
@@ -636,7 +637,7 @@ export const mangadexService = {
     /**
      * Get chapters for a specific manga (GOD TIER exhaustive fetching)
      */
-    async getMangaChapters(mangaId: string, lang: string | string[] | null = 'es', limit = 500, offsetInitial = 0, orderDir: 'asc' | 'desc' = 'desc') {
+    async getMangaChapters(mangaId: string, lang: string | string[] | null = 'es', limit = 500, offsetInitial = 0, orderDir: 'asc' | 'desc' = 'desc', allowNSFW = false) {
         let allChapters: any[] = [];
         let offset = offsetInitial;
         let hasMore = true;
@@ -644,7 +645,8 @@ export const mangadexService = {
 
         // Bucle para descargar TODOS los capítulos (paginado de 500 en 500)
         while (hasMore) {
-            let url = `/manga/${mangaId}/feed?limit=${limit}&offset=${offset}&order[volume]=${orderDir}&order[chapter]=${orderDir}&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&includes[]=scanlation_group`;
+            let url = `/manga/${mangaId}/feed?limit=${limit}&offset=${offset}&order[volume]=${orderDir}&order[chapter]=${orderDir}&includes[]=scanlation_group`;
+            url += this.getContentRatingParams(allowNSFW);
             
             if (lang && lang !== 'all') {
                 let langsArray = Array.isArray(lang) ? lang : [lang];
@@ -780,11 +782,12 @@ export const mangadexService = {
      * Find MangaDex ID by title AND verify it has chapters.
      * Returns { id, hasChapters } or null if not found.
      */
-    async fetchVerifiedRecommendation(title: string, lang = 'es'): Promise<{ id: string; title: string; hasChapters: boolean } | null> {
+    async fetchVerifiedRecommendation(title: string, allowNSFW = false): Promise<{ id: string; title: string; hasChapters: boolean } | null> {
         if (!title) return null;
         try {
             const cleanTitle = title.replace(/[^\w\s]/gi, '').trim();
-            const url = `/manga?title=${encodeURIComponent(cleanTitle)}&limit=1&order[relevance]=desc&includes[]=cover_art`;
+            let url = `/manga?title=${encodeURIComponent(cleanTitle)}&limit=1&order[relevance]=desc&includes[]=cover_art`;
+            url += this.getContentRatingParams(allowNSFW);
             const data = await apiFetch(url);
             if (!data.data || data.data.length === 0) return null;
 
@@ -817,8 +820,9 @@ export const mangadexService = {
     /**
      * Get recommendations based on tags or high rating
      */
-    async getRecommendations(tags: string[] = [], limit = 10) {
-        let url = `/manga?limit=${limit}&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive&order[rating]=desc`;
+    async getRecommendations(tags: string[] = [], limit = 10, allowNSFW = false) {
+        let url = `/manga?limit=${limit}&includes[]=cover_art&order[rating]=desc`;
+        url += this.getContentRatingParams(allowNSFW);
         
         if (tags.length > 0) {
             tags.forEach(tag => {

@@ -336,11 +336,13 @@ const ProfilePage: React.FC = () => {
       <IonHeader className="ion-no-border">
         <IonToolbar className="profile-toolbar">
           <IonButtons slot="start">
-            <IonBackButton defaultHref="/home" />
+            <IonButton onClick={() => history.replace('/home')} className="reader-back-btn" style={{ '--color': 'white' }}>
+              <IonIcon icon={chevronBackOutline} />
+            </IonButton>
           </IonButtons>
-          <IonTitle>Mi Perfil Pro</IonTitle>
+          <IonTitle style={{ fontWeight: 900, letterSpacing: '-0.5px' }}>Perfil Pro</IonTitle>
           <IonButtons slot="end">
-            <IonButton onClick={() => handleLogout()} color="danger" fill="outline" className="logout-btn-header">
+            <IonButton onClick={() => handleLogout()} className="logout-btn-header">
               <IonIcon icon={logOutOutline} slot="start" />
               SALIR
             </IonButton>
@@ -349,6 +351,10 @@ const ProfilePage: React.FC = () => {
       </IonHeader>
 
       <IonContent fullscreen className="profile-content">
+        {/* Elite Decorations */}
+        <div className="haus-decoration blob-1"></div>
+        <div className="haus-decoration blob-2"></div>
+
         {/* Header Cover Banner */}
         <div 
           className="profile-cover-banner" 
@@ -362,7 +368,7 @@ const ProfilePage: React.FC = () => {
             onClick={() => setShowArtPicker(true)}
           >
             <IonIcon icon={colorPaletteOutline} slot="start" />
-            Galería de Arte
+            Personalizar Perfil
           </IonButton>
         </div>
 
@@ -375,16 +381,21 @@ const ProfilePage: React.FC = () => {
               ) : (
                 <IonIcon icon={personCircleOutline} className="user-icon-golden main-avatar-icon" />
               )}
+              <div className="avatar-edit-overlay" onClick={() => setShowArtPicker(true)}>
+                <IonIcon icon={pencilOutline} />
+              </div>
               <div className="status-indicator"></div>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <h2 className="user-name">{user!.displayName || (user!.isAnonymous ? 'Lector Fantasma' : 'Lector Haus')}</h2>
-              <IonButton fill="clear" size="small" onClick={() => setShowEditAlert(true)} className="edit-profile-btn">
-                <IonIcon icon={pencilOutline} slot="icon-only" />
-              </IonButton>
+            <div className="identity-block animate-slide-up">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                <h2 className="user-name">{user!.displayName || (user!.isAnonymous ? 'Lector Fantasma' : 'Lector Haus')}</h2>
+                <IonButton fill="clear" size="small" onClick={() => setShowEditAlert(true)} className="edit-profile-btn">
+                  <IonIcon icon={pencilOutline} slot="icon-only" />
+                </IonButton>
+              </div>
+              <p className="user-email">{user!.isAnonymous ? 'Modo Anónimo Activo' : user!.email}</p>
             </div>
-            <p className="user-email">{user!.isAnonymous ? 'Modo Anónimo Activo' : user!.email}</p>
             
             <div 
               className="user-uid-tag animate-fade-in" 
@@ -446,40 +457,48 @@ const ProfilePage: React.FC = () => {
               {/* TAB 1: RESUMEN */}
               {activeTab === 'resumen' && (
                 <div className="animate-fade-in">
-                  <IonCard className="stats-card glass-card">
-                    <IonCardContent>
-                       <div className="stats-grid">
-                         <div className="stat-item">
-                           {isStatsLoading ? <IonSkeletonText animated style={{ width: '60px', height: '28px', marginBottom: '8px' }} /> : <span className="stat-value">Lv. {level}</span>}
-                           <span className="stat-label">Nivel Actual</span>
-                         </div>
-                         <div className="stat-item">
-                           {isStatsLoading ? <IonSkeletonText animated style={{ width: '40px', height: '28px', marginBottom: '8px' }} /> : <span className="stat-value">{stats.chaptersRead}</span>}
-                           <span className="stat-label">Capítulos Leídos</span>
-                         </div>
-                         <div className="stat-item">
-                           {isStatsLoading ? <IonSkeletonText animated style={{ width: '40px', height: '28px', marginBottom: '8px' }} /> : <span className="stat-value">{stats.commentsPosted}</span>}
-                           <span className="stat-label">Aportes Sociales</span>
-                         </div>
-                       </div>
-                    </IonCardContent>
-                  </IonCard>
+                  <div className="resumen-grid-pc">
+                    <div className="resumen-left-col">
+                      <IonCard className="stats-card glass-card">
+                        <IonCardContent>
+                          <div className="stats-grid">
+                            <div className="stat-item">
+                              {isStatsLoading ? <IonSkeletonText animated style={{ width: '60px', height: '28px', marginBottom: '8px' }} /> : <span className="stat-value">Lv. {level}</span>}
+                              <span className="stat-label">Nivel Actual</span>
+                            </div>
+                            <div className="stat-item">
+                              {isStatsLoading ? <IonSkeletonText animated style={{ width: '40px', height: '28px', marginBottom: '8px' }} /> : <span className="stat-value">{stats.chaptersRead}</span>}
+                              <span className="stat-label">Capítulos Leídos</span>
+                            </div>
+                            <div className="stat-item">
+                              {isStatsLoading ? <IonSkeletonText animated style={{ width: '40px', height: '28px', marginBottom: '8px' }} /> : <span className="stat-value">{stats.commentsPosted}</span>}
+                              <span className="stat-label">Aportes Sociales</span>
+                            </div>
+                          </div>
+                        </IonCardContent>
+                      </IonCard>
 
-                  <h3 className="section-title">Actividad Reciente de Lectura</h3>
-                  <div className="activity-heatmap glass-card">
-                    <p className="heatmap-placeholder-text">El gráfico de actividad térmica estará disponible pronto para los Elite Hunters.</p>
-                    <div className="heatmap-grid faux-heatmap">
-                      {Array.from({ length: 28 }).map((_, i) => (
-                        <div key={i} className="heatmap-cell" style={{ opacity: Math.random() * 0.8 + 0.1 }}></div>
-                      ))}
+                      <div className="promo-banner animate-fade-in" style={{ animationDelay: '0.3s', marginTop: '20px' }}>
+                        <div className="promo-icon-wrapper">
+                          <IonIcon icon={trophyOutline} className="promo-icon" />
+                        </div>
+                        <div className="promo-text">
+                          <h4 className="haus-text-gradient">¡Rango {userStatsService.getRankName(level + 1)}!</h4>
+                          <p>Te faltan <span style={{ color: '#fff', fontWeight: 800 }}>{Math.ceil(xpNeededForThisLevel - currentXPProgress)} XP</span> para el siguiente nivel.</p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="promo-banner">
-                    <IonIcon icon={trophyOutline} className="promo-icon" />
-                    <div className="promo-text">
-                      <h4>¡Rango {userStatsService.getRankName(level + 1)}!</h4>
-                      <p>Te faltan {Math.ceil(xpNeededForThisLevel - currentXPProgress)} XP para ascender al siguiente nivel de cazador.</p>
+                    <div className="resumen-right-col">
+                      <h3 className="section-title" style={{ marginTop: '0' }}>Actividad Reciente</h3>
+                      <div className="activity-heatmap glass-card">
+                        <p className="heatmap-placeholder-text">Gráfico térmico disponible para Elite Hunters.</p>
+                        <div className="heatmap-grid faux-heatmap">
+                          {Array.from({ length: 42 }).map((_, i) => (
+                            <div key={i} className="heatmap-cell" style={{ opacity: Math.random() * 0.8 + 0.1 }}></div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -530,7 +549,7 @@ const ProfilePage: React.FC = () => {
                 <div className="animate-fade-in">
                   <h3 className="section-title" style={{ marginTop: '0' }}>Ajustes LectorHaus Pro</h3>
                   <IonList className="options-list glass-list">
-                    <IonItem button detail={true} className="option-item">
+                    <IonItem button detail={true} className="option-item" onClick={() => presentToast({ message: 'Tienda de Mecenas en construcción 🏗️', duration: 2000, color: 'secondary' })}>
                       <IonIcon icon={diamondOutline} slot="start" color="warning" />
                       <IonLabel>
                         <h2>Mecenas / Donaciones</h2>
@@ -538,7 +557,7 @@ const ProfilePage: React.FC = () => {
                       </IonLabel>
                     </IonItem>
                     
-                    <IonItem button detail={true} className="option-item">
+                    <IonItem button detail={true} className="option-item" onClick={() => presentToast({ message: 'Panel de Temas próximamente ✨', duration: 2000, color: 'primary' })}>
                       <IonIcon icon={colorPaletteOutline} slot="start" color="primary" />
                       <IonLabel>
                         <h2>Temas y Apariencia</h2>
@@ -546,7 +565,7 @@ const ProfilePage: React.FC = () => {
                       </IonLabel>
                     </IonItem>
 
-                    <IonItem button detail={true} className="option-item">
+                    <IonItem button detail={true} className="option-item" onClick={() => presentToast({ message: 'Ajustes de Seguridad encriptados 🔐', duration: 2000, color: 'success' })}>
                       <IonIcon icon={shieldCheckmarkOutline} slot="start" color="success" />
                       <IonLabel>
                         <h2>Seguridad de Cuenta</h2>
@@ -554,7 +573,7 @@ const ProfilePage: React.FC = () => {
                       </IonLabel>
                     </IonItem>
 
-                    <IonListHeader style={{ marginTop: '1rem' }}>Contenido</IonListHeader>
+                    <IonListHeader style={{ marginTop: '1.5rem', marginBottom: '0.5rem', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '0.7rem', fontWeight: 900 }}>Contenido & Privacidad</IonListHeader>
                     
                     <IonItem className="option-item">
                       <IonIcon icon={eyeOutline} slot="start" color="danger" />
@@ -565,19 +584,27 @@ const ProfilePage: React.FC = () => {
                       <IonToggle 
                         slot="end" 
                         checked={showNSFW} 
-                        onIonChange={e => setShowNSFW(e.detail.checked)} 
+                        onIonChange={e => {
+                          const val = e.detail.checked;
+                          setShowNSFW(val);
+                          presentToast({ 
+                            message: val ? 'Contenido adulto habilitado 🔞' : 'Contenido adulto oculto 🛡️', 
+                            duration: 1500,
+                            color: val ? 'danger' : 'success'
+                          });
+                        }} 
                       />
                     </IonItem>
                     <IonItem 
                       className="option-item logout-premium-item" 
                       button 
                       onClick={() => handleLogout()} 
-                      style={{ marginTop: '30px', '--background': 'rgba(235, 68, 90, 0.05)', borderRadius: '16px', border: '1px solid rgba(235, 68, 90, 0.2)' }}
+                      style={{ marginTop: '40px', '--background': 'rgba(235, 68, 90, 0.05)', borderColor: 'rgba(235, 68, 90, 0.3)' }}
                     >
                       <IonIcon icon={logOutOutline} slot="start" color="danger" />
                       <IonLabel color="danger">
-                        <h2 style={{ color: 'var(--ion-color-danger)', fontWeight: '800' }}>Cerrar Sesión</h2>
-                        <p style={{ color: 'rgba(235, 68, 90, 0.7)' }}>Salir de tu cuenta de cazador</p>
+                        <h2 style={{ color: 'var(--ion-color-danger)', fontWeight: '900' }}>Cerrar Sesión</h2>
+                        <p style={{ color: 'rgba(235, 68, 90, 0.7)' }}>Finalizar tu sesión de cazador</p>
                       </IonLabel>
                     </IonItem>
                   </IonList>

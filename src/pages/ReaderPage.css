@@ -146,17 +146,58 @@
   align-items: flex-start;
 }
 
-/* Animación sutil al cambiar página */
-.fade-in {
-  animation: fadeInPage 0.2s ease-in-out;
+/* Animación de "Paso de Página" Premium */
+.page-flip-anim {
+  animation: pageFlip 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, opacity;
 }
 
-@keyframes fadeInPage {
-  from { opacity: 0.8; transform: scale(0.99); }
-  to { opacity: 1; transform: scale(1); }
+@keyframes pageFlip {
+  0% { opacity: 0; transform: translateX(20px) scale(0.98); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
 }
 
-/* --- SECCIÓN FINAL (COMENTARIOS Y BOTONES) --- */
+/* Zonas de Tap Visuales */
+.manga-pager-container {
+  position: relative;
+}
+
+.tap-zone {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 15%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  pointer-events: none; /* El tap lo maneja el contenedor */
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 2rem;
+}
+
+.manga-pager-container:hover .tap-zone {
+  opacity: 1;
+}
+
+.tap-next {
+  left: 0;
+  background: linear-gradient(to right, rgba(255,255,255,0.05) 0%, transparent 100%);
+}
+
+.tap-prev {
+  right: 0;
+  background: linear-gradient(to left, rgba(255,255,255,0.05) 0%, transparent 100%);
+}
+
+.manga-page-single {
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: width 0.3s ease, height 0.3s ease;
+  z-index: 1;
+}
 .end-section-wrapper {
   width: 100%;
   height: 100%;

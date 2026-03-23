@@ -25,8 +25,9 @@ class ArtService {
    */
   async getRandomBackgrounds(tags: string = 'scenery landscape', limit: number = 20): Promise<SafebooruPost[]> {
     try {
-      // Safebooru can be picky about + vs %20. We'll use spaces in the initial string.
-      const cleanTags = tags.replace(/\+/g, ' ').trim();
+      // Hardforce rating:safe for "Elite" safety, even on Safebooru.
+      const safeTags = `${tags} rating:safe`.trim();
+      const cleanTags = safeTags.replace(/\+/g, ' ').trim();
       
       // CRITICAL: Construct the apiUrl WITHOUT pre-encoding tags separately if using proxy,
       // because the proxy encoding covers the whole string. Double encoding (e.g. %2520) breaks Booru searches.

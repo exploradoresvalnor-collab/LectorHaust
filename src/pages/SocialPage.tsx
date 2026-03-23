@@ -284,9 +284,11 @@ const SocialPage: React.FC = () => {
               </IonList>
             ) : (
               <div className="empty-state">
-                <IonIcon icon={peopleOutline} />
-                <h3>No tienes amigos aún</h3>
-                <p>Socializa en el chat global para conocer a otros lectores.</p>
+                <div className="empty-mascot-wrapper">
+                  <img src="/Buho.png" alt="Mascot" className="empty-mascot" onError={(e) => (e.currentTarget.src = '/logolh.webp')} />
+                </div>
+                <h3>No hay Nakamas</h3>
+                <p>Socializa en el chat global para forjar nuevas alianzas.</p>
               </div>
             )}
           </div>
@@ -318,9 +320,11 @@ const SocialPage: React.FC = () => {
               </IonList>
             ) : (
               <div className="empty-state">
-                <IonIcon icon={personAddOutline} />
-                <h3>No hay solicitudes</h3>
-                <p>Aquí aparecerán las personas que quieran ser tus amigos.</p>
+                <div className="empty-mascot-wrapper">
+                  <img src="/Buho.png" alt="Mascot" className="empty-mascot" onError={(e) => (e.currentTarget.src = '/logolh.webp')} style={{ transform: 'scaleX(-1)' }} />
+                </div>
+                <h3>Buzón Vacío</h3>
+                <p>Aquí aparecerán los exploradores que quieran ser tus Nakamas.</p>
               </div>
             )}
           </div>

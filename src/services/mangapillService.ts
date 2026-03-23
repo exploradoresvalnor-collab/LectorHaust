@@ -11,28 +11,38 @@ const BASE_URL = 'https://mangapill.com';
 const PROXY_URL = 'https://manga-proxy.mchaustman.workers.dev/?url=';
 
 async function fetchHtml(url: string) {
-    // We always use the proxy on web to bypass CORS and Referer restrictions
-    if (Capacitor.isNativePlatform()) {
-        const resp = await fetch(url);
-        if (!resp.ok) throw new Error(`MangaPill Error: ${resp.status}`);
-        return resp.text();
-    }
-    
+    // ALWAYS use the proxy to bypass CORS, Referer restrictions and ISP blocks
+    // This is critical for APK production where carriers might block specific domains.
     const proxyUrl = `${PROXY_URL}${encodeURIComponent(url)}`;
     const resp = await fetch(proxyUrl);
-    if (!resp.ok) throw new Error(`Proxy Error: ${resp.status}`);
-    return resp.text(); // The manga-proxy returns the body directly
+    if (!resp.ok) {
+        // Fallback for native if the proxy is down (emergency only)
+        if (Capacitor.isNativePlatform()) {
+            const directResp = await fetch(url);
+            if (directResp.ok) return directResp.text();
+        }
+        throw new Error(`Proxy Error: ${resp.status}`);
+    }
+    return resp.text(); 
 }
 
 
+// Keywords often found in adult/NSFW titles on MangaPill/scrapers
+const NSFW_KEYWORDS = ['adult', 'mature', 'smut', 'ecchi', 'hentai', 'uncensored', 'erotica', 'porno', 'nsfw', 'sex', '3d', 'doujinshi'];
+
+function isNSFWTitle(title: string): boolean {
+    const t = title.toLowerCase();
+    return NSFW_KEYWORDS.some(k => t.includes(k) || t.replace(/\s/g, '').includes(k));
+}
+
 export const mangapillService = {
-    async searchManga(query: string) {
+    async searchManga(query: string, allowNSFW = false) {
         const html = await fetchHtml(`${BASE_URL}/search?q=${encodeURIComponent(query)}`);
         
         // Broader regex to capture the whole link block
         const matches = [...html.matchAll(/<a[^>]*href="\/manga\/(\d+)\/([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)];
         
-        return matches.map(m => {
+        const results = matches.map(m => {
             const id = `mp:${m[1]}$${m[2]}`;
             const slug = m[2];
             const innerHtml = m[3];
@@ -47,6 +57,10 @@ export const mangapillService = {
             const titleMatch = innerHtml.match(/<div[^>]*>\s*([^<]+)\s*<\/div>/);
             const title = titleMatch ? titleMatch[1].trim() : slug.replace(/-/g, ' ').toUpperCase();
 
+            if (!allowNSFW && (isNSFWTitle(title) || isNSFWTitle(slug))) {
+                return null;
+            }
+
             return {
                 id: id,
                 attributes: {
@@ -55,21 +69,28 @@ export const mangapillService = {
                 },
                 relationships: coverUrl ? [{
                     type: 'cover_art',
-                    attributes: { fileName: Capacitor.isNativePlatform() ? coverUrl : `${PROXY_URL}${encodeURIComponent(coverUrl)}` }
+                    attributes: { fileName: `${PROXY_URL}${encodeURIComponent(coverUrl)}` }
                 }] : [],
                 source: 'mangapill' as const
             };
-        });
+        }).filter(Boolean) as any[];
+
+        return results;
     },
 
-    async getMangaDetails(id: string) {
-        const [numId, slug] = id.includes('$') ? id.split('$') : id.includes('/') ? id.split('/') : [id, ''];
+    async getMangaDetails(id: string, allowNSFW = false) {
+        const cleanId = id.startsWith('mp:') ? id.substring(3) : id;
+        const [numId, slug] = cleanId.includes('$') ? cleanId.split('$') : cleanId.includes('/') ? cleanId.split('/') : [cleanId, ''];
         const url = `${BASE_URL}/manga/${numId}/${slug}`;
         const html = await fetchHtml(url);
 
         // Extract Title (H1)
         const titleMatch = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
         const title = titleMatch ? titleMatch[1].trim() : slug.replace(/-/g, ' ').toUpperCase();
+
+        if (!allowNSFW && (isNSFWTitle(title) || isNSFWTitle(slug))) {
+            throw new Error('Contenido bloqueado por filtro de seguridad.');
+        }
 
         // Extract Description: look for p tag with text-secondary or simple p tags in the info block
         const descMatch = html.match(/<p[^>]*class="[^"]*text-secondary[^"]*"[^>]*>([\s\S]*?)<\/p>/i) ||
@@ -98,13 +119,15 @@ export const mangapillService = {
                 attributes: {
                     title: { en: title },
                     description: { en: description },
-                    tags: tags,
                     status: 'completed',
-                    contentRating: 'safe'
+                    contentRating: 'safe',
+                    originalLanguage: tags.some(t => t.attributes.name.en.toLowerCase() === 'manhwa') ? 'ko' : 
+                                     tags.some(t => t.attributes.name.en.toLowerCase() === 'manhua') ? 'zh' : 'ja',
+                    tags: tags,
                 },
                 relationships: coverUrl ? [{
                     type: 'cover_art',
-                    attributes: { fileName: Capacitor.isNativePlatform() ? coverUrl : `${PROXY_URL}${encodeURIComponent(coverUrl)}` }
+                    attributes: { fileName: `${PROXY_URL}${encodeURIComponent(coverUrl)}` }
                 }] : []
             }
         };
@@ -112,8 +135,9 @@ export const mangapillService = {
 
 
 
-    async getMangaChapters(mangaId: string, _lang: string | null = 'en', _limit = 500, _offset = 0) {
-        const [numId, slug] = mangaId.includes('$') ? mangaId.split('$') : mangaId.includes('/') ? mangaId.split('/') : [mangaId, ''];
+    async getMangaChapters(mangaId: string, _lang: string | null = 'en', _limit = 500, _offset = 0, _order: 'asc' | 'desc' = 'desc') {
+        const cleanMangaId = mangaId.startsWith('mp:') ? mangaId.substring(3) : mangaId;
+        const [numId, slug] = cleanMangaId.includes('$') ? cleanMangaId.split('$') : cleanMangaId.includes('/') ? cleanMangaId.split('/') : [cleanMangaId, ''];
         const url = `${BASE_URL}/manga/${numId}/${slug}`;
         const html = await fetchHtml(url);
         
@@ -129,9 +153,15 @@ export const mangapillService = {
             source: 'mangapill' as const
         }));
 
-        const total = chapters.length;
+        // Sort by chapter number
+        chapters.sort((a, b) => {
+            const numA = parseFloat(a.attributes.chapter);
+            const numB = parseFloat(b.attributes.chapter);
+            return _order === 'asc' ? numA - numB : numB - numA;
+        });
 
-        // Ensure order isn't reversed by default unless requested (MangaPill is latest first already usually)
+        const total = chapters.length;
+        
         // Apply limit and offset for pagination
         if (_offset >= 0 && _limit > 0) {
             chapters = chapters.slice(_offset, _offset + _limit);
@@ -146,8 +176,10 @@ export const mangapillService = {
     async getChapter(chapterId: string) {
         // chapterId is like "5323-10162000"
         // We need to return an object that looks like MangaDex's response
-        const [cleanChapterId, rawMangaId] = chapterId.includes('@') ? chapterId.split('@') : [chapterId, ''];
-        const numIdOnly = cleanChapterId.includes('$') ? cleanChapterId.split('$')[0] : cleanChapterId;
+        // chapterId could be "mp:5323-10162000$slug@mangaId"
+        const cleanChapterId = chapterId.startsWith('mp:') ? chapterId.substring(3) : chapterId;
+        const [coreId, _extra] = cleanChapterId.includes('@') ? cleanChapterId.split('@') : [cleanChapterId, ''];
+        const numIdOnly = coreId.includes('$') ? coreId.split('$')[0] : coreId;
         
         return {
             data: {
@@ -158,26 +190,32 @@ export const mangapillService = {
                     translatedLanguage: 'en'
                 },
                 relationships: [
-                    { type: 'manga', id: rawMangaId ? `mp:${rawMangaId}` : `mp:${numIdOnly.split('-')[0]}` }
+                    { type: 'manga', id: _extra ? `mp:${_extra.substring(1)}` : `mp:${numIdOnly.split('-')[0]}` }
                 ]
             }
         };
     },
 
     async getChapterPages(chapterId: string) {
-        const cleanChapterId = chapterId.includes('@') ? chapterId.split('@')[0] : chapterId;
+        const rawId = chapterId.startsWith('mp:') ? chapterId.substring(3) : chapterId;
+        const cleanChapterId = rawId.includes('@') ? rawId.split('@')[0] : rawId;
         const [numId, chapterSlug] = cleanChapterId.includes('$') ? cleanChapterId.split('$') : [cleanChapterId, 'chapter'];
         const url = `${BASE_URL}/chapters/${numId}/${chapterSlug}`;
         const html = await fetchHtml(url);
         
-        const imgMatches = [...html.matchAll(/data-src="([^"]+)"/g)];
-        const pages = imgMatches.map(m => {
-            const rawUrl = m[1];
-            // On web, we MUST proxy the images to send the correct Referer
-            return Capacitor.isNativePlatform() 
-                ? rawUrl 
-                : `${PROXY_URL}${encodeURIComponent(rawUrl)}`;
-        });
+        // Revised Regex: handles data-src, src, and both single/double quotes
+        const imgMatches = [
+            ...html.matchAll(/data-src=["']([^"']+)["']/g),
+            ...html.matchAll(/<img[^>]*src=["']([^"']+)["'][^>]*class=["'](?:lazy|main-image|rounded)["']/g)
+        ];
+        
+        // Deduplicate and filter out UI icons / small images, then proxy
+        const pages = [...new Set(imgMatches.map(m => m[1]))]
+            .filter(url => url.includes('/mangap/') || url.includes('chapter'))
+            .map(url => {
+                // Use PROXY_URL as i0.wp.com is failing with 403 for MangaPill
+                return `${PROXY_URL}${encodeURIComponent(url)}`;
+            });
 
         return {
             pages: pages,

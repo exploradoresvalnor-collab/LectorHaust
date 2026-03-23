@@ -44,7 +44,8 @@ import {
   logoTwitter,
   paperPlane,
   copyOutline,
-  shareOutline
+  shareOutline,
+  sparklesOutline
 } from 'ionicons/icons';
 import { useParams } from 'react-router-dom';
 import { mangaProvider } from '../services/mangaProvider';
@@ -74,7 +75,7 @@ const MangaDetailsPage: React.FC = () => {
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [presentToast] = useIonToast();
 
-  const { toggleFavorite, isFavorite, isRead, getProgress, toggleRead } = useLibraryStore();
+  const { toggleFavorite, isFavorite, isRead, getProgress, toggleRead, showNSFW } = useLibraryStore();
   const progress = id ? getProgress(id) : null;
 
   const {
@@ -90,6 +91,7 @@ const MangaDetailsPage: React.FC = () => {
     availableLangs,
     mdStats,
     chapterOrder,
+    isOptimized,
     setChapterOrder,
     handleLangChange,
     loadPage
@@ -118,7 +120,7 @@ const MangaDetailsPage: React.FC = () => {
             if (!rec) return null;
             const title = rec.title.english || rec.title.romaji || rec.title.native;
             try {
-              const verified = await mangaProvider.fetchVerifiedRecommendation(title);
+              const verified = await mangaProvider.fetchVerifiedRecommendation(title, showNSFW);
               if (verified && verified.hasChapters && !cancelled) {
                 return {
                   aniId: rec.id,
@@ -462,21 +464,54 @@ const MangaDetailsPage: React.FC = () => {
             </IonButton>
           </div>
 
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '8px', 
-            padding: '10px 15px', 
-            background: 'rgba(255, 196, 9, 0.1)', 
-            borderLeft: '4px solid #ffc409',
-            margin: '10px 0 20px',
-            borderRadius: '4px'
-          }}>
-            <IonIcon icon={informationCircleOutline} style={{ color: '#ffc409', fontSize: '24px' }} />
-            <IonNote style={{ color: '#ddd', fontSize: '0.8rem', lineHeight: '1.2' }}>
-              Algunos capítulos pueden faltar o estar incompletos debido a licencias oficiales o eliminación por derechos de autor.
-            </IonNote>
-          </div>
+          {isOptimized ? (
+            <div className="haus-optimizer-badge animate-pulse-gentle" style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '10px', 
+              padding: '12px 18px', 
+              background: 'linear-gradient(135deg, rgba(var(--ion-color-secondary-rgb), 0.15), rgba(var(--ion-color-primary-rgb), 0.05))', 
+              borderLeft: '4px solid var(--ion-color-secondary)',
+              margin: '10px 0 20px',
+              borderRadius: '8px',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+            }}>
+              <div style={{ 
+                background: 'var(--ion-color-secondary)', 
+                borderRadius: '50%', 
+                width: '32px', 
+                height: '32px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                boxShadow: '0 0 10px rgba(var(--ion-color-secondary-rgb), 0.5)'
+              }}>
+                <IonIcon icon={sparklesOutline} style={{ color: '#fff', fontSize: '18px' }} />
+              </div>
+              <div>
+                <IonText color="secondary" style={{ fontWeight: 700, fontSize: '0.9rem', display: 'block' }}>Haus Intelligent Optimizer</IonText>
+                <IonNote style={{ color: '#aaa', fontSize: '0.75rem' }}>
+                  Contenido optimizado automáticamente desde fuente de respaldo.
+                </IonNote>
+              </div>
+            </div>
+          ) : (
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px', 
+              padding: '10px 15px', 
+              background: 'rgba(255, 196, 9, 0.1)', 
+              borderLeft: '4px solid #ffc409',
+              margin: '10px 0 20px',
+              borderRadius: '4px'
+            }}>
+              <IonIcon icon={informationCircleOutline} style={{ color: '#ffc409', fontSize: '24px' }} />
+              <IonNote style={{ color: '#ddd', fontSize: '0.8rem', lineHeight: '1.2' }}>
+                Algunos capítulos pueden faltar o estar incompletos debido a licencias oficiales o eliminación por derechos de autor.
+              </IonNote>
+            </div>
+          )}
 
           <div className="chapters-container">
             {loadingChapters ? (

@@ -1,13 +1,21 @@
 import { mangadexService } from './mangadexService';
 import { mangapillService } from './mangapillService';
+import { weebcentralService } from './weebcentralService';
 
-export type MangaSource = 'mangadex' | 'mangapill';
+export type MangaSource = 'mangadex' | 'mangapill' | 'weebcentral';
 
 let currentSource: MangaSource = 'mangadex';
 
-// Helper: Normalizar títulos para comparación
+// Helper: Normalizar títulos para comparación robusta
 const normalizeTitle = (title: string): string => {
-  return title.toLowerCase().replace(/[^\w\s]/g, '').trim();
+  if (!title) return '';
+  return title
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // Limpiar acentos
+      .replace(/[^a-z0-9\s]/g, '')     // Solo alfanumérico y espacios
+      .replace(/\s+/g, ' ')            // Espacios únicos
+      .trim();
 };
 
 // Helper: Deduplicar resultados por ID y por título normalizado
@@ -42,7 +50,7 @@ export const mangaProvider = {
     getSource(): MangaSource {
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem('mangaSource') as MangaSource;
-            if (saved === 'mangadex' || saved === 'mangapill') {
+            if (saved === 'mangadex' || saved === 'mangapill' || saved === 'weebcentral') {
                 currentSource = saved;
             }
         }
@@ -50,92 +58,80 @@ export const mangaProvider = {
     },
 
     isExternalId(id: string) {
-        return id && id.startsWith('mp:');
+        return id && (id.startsWith('mp:') || id.startsWith('wc:'));
     },
 
+    // --- UTILS ---
+    
     getInternalId(id: string) {
-        return id && id.startsWith('mp:') ? id.substring(3) : id;
+        if (!id) return id;
+        if (id.startsWith('mp:')) return id.substring(3);
+        if (id.startsWith('wc:')) return id.substring(3);
+        return id;
     },
 
     getServiceForId(id: string) {
-        return this.isExternalId(id) ? (mangapillService as any) : mangadexService;
+        if (!id) return mangadexService;
+        if (id.startsWith('mp:')) return mangapillService as any;
+        if (id.startsWith('wc:')) return weebcentralService as any;
+        return mangadexService;
     },
 
     getService() {
-        return this.getSource() === 'mangapill' ? (mangapillService as any) : mangadexService;
+        if (currentSource === 'mangapill') return mangapillService as any;
+        if (currentSource === 'weebcentral') return weebcentralService as any;
+        return mangadexService;
     },
 
-    // ----------------------------------------------------------------------
-    // Delegate Methods
-    // ----------------------------------------------------------------------
+    // --- DELEGATE METHODS ---
 
-    // Búsqueda en cascada: intenta MangaDex primero, luego MangaPill si es necesario
+    /**
+     * Búsqueda en cascada Inteligente: 
+     * 1. MangaDex (Metadata oficial y español)
+     * 2. WeebCentral (Manhwas/Manhuas y alta disponibilidad)
+     * 3. MangaPill (Manga rápido y capítulos actualizados)
+     */
     async searchManga(query: string, filters: any = {}, limit = 20, offset = 0, order?: any, allowNSFW = false) {
         try {
-            // Fase 1: Buscar en MangaDex
-            const mangadexResults = await mangadexService.searchManga(query, filters, limit, offset, order, allowNSFW);
-            const results = mangadexResults?.data || [];
-
-            // Fase 2: Si los resultados son muy pocos o vacíos, buscar en MangaPill como fallback
-            // Umbral: Si obtenemos menos del 50% de resultados solicitados
-            if (results.length < Math.ceil(limit * 0.5) && !offset) {
-                try {
-                    console.log(`[SearchCascade] MangaDex retornó ${results.length} resultados. Buscando en MangaPill como fallback...`);
-                    
-                    // mangapillService.searchManga() solo acepta query, devuelve un array directo
-                    const mangapillData = await mangapillService.searchManga(query);
-                    const mangapillArray = Array.isArray(mangapillData) ? mangapillData : [];
-
-                    // Los IDs de MangaPill YA vienen con prefijo 'mp:', no agregar nuevamente
-                    const prefixedMangapill = mangapillArray.map((item: any) => ({
-                        ...item,
-                        _source: 'mangapill'
-                    }));
-
-                    // Combinar y deduplicar resultados
-                    const combinedResults = deduplicateResults([...results, ...prefixedMangapill]);
-                    
-                    console.log(`[SearchCascade] Resultados finales: ${combinedResults.length} únicos (MangaDex: ${results.length} + MangaPill: ${mangapillArray.length})`);
-                    
-                    return {
-                        data: combinedResults.slice(0, limit),
-                        pagination: mangadexResults?.pagination || { limit, offset, total: combinedResults.length }
-                    };
-                } catch (fallbackError) {
-                    console.error('[SearchCascade] Error en fallback de MangaPill:', fallbackError);
-                    // Si MangaPill falla, devolver solo resultados de MangaDex
-                    return mangadexResults;
-                }
-            }
-
-            // Si MangaDex tiene suficientes resultados, devolver esos
-            return mangadexResults;
-        } catch (error) {
-            console.error('[SearchCascade] Error en búsqueda MangaDex:', error);
+            // Priority 1: MangaDex (Official metadata and Spanish content)
+            const mdResults = await mangadexService.searchManga(query, filters, limit, offset, order, allowNSFW);
             
-            // Si MangaDex falla completamente, intentar MangaPill
-            try {
-                console.log('[SearchCascade] MangaDex falló. Intentando MangaPill...');
-                const mangapillData = await mangapillService.searchManga(query);
-                const mangapillArray = Array.isArray(mangapillData) ? mangapillData : [];
-                
-                // Los IDs de MangaPill YA vienen con prefijo 'mp:'
-                const prefixedMangapill = mangapillArray.map((item: any) => ({
-                    ...item,
-                    _source: 'mangapill'
-                }));
-                
-                return {
-                    data: prefixedMangapill.slice(0, limit),
-                    pagination: { limit, offset, total: prefixedMangapill.length }
-                };
-            } catch (fallbackError) {
-                console.error('[SearchCascade] Error en MangaPill:', fallbackError);
-                return { data: [], pagination: { limit, offset, total: 0 } };
+            // If we have plenty of results, return them immediately
+            if (mdResults.data && mdResults.data.length >= 10) {
+                return mdResults;
             }
+
+            // Priority 2: Cascade fallback for more content
+            console.log('[SearchCascade] MangaDex returned few results. Searching WeebCentral & MangaPill...');
+            
+            const [wcResults, mpResults] = await Promise.all([
+                weebcentralService.searchManga(query).catch(() => []),
+                mangapillService.searchManga(query).catch(() => [])
+            ]);
+
+            // Combine and deduplicate
+            const combined = deduplicateResults([
+                ...(mdResults.data || []),
+                ...(wcResults as any[] || []),
+                ...(mpResults as any[] || [])
+            ]);
+
+            console.log(`[SearchCascade] Final results: ${combined.length} unique (MD: ${mdResults.data?.length || 0} + WC: ${wcResults.length} + MP: ${mpResults.length})`);
+
+            return {
+                data: combined.slice(0, limit),
+                pagination: {
+                    limit,
+                    offset,
+                    total: combined.length
+                }
+            };
+        } catch (err) {
+            console.error('[Search] Cascade failed:', err);
+            return { data: [], pagination: { limit, offset, total: 0 } };
         }
     },
-
+   
     getPopularManga(origin: string | null = null, lang: string | null = 'es', limit = 12, offset = 0, genre: string | null = null, fullColor = false, allowNSFW = false) {
         const service = this.getService() as any;
         return service.getPopularManga 
@@ -157,25 +153,68 @@ export const mangaProvider = {
             : mangadexService.getFullyTranslatedMasterpieces(origin, lang, limit, offset, genre, fullColor, allowNSFW);
     },
 
-    getLatestChapters(limit = 12, offset = 0, lang: string | null = null) {
+    getLatestChapters(limit = 12, offset = 0, lang: string | null = null, allowNSFW = false) {
         const service = this.getService() as any;
         return service.getLatestChapters 
-            ? service.getLatestChapters(limit, offset, lang)
-            : mangadexService.getLatestChapters(limit, offset, lang);
+            ? service.getLatestChapters(limit, offset, lang, allowNSFW)
+            : mangadexService.getLatestChapters(limit, offset, lang, allowNSFW);
     },
 
-    getMangaDetails(id: string) {
-        const service = this.getServiceForId(id);
-        return service.getMangaDetails(this.getInternalId(id));
+    async getMangaDetails(id: string, allowNSFW = false) {
+        if (this.isExternalId(id)) {
+            const service = this.getServiceForId(id);
+            const details = await service.getMangaDetails(this.getInternalId(id), allowNSFW);
+            
+            // --- METADATA ENRICHMENT ---
+            try {
+                const title = details.data.attributes.title.en;
+                if (title) {
+                    const mdMatch = await mangadexService.searchManga(title, {}, 1, 0, null, allowNSFW);
+                    if (mdMatch.data && mdMatch.data.length > 0) {
+                        const mdManga = mdMatch.data[0];
+                        const mdTitle = normalizeTitle(mdManga.attributes.title.en || Object.values(mdManga.attributes.title)[0] as string);
+                        const extTitleNormalized = normalizeTitle(title);
+                        
+                        // Si el título coincide moderadamente, robar los metadatos de MangaDex (ID de tags, descripción en español)
+                        if (mdTitle === extTitleNormalized || mdTitle.includes(extTitleNormalized) || extTitleNormalized.includes(mdTitle)) {
+                            console.log(`[Enrichment] Found Spanish metadata on MangaDex for: ${title}`);
+                            if (mdManga.attributes.description) {
+                                details.data.attributes.description = {
+                                    ...details.data.attributes.description,
+                                    ...mdManga.attributes.description
+                                };
+                            }
+                            if (mdManga.attributes.tags) {
+                               details.data.attributes.tags = mdManga.attributes.tags;
+                            }
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn('[Enrichment] Failed to enrich metadata:', err);
+            }
+            
+            return details;
+        }
+        return mangadexService.getMangaDetails(id);
     },
 
     getMangaById(id: string) {
-        return this.getMangaDetails(id); // map it to getMangaDetails for compatibility
+        return this.getMangaDetails(id); 
     },
 
-    getMangaChapters(mangaId: string, lang: string | string[] | null = 'es', limit = 500, offsetInitial = 0, orderDir: 'asc' | 'desc' = 'desc') {
-        const service = this.getServiceForId(mangaId);
-        return service.getMangaChapters(this.getInternalId(mangaId), lang, limit, offsetInitial, orderDir);
+    async getMangaChapters(mangaId: string, lang: string | null = 'es', limit = 20, offset = 0, order: 'asc' | 'desc' = 'desc', allowNSFW = false) {
+        if (this.isExternalId(mangaId)) {
+            const providerStr = mangaId.split(':')[0];
+            if (providerStr === 'mp' || mangaId.startsWith('mp:')) {
+                return mangapillService.getMangaChapters(mangaId, lang, limit, offset, order);
+            }
+            if (providerStr === 'wc' || mangaId.startsWith('wc:')) {
+                return weebcentralService.getMangaChapters(mangaId);
+            }
+            return { data: [], total: 0 };
+        }
+        return mangadexService.getMangaChapters(mangaId, lang, limit, offset, order, allowNSFW);
     },
 
     getChapterPages(chapterId: string, quality: 'data' | 'data-saver' = 'data') {
@@ -192,15 +231,24 @@ export const mangaProvider = {
         return service.getMangaStatistics ? service.getMangaStatistics(this.getInternalId(mangaId)) : Promise.resolve({ rating: null, follows: 0 });
     },
 
+    getRecommendations(tags: string[] = [], limit = 10, allowNSFW = false) {
+        // Recommendations are primarily powered by MangaDex for now
+        return mangadexService.getRecommendations(tags, limit, allowNSFW);
+    },
+
     getCoverUrl(manga: any, quality: 'original' | '256' | '512' = '256') {
         if (!manga) return 'https://placehold.co/512x768/222222/cccccc?text=Sin+Portada';
         
-        // Comick uses our faked URL in relationships, or we can resolve it directly
         const service = this.getServiceForId(manga.id);
         if (this.isExternalId(manga.id)) {
-            // MangaPill/External sources might have the cover URL in attributes or relations
+            // Check for direct coverUrl in attributes (MangaPill/WeebCentral)
+            if (manga.attributes?.coverUrl) return manga.attributes.coverUrl;
+            
+            // Check relationships
             const coverRel = manga.relationships?.find((rel: any) => rel.type === 'cover_art');
-            return coverRel?.attributes?.fileName || manga.attributes?.coverUrl || 'https://placehold.co/512x768/222222/cccccc?text=Sin+Portada';
+            if (coverRel?.attributes?.fileName) return coverRel.attributes.fileName;
+            
+            return 'https://placehold.co/512x768/222222/cccccc?text=Sin+Portada';
         }
         
         return mangadexService.getCoverUrl(manga, quality);
@@ -209,12 +257,14 @@ export const mangaProvider = {
     getLocalizedTitle(manga: any) {
         if (!manga?.attributes?.title) return 'Desconocido';
         const titles = manga.attributes.title;
+        if (typeof titles === 'string') return titles;
         return titles['en'] || titles['es-la'] || titles['es'] || titles['ja-ro'] || Object.values(titles)[0] || 'Desconocido';
     },
 
     getLocalizedDescription(manga: any) {
         if (!manga?.attributes?.description) return '';
         const desc = manga.attributes.description;
+        if (typeof desc === 'string') return desc;
         return desc['es-la'] || desc['es'] || desc['en'] || Object.values(desc)[0] || '';
     },
 
@@ -226,7 +276,107 @@ export const mangaProvider = {
         return mangadexService.getProxiedUrl(url);
     },
 
-    fetchVerifiedRecommendation(title: string) {
-        return mangadexService.fetchVerifiedRecommendation(title);
+    fetchVerifiedRecommendation(title: string, allowNSFW = false) {
+        return mangadexService.fetchVerifiedRecommendation(title, allowNSFW);
+    },
+
+    // --- INTELLIGENT FALLBACK HELPERS ---
+    
+    async findBestExternalSource(manga: any): Promise<{ id: string, source: MangaSource } | null> {
+        if (!manga || !manga.attributes) return null;
+        
+        // 1. Recopilar todos los títulos posibles (Principal + Alternativos)
+        const targetTitles: string[] = [];
+        
+        // Títulos principales
+        if (manga.attributes.title) {
+            if (typeof manga.attributes.title === 'string') {
+                targetTitles.push(manga.attributes.title);
+            } else {
+                Object.values(manga.attributes.title).forEach((t: any) => targetTitles.push(t));
+            }
+        }
+        
+        // Títulos alternativos
+        if (manga.attributes.altTitles && Array.isArray(manga.attributes.altTitles)) {
+            manga.attributes.altTitles.forEach((alt: any) => {
+                if (typeof alt === 'string') {
+                    targetTitles.push(alt);
+                } else {
+                    Object.values(alt).forEach((t: any) => targetTitles.push(t));
+                }
+            });
+        }
+
+        const normalizedTargets = targetTitles.map(t => normalizeTitle(t)).filter(Boolean);
+        if (normalizedTargets.length === 0) return null;
+
+        // 2. Determinar el mejor término de búsqueda
+        const searchTitle = (typeof manga.attributes.title === 'string' ? manga.attributes.title : (manga.attributes.title?.['en'] || manga.attributes.title?.['ja-ro'] || targetTitles[0]));
+
+        const isManhwa = manga.attributes?.originalLanguage === 'ko' || manga.attributes?.originalLanguage === 'zh';
+
+        try {
+            console.log(`[Intelligence] Searching for accurate match: "${searchTitle}"... (Manhwa: ${isManhwa})`);
+            
+            // Priority logic based on content type
+            if (isManhwa) {
+                // For Manhwas/Manhuas, WeebCentral is the absolute best
+                const wcResults = await weebcentralService.searchManga(searchTitle as string);
+                if (wcResults && wcResults.length > 0) {
+                    for (const result of wcResults) {
+                        const resultTitle = normalizeTitle(result.attributes?.title?.['en'] || '');
+                        const isMatch = normalizedTargets.some(target => 
+                            target === resultTitle || 
+                            (target.length > 5 && resultTitle.includes(target)) || 
+                            (resultTitle.length > 5 && target.includes(resultTitle))
+                        );
+                        if (isMatch) {
+                            console.log(`[Intelligence] ✅ Accurate Manhwa match verified on WeebCentral: "${result.attributes?.title?.['en']}"`);
+                            return { id: result.id, source: 'weebcentral' };
+                        }
+                    }
+                }
+            } else {
+                // For regular Manga, MangaPill is fast
+                const mpResults = await mangapillService.searchManga(searchTitle as string);
+                if (mpResults && mpResults.length > 0) {
+                    for (const result of mpResults) {
+                        const resultTitle = normalizeTitle(result.attributes?.title?.['en'] || '');
+                        const isMatch = normalizedTargets.some(target => 
+                            target === resultTitle || 
+                            (target.length > 5 && resultTitle.includes(target)) || 
+                            (resultTitle.length > 5 && target.includes(resultTitle))
+                        );
+                        if (isMatch) {
+                            console.log(`[Intelligence] ✅ Accurate Manga match verified on MangaPill: "${result.attributes?.title?.['en']}"`);
+                            return { id: result.id, source: 'mangapill' };
+                        }
+                    }
+                }
+                
+                // Final fallback for Manga to WeebCentral
+                const wcResults = await weebcentralService.searchManga(searchTitle as string);
+                if (wcResults && wcResults.length > 0) {
+                    for (const result of wcResults) {
+                        const resultTitle = normalizeTitle(result.attributes?.title?.['en'] || '');
+                        const isMatch = normalizedTargets.some(target => 
+                            target === resultTitle || 
+                            (target.length > 5 && resultTitle.includes(target)) || 
+                            (resultTitle.length > 5 && target.includes(resultTitle))
+                        );
+                        if (isMatch) {
+                            console.log(`[Intelligence] ✅ Accurate match verified on WeebCentral (Final Fallback): "${result.attributes?.title?.['en']}"`);
+                            return { id: result.id, source: 'weebcentral' };
+                        }
+                    }
+                }
+            }
+            
+            console.warn(`[Intelligence] ⚠️ No accurate match found among results for: ${searchTitle}`);
+        } catch (err) {
+            console.error('[Intelligence] Fallback search failed:', err);
+        }
+        return null;
     }
 };

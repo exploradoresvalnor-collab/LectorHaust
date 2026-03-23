@@ -92,7 +92,8 @@ const AppContent: React.FC = () => {
     location.pathname.startsWith('/manga/') || 
     location.pathname.startsWith('/reader/') ||
     location.pathname.startsWith('/chat') ||
-    location.pathname.startsWith('/social');
+    location.pathname.startsWith('/social') ||
+    location.pathname.startsWith('/profile');
 
   useEffect(() => {
     // Check for updates every 5 minutes

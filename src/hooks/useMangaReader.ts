@@ -5,6 +5,7 @@ import { useSettingsStore } from '../store/useSettingsStore';
 import { auth } from '../services/firebase';
 import { userStatsService } from '../services/userStatsService';
 import { offlineService } from '../services/offlineService';
+import { hapticsService } from '../services/hapticsService';
 
 export function useMangaReader(chapterId?: string) {
   const [pages, setPages] = useState<string[]>([]);
@@ -99,8 +100,20 @@ export function useMangaReader(chapterId?: string) {
 
         try {
           // 🔌 OFFLINE FIRST: Check if chapter is downloaded locally
-          // Wrap in a try-catch to avoid hangs if storage is blocked by tracking/privacy settings
-          downloaded = await offlineService.isDownloaded(chapterId).catch(() => false);
+          // Added 2s timeout to prevent local hangs in dev environment
+          console.log(`[Reader] Checking offline status for: ${chapterId}`);
+          
+          const timeout = new Promise<boolean>((_, reject) => 
+            setTimeout(() => reject(new Error('Offline check timeout')), 2000)
+          );
+
+          downloaded = await Promise.race([
+            offlineService.isDownloaded(chapterId),
+            timeout
+          ]).catch(err => {
+            console.warn('[Reader] Offline check bypassed (Timeout/Error):', err.message);
+            return false;
+          });
           
           if (downloaded) {
             const localPages = await offlineService.getLocalPages(chapterId).catch(() => []);
@@ -109,11 +122,11 @@ export function useMangaReader(chapterId?: string) {
               setIsOffline(true);
               markAsRead(chapterId);
               pagesLoaded = true;
-              console.log(`[Reader] Loaded ${localPages.length} pages from offline storage`);
+              console.log(`[Reader] ✅ Loaded ${localPages.length} pages from LOCAL storage`);
             }
           }
         } catch (storageErr) {
-          console.warn('[Reader] Offline storage access blocked or failed:', storageErr);
+          console.warn('[Reader] ⚠️ Offline storage access blocked or failed:', storageErr);
         }
 
         // If no offline pages, fetch from network
@@ -144,7 +157,22 @@ export function useMangaReader(chapterId?: string) {
         if (mangaRel) {
           setMangaId(mangaRel.id);
           const format = mangaRel.attributes?.originalLanguage;
-          setIsWebtoon(format === 'ko' || format === 'zh');
+          const tags = mangaRel.attributes?.tags || [];
+          const hasWebtoonTag = tags.some((t: any) => {
+            const name = t.attributes?.name?.en?.toLowerCase() || '';
+            const description = t.attributes?.description?.en?.toLowerCase() || '';
+            return name === 'long strip' || name === 'webtoon' || name === 'manhwa' || description.includes('manhwa');
+          });
+          
+          // Determine if it should be scroll (Webtoon) or pages (Manga)
+          // Default to FALSE (Pages) for Japanese Manga (ja)
+          const webtoonStatus = format === 'ko' || format === 'zh' || hasWebtoonTag;
+          
+          console.log(`[Reader] Format: ${format}, WebtoonTag: ${hasWebtoonTag} -> Mode: ${webtoonStatus ? 'Scroll' : 'Pages'}`);
+          setIsWebtoon(webtoonStatus);
+          if (webtoonStatus) {
+            setFitMode('fitWidth');
+          }
 
           // Parallelize manga info and chapters scan
           Promise.all([
@@ -159,7 +187,7 @@ export function useMangaReader(chapterId?: string) {
             mangaProvider.getMangaChapters(
               mangaRel.id, 
               chapterInfo.data.attributes.translatedLanguage || 'es',
-              100, 0
+              500, 0
             ).then((chaptersData: any) => {
               if (chaptersData.data && isMounted) {
                 const sorted = chaptersData.data
@@ -193,27 +221,36 @@ export function useMangaReader(chapterId?: string) {
   }, [loading, error, pages.length]);
 
   // Lógica Táctil para el modo paginado
-  const handleMangaTap = (e: React.MouseEvent) => {
+  const handleMangaTap = (e: React.MouseEvent | { clientX: number }) => {
     if (showEndSection) return;
 
     const { clientX } = e;
     const width = window.innerWidth;
 
+    // RTL Reading (Manga Style): 
+    // Tap Left (0-30%) -> Next Page
+    // Tap Right (70-100%) -> Prev Page
+    // Tap Center (30-70%) -> Toggle UI
+    
     if (clientX < width * 0.3) {
       if (currentMangaPage < pages.length - 1) {
         setCurrentMangaPage(prev => prev + 1);
+        hapticsService.lightImpact();
       } else {
         setShowEndSection(true);
         setShowUi(true);
+        hapticsService.mediumImpact();
       }
     } 
     else if (clientX > width * 0.7) {
       if (currentMangaPage > 0) {
         setCurrentMangaPage(prev => prev - 1);
+        hapticsService.lightImpact();
       }
     } 
     else {
       setShowUi(prev => !prev);
+      hapticsService.lightImpact();
     }
   };
 

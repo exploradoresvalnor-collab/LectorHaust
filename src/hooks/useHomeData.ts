@@ -187,7 +187,7 @@ export function useHomeData() {
   useEffect(() => {
     const timer = setInterval(async () => {
       try {
-        const pollData = await mangaProvider.getLatestChapters(5, 0, latestLang);
+        const pollData = await mangaProvider.getLatestChapters(5, 0, latestLang, showNSFW);
         const newOnes = pollData.data || [];
         
         if (newOnes.length > 0 && lastFetchTime.current) {
