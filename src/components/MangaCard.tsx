@@ -1,6 +1,7 @@
 import React from 'react';
 import { IonCard, IonCardContent, IonText } from '@ionic/react';
 import { mangadexService } from '../services/mangadexService';
+import SmartImage from './SmartImage';
 import './MangaCard.css';
 
 interface MangaCardProps {
@@ -36,12 +37,10 @@ const MangaCard: React.FC<MangaCardProps> = ({ title, coverUrl, format, tags = [
   return (
     <div className="manga-card-pro animate-fade-in" onClick={onClick}>
       <div className="card-media">
-        <img 
+        <SmartImage 
           src={coverUrl.includes('res.cloudinary.com') || coverUrl.includes('anilist.co') || coverUrl.includes('s4.anilist.co') ? coverUrl : mangadexService.getOptimizedUrl(coverUrl)} 
           alt={title} 
           className="card-img" 
-          loading="lazy" 
-          referrerPolicy="no-referrer"
         />
         <div className="card-overlay">
           <div className="card-content-bottom">

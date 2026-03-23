@@ -271,6 +271,14 @@ export const mangadexService = {
             });
         }
 
+        if (filters.status) {
+            url += `&status[]=${filters.status}`;
+        }
+
+        if (filters.demographic) {
+            url += `&publicationDemographic[]=${filters.demographic}`;
+        }
+
         if (filters.fullColor) {
             url += `&includedTags[]=${COLOR_TAG_ID}`;
         }
@@ -535,7 +543,7 @@ export const mangadexService = {
         }
 
         // Mode 2: Chapter-first (Best for the "All" view with maximum variety)
-        const fetchLimit = limit * 4; 
+        const fetchLimit = Math.min(limit * 4, 100); 
         let url = `/chapter?limit=${fetchLimit}&offset=${offset}&order[readableAt]=desc&includes[]=manga`;
         url += this.getContentRatingParams(allowNSFW);
         

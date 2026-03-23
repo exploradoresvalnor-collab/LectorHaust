@@ -48,12 +48,31 @@ body {
   }
 }
 
-/* Skeleton Loading */
+/* Skeleton Loading Shimmer (PRO) */
+.image-skeleton-wrapper {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
+  background-size: 400% 100%;
+  animation: shimmer 1.5s infinite linear;
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+}
+
 .skeleton {
   background: linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-elevated) 50%, var(--bg-surface) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: var(--radius-md);
+}
+
+/* Smooth Image Fade-In */
+.smooth-image {
+  opacity: 0;
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.smooth-image.img-loaded {
+  opacity: 1;
 }
 
 /* Global Scrollbar Removal - Invisible scroll but functional */

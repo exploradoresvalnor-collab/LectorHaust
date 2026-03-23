@@ -17,10 +17,43 @@ export const weebcentralService = {
     return await response.text();
   },
 
-  async searchManga(query: string) {
+  async searchManga(query: string, filters: { status?: string, origin?: string, order?: string } = {}) {
     // Search endpoint discovered via browser research
     // https://weebcentral.com/search/data?author=&text=Solo+Leveling&sort=Best+Match&order=Ascending&status=&type=&official=&anime=&adult=&mini=true
-    const url = `${BASE_URL}/search/data?text=${encodeURIComponent(query)}&sort=Best+Match&order=Ascending&mini=true`;
+    
+    let statusParam = '';
+    if (filters.status) {
+      const statusMap: Record<string, string> = {
+        'ongoing': 'Ongoing',
+        'completed': 'Completed',
+        'hiatus': 'Hiatus',
+        'cancelled': 'Canceled'
+      };
+      statusParam = statusMap[filters.status] || '';
+    }
+
+    let typeParam = '';
+    if (filters.origin) {
+      const typeMap: Record<string, string> = {
+        'ja': 'Manga',
+        'ko': 'Manhwa',
+        'zh': 'Manhua'
+      };
+      typeParam = typeMap[filters.origin] || '';
+    }
+
+    let sortParam = 'Best+Match';
+    if (filters.order) {
+      const sortMap: Record<string, string> = {
+        'relevance': 'Best+Match',
+        'followedCount': 'Most+Follows',
+        'latestUploadedChapter': 'Latest+Updates',
+        'rating': 'Best+Match'
+      };
+      sortParam = sortMap[filters.order] || 'Best+Match';
+    }
+
+    const url = `${BASE_URL}/search/data?text=${encodeURIComponent(query)}&sort=${sortParam}&order=Ascending&status=${statusParam}&type=${typeParam}&mini=true`;
     const html = await this.fetchHtml(url);
     
     // Pattern: <a href="https://weebcentral.com/series/01J76XYCPSY3C4BNPBRY8JMCBE/Solo-Leveling">
@@ -45,7 +78,8 @@ export const weebcentralService = {
         attributes: {
           title: { en: title },
           description: { en: '' }, // Details fetched later
-          status: 'ongoing'
+          status: filters.status || 'ongoing',
+          originalLanguage: filters.origin || 'ko' // Default to ko if searched on weebcentral
         },
         relationships: cover ? [{
           type: 'cover_art',

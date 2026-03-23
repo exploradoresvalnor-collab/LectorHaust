@@ -4,10 +4,13 @@
     overflow: hidden;
     position: relative;
     aspect-ratio: 2/3;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.4s ease;
     background: #1a1a1a;
     border: 1px solid rgba(255, 255, 255, 0.05); /* Soft premium frame */
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    will-change: transform, box-shadow;
+    transform: translateZ(0);
+    backface-visibility: hidden;
 }
 
 .manga-card-pro:hover {

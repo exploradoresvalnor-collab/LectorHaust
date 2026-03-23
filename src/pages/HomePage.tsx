@@ -33,6 +33,7 @@ import EmptyState from '../components/EmptyState';
 import { useHomeData } from '../hooks/useHomeData';
 import { hapticsService } from '../services/hapticsService';
 import { getTranslation, Language } from '../utils/translations';
+import SmartImage from '../components/SmartImage';
 import './HomePage.css';
 
 const HomePage: React.FC = () => {
@@ -44,6 +45,7 @@ const HomePage: React.FC = () => {
     setHeroIndex,
     latest,
     loading,
+    loadingMasterpieces,
     isDone,
     newChaptersCount,
     showNewBanner,
@@ -324,7 +326,7 @@ const HomePage: React.FC = () => {
         </div>
 
         {/* --- CAROUSEL: Joyas Finalizadas --- */}
-        {(completedMasterpieces.length > 0 || loading) && (
+        {(completedMasterpieces.length > 0 || loadingMasterpieces) && (
           <div className="animate-fade-in" style={{ marginTop: '1.5rem' }}>
             <div className="section-header" style={{ paddingBottom: '0.5rem' }}>
               <div className="accent-bar" style={{ background: '#4caf50' }}></div>
@@ -338,7 +340,7 @@ const HomePage: React.FC = () => {
                 <IonIcon icon={chevronBackOutline} />
               </IonButton>
               <div className="manga-carousel" id="completed-carousel">
-                {loading ? (
+                {loadingMasterpieces ? (
                    [1,2,3,4,5].map(i => (
                     <div key={`skel-comp-${i}`} className="carousel-card">
                       <IonSkeletonText animated style={{ width: '130px', height: '190px', borderRadius: '8px' }} />
@@ -351,11 +353,10 @@ const HomePage: React.FC = () => {
                       className="carousel-card"
                       onClick={() => router.push(`/manga/${manga.id}`)}
                     >
-                      <img 
+                      <SmartImage 
                         src={mangaProvider.getCoverUrl(manga)} 
                         className="carousel-cover" 
                         alt={mangaProvider.getLocalizedTitle(manga) as string} 
-                        loading="lazy"
                       />
                       <div className="carousel-title">{mangaProvider.getLocalizedTitle(manga) as React.ReactNode}</div>
                     </div>
@@ -445,12 +446,10 @@ const HomePage: React.FC = () => {
                     <div className="masterpiece-promotion" onClick={() => handleLatestClick(featuredMasterpiece)}>
                       <div className="promo-badge">RECOMENDADO</div>
                       <div className="promo-content">
-                        <img 
+                        <SmartImage 
                           src={mangaProvider.getCoverUrl(featuredMasterpiece, '512')} 
                           alt="promo" 
                           className="promo-image" 
-                          fetchPriority="high"
-                          decoding="async"
                         />
                         <div className="promo-text">
                           <span className="promo-label">
@@ -493,32 +492,25 @@ const HomePage: React.FC = () => {
                             className="manga-list-item animate-fade-in"
                             onClick={() => handleLatestClick(manga)}
                           >
-                            <div className="list-item-cover-wrapper">
-                              <img 
-                                src={mangaProvider.getCoverUrl(manga, '256')} 
-                                alt={mangaTitle as string} 
-                                className="list-item-cover" 
-                                loading="lazy"
-                                decoding="async"
-                                fetchPriority="low"
-                                onError={(e: any) => {
-                                  e.target.src = 'https://placehold.co/256x384/222222/cccccc?text=Error';
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setPreviewData({
-                                    url: mangaProvider.getCoverUrl(manga, 'original'),
-                                    title: mangaProvider.getLocalizedTitle(manga) as string,
-                                    desc: (mangaProvider.getLocalizedDescription(manga) as string) || 'Sin descripción disponible.',
-                                    id: manga.id,
-                                    tags: tags || [],
-                                    author: manga.relationships?.find((r: any) => r.type === 'author')?.attributes?.name || 'Autor desconocido',
-                                    status: manga.attributes?.status || 'unknown',
-                                    format: formatLabel
-                                  });
-                                }}
-                              />
-                               <div className="list-item-lang-badge">
+                            <SmartImage
+                              src={mangaProvider.getCoverUrl(manga, '256')} 
+                              alt={mangaTitle as string} 
+                              className="list-item-cover" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPreviewData({
+                                  url: mangaProvider.getCoverUrl(manga, 'original'),
+                                  title: mangaProvider.getLocalizedTitle(manga) as string,
+                                  desc: (mangaProvider.getLocalizedDescription(manga) as string) || 'Sin descripción disponible.',
+                                  id: manga.id,
+                                  tags: tags || [],
+                                  author: manga.relationships?.find((r: any) => r.type === 'author')?.attributes?.name || 'Autor desconocido',
+                                  status: manga.attributes?.status || 'unknown',
+                                  format: formatLabel
+                                });
+                              }}
+                            >
+                              <div className="list-item-lang-badge">
                                 {(() => {
                                   const code = manga.attributes?.latestChapterLang || manga.attributes?.originalLanguage || 'en';
                                   const flags: Record<string, string> = {
@@ -529,7 +521,7 @@ const HomePage: React.FC = () => {
                                   return flags[code] || '🌐';
                                 })()}
                               </div>
-                            </div>
+                            </SmartImage>
                             <div className="list-item-details">
                               <h3 className="list-item-title">{mangaTitle}</h3>
                               <div className="list-item-meta">

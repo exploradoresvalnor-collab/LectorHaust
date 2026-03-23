@@ -74,6 +74,8 @@ export const useLibraryStore = create<LibraryState>()(
             return { readChapters: updated.length > 500 ? updated.slice(-500) : updated };
           }
         });
+        const user = auth.currentUser;
+        if (user) get().pushToCloud(user.uid);
       },
       markAsRead: (chapterId) => {
         if (!get().readChapters.includes(chapterId)) {
@@ -81,6 +83,8 @@ export const useLibraryStore = create<LibraryState>()(
             const updated = [...state.readChapters, chapterId];
             return { readChapters: updated.length > 500 ? updated.slice(-500) : updated };
           });
+          const user = auth.currentUser;
+          if (user) get().pushToCloud(user.uid);
         }
       },
       isRead: (chapterId) => get().readChapters.includes(chapterId),

@@ -27,7 +27,11 @@ import { useMangaReader } from '../hooks/useMangaReader';
 import { hapticsService } from '../services/hapticsService';
 import './ReaderPage.css';
 
-import { gridOutline, listOutline, bookOutline, refreshCircleOutline, cloudDownloadOutline, trashOutline } from 'ionicons/icons';
+import { 
+  gridOutline, listOutline, bookOutline, refreshCircleOutline, 
+  cloudDownloadOutline, trashOutline, addCircleOutline, 
+  removeCircleOutline, searchCircleOutline 
+} from 'ionicons/icons';
 
 const ReaderPage: React.FC = () => {
   const { chapterId } = useParams<{ chapterId: string }>();
@@ -209,23 +213,38 @@ const ReaderPage: React.FC = () => {
                       centerOnInit={true}
                       wheel={{ step: 0.1 }}
                       doubleClick={{ step: 0.5 }}
-                      panning={{ excluded: ['input', 'button'] }}
+                      panning={{ excluded: ['input', 'button', '.zoom-controls-overlay'] }}
                     >
-                      <TransformComponent
-                        wrapperStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      >
-                        <div className={`image-centering-container ${fitMode}`}>
-                          <img 
-                            key={`img-${currentMangaPage}`} 
-                            src={pages[currentMangaPage].includes('mangadex') ? mangaProvider.getOptimizedUrl(pages[currentMangaPage]) : pages[currentMangaPage]} 
-                            className={`manga-page-single loaded page-flip-anim ${fitMode}`} 
-                            alt={`Página ${currentMangaPage + 1}`}
-                            decoding="async"
-                            style={{ pointerEvents: 'none' }} 
-                          />
-                        </div>
-                      </TransformComponent>
+                      {({ zoomIn, zoomOut, resetTransform }: any) => (
+                        <React.Fragment>
+                          <TransformComponent
+                            wrapperStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            <div className={`image-centering-container ${fitMode}`}>
+                              <img 
+                                key={`img-${currentMangaPage}`} 
+                                src={pages[currentMangaPage].includes('mangadex') ? mangaProvider.getOptimizedUrl(pages[currentMangaPage]) : pages[currentMangaPage]} 
+                                className={`manga-page-single loaded page-flip-anim ${fitMode}`} 
+                                alt={`Página ${currentMangaPage + 1}`}
+                                decoding="async"
+                                style={{ pointerEvents: 'none' }} 
+                              />
+                            </div>
+                          </TransformComponent>
+                          <div className={`zoom-controls-overlay ${showUi ? 'visible' : 'hidden'}`}>
+                            <IonButton fill="clear" className="zoom-btn" onClick={(e) => { e.stopPropagation(); zoomIn(0.5); }}>
+                              <IonIcon icon={addCircleOutline} />
+                            </IonButton>
+                            <IonButton fill="clear" className="zoom-btn" onClick={(e) => { e.stopPropagation(); resetTransform(); }}>
+                              <IonIcon icon={refreshCircleOutline} />
+                            </IonButton>
+                            <IonButton fill="clear" className="zoom-btn" onClick={(e) => { e.stopPropagation(); zoomOut(0.5); }}>
+                              <IonIcon icon={removeCircleOutline} />
+                            </IonButton>
+                          </div>
+                        </React.Fragment>
+                      )}
                     </TransformWrapper>
                     
                     {/* Precargador remains outside TransformWrapper for efficiency */}

@@ -38,6 +38,8 @@ import { db } from './services/firebase';
 import { collection, query, orderBy, limit, onSnapshot, doc, getDoc, setDoc, where, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { firebaseAuthService } from './services/firebaseAuthService';
 import { socialService } from './services/socialService';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
 /* Core CSS required for Ionic components to work properly */
 import '@ionic/react/css/core.css';
@@ -93,7 +95,8 @@ const AppContent: React.FC = () => {
     location.pathname.startsWith('/reader/') ||
     location.pathname.startsWith('/chat') ||
     location.pathname.startsWith('/social') ||
-    location.pathname.startsWith('/profile');
+    location.pathname.startsWith('/profile') ||
+    location.pathname === '/search';
 
   useEffect(() => {
     // Check for updates every 5 minutes
@@ -325,12 +328,25 @@ const AppContent: React.FC = () => {
   );
 };
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 30, // 30 minutes
+      retry: 2,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
 const App: React.FC = () => (
-  <IonApp>
-    <IonReactRouter>
-      <AppContent />
-    </IonReactRouter>
-  </IonApp>
+  <QueryClientProvider client={queryClient}>
+    <IonApp>
+      <IonReactRouter>
+        <AppContent />
+      </IonReactRouter>
+    </IonApp>
+  </QueryClientProvider>
 );
 
 export default App;

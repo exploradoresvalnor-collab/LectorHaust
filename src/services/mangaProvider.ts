@@ -1,39 +1,63 @@
 import { mangadexService } from './mangadexService';
 import { mangapillService } from './mangapillService';
 import { weebcentralService } from './weebcentralService';
+import { manhwawebService } from './manhwawebService';
 
-export type MangaSource = 'mangadex' | 'mangapill' | 'weebcentral';
+export type MangaSource = 'mangadex' | 'mangapill' | 'weebcentral' | 'manhwaweb';
 
 let currentSource: MangaSource = 'mangadex';
 
 // Helper: Normalizar títulos para comparación robusta
-const normalizeTitle = (title: string): string => {
-  if (!title) return '';
-  return title
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "") // Limpiar acentos
-      .replace(/[^a-z0-9\s]/g, '')     // Solo alfanumérico y espacios
-      .replace(/\s+/g, ' ')            // Espacios únicos
-      .trim();
+const normalizeTitle = (title: any): string => {
+  try {
+      if (title === null || title === undefined) return '';
+      const safeTitle = typeof title === 'string' ? title : String(title);
+      if (!safeTitle || typeof safeTitle.toLowerCase !== 'function') return '';
+      
+      return safeTitle
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "") // Limpiar acentos
+          .replace(/[^a-z0-9\s]/g, '')     // Solo alfanumérico y espacios
+          .replace(/\s+/g, ' ')            // Espacios únicos
+          .trim();
+  } catch (e) {
+      console.error('[normalizeTitle] Critical failure:', e, 'Input:', title);
+      return '';
+  }
 };
 
-// Helper: Deduplicar resultados por ID y por título normalizado
+// Helper: Deduplicar resultados por ID y por título normalizado (resistente a leetspeak)
 const deduplicateResults = (results: any[]): any[] => {
   const seenIds = new Set<string>();
   const seenTitles = new Set<string>();
   
+  // Leetspeak mapping to handle 'Solo L3vel1ng' -> 'solo leveling'
+  const deLeet = (s: string) => s.replace(/3/g, 'e').replace(/1/g, 'i').replace(/0/g, 'o').replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't');
+
   return results.filter(item => {
+    if (!item) return false;
     const id = item.id;
-    const title = normalizeTitle(item.attributes?.title?.['en'] || item.attributes?.title || item.name || '');
+    
+    // Safely extract the title string before normalizing
+    let titleStr = '';
+    const rawTitle = item.attributes?.title || item.name || '';
+    if (typeof rawTitle === 'string') {
+        titleStr = rawTitle;
+    } else if (typeof rawTitle === 'object' && rawTitle !== null) {
+        titleStr = rawTitle['en'] || Object.values(rawTitle)[0] as string || '';
+    }
+    
+    const titleNom = normalizeTitle(titleStr);
+    const titleDeleeted = deLeet(titleNom);
     
     // Descartar si el ID ya existe
     if (seenIds.has(id)) return false;
     seenIds.add(id);
     
-    // Descartar si el título normalizado ya existe (para títulos que no sean vacíos)
-    if (title && seenTitles.has(title)) return false;
-    if (title) seenTitles.add(title);
+    // Descartar si el título deleeted ya existe
+    if (titleDeleeted && seenTitles.has(titleDeleeted)) return false;
+    if (titleDeleeted) seenTitles.add(titleDeleeted);
     
     return true;
   });
@@ -50,7 +74,7 @@ export const mangaProvider = {
     getSource(): MangaSource {
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem('mangaSource') as MangaSource;
-            if (saved === 'mangadex' || saved === 'mangapill' || saved === 'weebcentral') {
+            if (saved === 'mangadex' || saved === 'mangapill' || saved === 'weebcentral' || saved === 'manhwaweb') {
                 currentSource = saved;
             }
         }
@@ -58,7 +82,7 @@ export const mangaProvider = {
     },
 
     isExternalId(id: string) {
-        return id && (id.startsWith('mp:') || id.startsWith('wc:'));
+        return id && (id.startsWith('mp:') || id.startsWith('wc:') || id.startsWith('mweb:'));
     },
 
     // --- UTILS ---
@@ -67,6 +91,7 @@ export const mangaProvider = {
         if (!id) return id;
         if (id.startsWith('mp:')) return id.substring(3);
         if (id.startsWith('wc:')) return id.substring(3);
+        if (id.startsWith('mweb:')) return id.substring(5);
         return id;
     },
 
@@ -74,6 +99,7 @@ export const mangaProvider = {
         if (!id) return mangadexService;
         if (id.startsWith('mp:')) return mangapillService as any;
         if (id.startsWith('wc:')) return weebcentralService as any;
+        if (id.startsWith('mweb:')) return manhwawebService as any;
         return mangadexService;
     },
 
@@ -111,9 +137,13 @@ export const mangaProvider = {
             
             let allResults = mdSpanishResults.data || [];
             
+            const hasStrictFilters = filters.demographic || filters.status || (filters.tags && filters.tags.length > 0) || filters.fullColor;
+            const hasQuery = query && query.trim().length > 1;
+
             // Si tenemos pocos resultados en español, buscamos en otras fuentes e inglés como respaldo
-            if (allResults.length < 8) {
-                console.log('[Search] Low Spanish results. Triggering cascade fallbacks...');
+            // REGLA: Sólo hacer cascada si hay una búsqueda de texto real y no hay filtros estrictos que rompan la lógica externa.
+            if ((allResults.length < 8 || filters.origin === 'ko') && hasQuery && !hasStrictFilters) {
+                console.log('[Search] Low Spanish results or Manhwa specific. Triggering cascade fallbacks...');
                 
                 // Inteligencia de Selección de Fuente:
                 // Si buscan Manhwa (ko), priorizar WeebCentral. Si buscan Manga (ja), priorizar MangaPill.
@@ -121,16 +151,19 @@ export const mangaProvider = {
                 const isManhwaSearch = origin === 'ko';
                 const isMangaSearch = origin === 'ja';
 
-                const [mdEnglishResults, wcResults, mpResults] = await Promise.all([
+                const [mdEnglishResults, wcResults, mpResults, mwebResults] = await Promise.all([
                     // Stage 2: Fallback to English on MangaDex
                     mangadexService.searchManga(query, { ...filters, lang: 'en' }, 10, 0, order, allowNSFW).catch(() => ({ data: [] })),
                     // Stage 3: External sources tailored to format
-                    (!isMangaSearch ? weebcentralService.searchManga(query) : Promise.resolve([])).catch(() => []),
-                    (!isManhwaSearch ? mangapillService.searchManga(query) : Promise.resolve([])).catch(() => [])
+                    (!isMangaSearch ? weebcentralService.searchManga(query, { status: filters.status, origin: filters.origin, order: order ? Object.keys(order)[0] : undefined }) : Promise.resolve([])).catch(() => []),
+                    (!isManhwaSearch ? mangapillService.searchManga(query) : Promise.resolve([])).catch(() => []),
+                    // Stage 4: ManhwaWeb (ES) - Excellent for licensed Manhwa in Spanish
+                    manhwawebService.searchManga(query).catch(() => [])
                 ]);
 
                 allResults = [
                     ...allResults,
+                    ...(mwebResults as any[] || []), // ManhwaWeb (ES) comes before EN sources
                     ...((mdEnglishResults as any).data || []),
                     ...(wcResults as any[] || []),
                     ...(mpResults as any[] || [])
@@ -154,25 +187,59 @@ export const mangaProvider = {
         }
     },
    
-    getPopularManga(origin: string | null = null, lang: string | null = 'es', limit = 12, offset = 0, genre: string | null = null, fullColor = false, allowNSFW = false) {
-        const service = this.getService() as any;
-        return service.getPopularManga 
-            ? service.getPopularManga(origin, lang, limit, offset, genre, fullColor, allowNSFW)
-            : mangadexService.getPopularManga(origin, lang, limit, offset, genre, fullColor, allowNSFW);
+    async getPopularManga(origin: string | null = null, lang: string | null = 'es', limit = 12, offset = 0, genre: string | null = null, fullColor = false, allowNSFW = false) {
+        try {
+            const mdResp = await mangadexService.getPopularManga(origin, lang, limit, offset, genre, fullColor, allowNSFW);
+            
+            // Enrichment with ManhwaWeb for Spanish rankings
+            if (lang === 'es' && offset === 0 && (!origin || origin === 'ko')) {
+                const mwebTop = await manhwawebService.getTopWeekly();
+                if (mwebTop && mwebTop.length > 0) {
+                    // Normalize for mapping
+                    const mappedMweb = mwebTop.map((m: any) => ({
+                        id: m.id,
+                        type: 'manga',
+                        attributes: {
+                            title: m.attributes.title,
+                            originalLanguage: 'ko',
+                            status: 'ongoing',
+                            tags: []
+                        },
+                        _mwebCover: m._mwebCover,
+                        _mwebSlug: m._mwebSlug
+                    }));
+                    
+                    // Prepend/Merge (MangaDex results are generally higher quality, but mweb has the "missing" ones)
+                    const combined = deduplicateResults([...mappedMweb.slice(0, 6), ...mdResp.data]);
+                    return { ...mdResp, data: combined.slice(0, limit) };
+                }
+            }
+            
+            return mdResp;
+        } catch (err) {
+            console.warn('[Provider] popular manga fetch failed, falling back:', err);
+            return mangadexService.getPopularManga(origin, lang, limit, offset, genre, fullColor, allowNSFW);
+        }
+    },
+
+    getTopWeekly() {
+        return manhwawebService.getTopWeekly();
+    },
+
+    getTopGlobal() {
+        return manhwawebService.getTopGlobal();
     },
 
     getLatestUpdatedManga(limit = 12, offset = 0, lang = 'es', type = 'all', allowNSFW = false) {
-        const service = this.getService() as any;
-        return service.getLatestUpdatedManga 
-            ? service.getLatestUpdatedManga(limit, offset, lang, type, allowNSFW)
-            : mangadexService.getLatestUpdatedManga(limit, offset, lang, type, allowNSFW);
+        return mangadexService.getLatestUpdatedManga(limit, offset, lang, type, allowNSFW);
     },
 
-    getFullyTranslatedMasterpieces(origin: string | null = null, lang = 'es', limit = 10, offset = 0, genre: string | null = null, fullColor = false, allowNSFW = false) {
-        const service = this.getService() as any;
-        return service.getFullyTranslatedMasterpieces 
-            ? service.getFullyTranslatedMasterpieces(origin, lang, limit, offset, genre, fullColor, allowNSFW)
-            : mangadexService.getFullyTranslatedMasterpieces(origin, lang, limit, offset, genre, fullColor, allowNSFW);
+    async getFullyTranslatedMasterpieces(origin: string | null = null, lang = 'es', limit = 10, offset = 0, genre: string | null = null, fullColor = false, allowNSFW = false) {
+        const mdResp = await mangadexService.getFullyTranslatedMasterpieces(origin, lang, limit, offset, genre, fullColor, allowNSFW);
+        
+        // No specific masterpiece endpoint on ManhwaWeb, so we just return MD results for now
+        // But we could enrich with global top if needed
+        return mdResp;
     },
 
     getLatestChapters(limit = 12, offset = 0, lang: string | null = null, allowNSFW = false) {
@@ -234,6 +301,9 @@ export const mangaProvider = {
             if (providerStr === 'wc' || mangaId.startsWith('wc:')) {
                 return weebcentralService.getMangaChapters(mangaId);
             }
+            if (providerStr === 'mweb' || mangaId.startsWith('mweb:')) {
+                return manhwawebService.getMangaChapters(mangaId);
+            }
             return { data: [], total: 0 };
         }
         return mangadexService.getMangaChapters(mangaId, lang, limit, offset, order, allowNSFW);
@@ -260,6 +330,13 @@ export const mangaProvider = {
 
     getCoverUrl(manga: any, quality: 'original' | '256' | '512' = '256') {
         if (!manga) return 'https://placehold.co/512x768/222222/cccccc?text=Sin+Portada';
+        
+        // ManhwaWeb has its own cover URL format
+        if (manga._mwebCover) return manga._mwebCover;
+        if (manga.id?.startsWith('mweb:')) {
+            const coverRel = manga.relationships?.find((rel: any) => rel.type === 'cover_art');
+            if (coverRel?.attributes?.fileName) return coverRel.attributes.fileName;
+        }
         
         const service = this.getServiceForId(manga.id);
         if (this.isExternalId(manga.id)) {
@@ -359,6 +436,23 @@ export const mangaProvider = {
                         }
                     }
                 }
+
+                // Fallback for Manhwa to MangaPill
+                const mpResults = await mangapillService.searchManga(searchTitle as string);
+                if (mpResults && mpResults.length > 0) {
+                    for (const result of mpResults) {
+                        const resultTitle = normalizeTitle(result.attributes?.title?.['en'] || '');
+                        const isMatch = normalizedTargets.some(target => 
+                            target === resultTitle || 
+                            (target.length > 5 && resultTitle.includes(target)) || 
+                            (resultTitle.length > 5 && target.includes(resultTitle))
+                        );
+                        if (isMatch) {
+                            console.log(`[Intelligence] ✅ Accurate Manhwa match verified on MangaPill (Fallback): "${result.attributes?.title?.['en']}"`);
+                            return { id: result.id, source: 'mangapill' };
+                        }
+                    }
+                }
             } else {
                 // For regular Manga, MangaPill is fast
                 const mpResults = await mangapillService.searchManga(searchTitle as string);
@@ -393,6 +487,47 @@ export const mangaProvider = {
                         }
                     }
                 }
+            }
+            
+            // ─── ULTIMATE FALLBACK: ManhwaWeb (Spanish content) ───
+            // For licensed titles like Solo Leveling that aren't on any EN scraper
+            try {
+                // Try searching with the primary title first
+                const titlesToTry = [searchTitle];
+                // Add the first alternative title if it's different enough
+                const altTitleCandidate = targetTitles.find(t => normalizeTitle(t) !== normalizeTitle(searchTitle as string));
+                if (altTitleCandidate) titlesToTry.push(altTitleCandidate);
+
+                for (const query of titlesToTry) {
+                    console.log(`[Intelligence] 🌐 Trying ManhwaWeb (ES) with query: "${query}"`);
+                    const mwebResults = await manhwawebService.searchManga(query as string);
+                    if (mwebResults && mwebResults.length > 0) {
+                        for (const result of mwebResults) {
+                            const rawResultTitle = result.attributes?.title?.['en'] || result.attributes?.title?.['es'] || '';
+                            const resultTitleNom = normalizeTitle(rawResultTitle);
+                            
+                            // Leetspeak mapping to handle 'Solo L3vel1ng' -> 'solo leveling'
+                            const deLeet = (s: string) => s.replace(/3/g, 'e').replace(/1/g, 'i').replace(/0/g, 'o').replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't');
+                            const resultTitleDeleeted = deLeet(resultTitleNom);
+
+                            const isMatch = normalizedTargets.some(target => {
+                                const targetDeleeted = deLeet(target);
+                                return target === resultTitleNom || 
+                                       target === resultTitleDeleeted ||
+                                       targetDeleeted === resultTitleDeleeted ||
+                                       (target.length > 5 && resultTitleNom.includes(target)) ||
+                                       (resultTitleNom.length > 5 && target.includes(resultTitleNom));
+                            });
+
+                            if (isMatch) {
+                                console.log(`[Intelligence] ✅ Accurate match on ManhwaWeb (ES): "${rawResultTitle}"`);
+                                return { id: result.id, source: 'manhwaweb' };
+                            }
+                        }
+                    }
+                }
+            } catch (mwebErr) {
+                console.warn('[Intelligence] ManhwaWeb search failed:', mwebErr);
             }
             
             console.warn(`[Intelligence] ⚠️ No accurate match found among results for: ${searchTitle}`);

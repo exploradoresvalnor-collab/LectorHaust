@@ -114,50 +114,90 @@ export function useMangaDetails(id?: string) {
         let chaptersData = await mangaProvider.getMangaChapters(id, chapterLang, 20, 0, chapterOrder, showNSFW);
         
         // ────────────────────────────────────────────────────────
-        // 🔄 HAUS INTELLIGENT FALLBACK: 
-        //    If MangaDex has 0 chapters OR very few chapters
-        //    compared to what's expected, search on MangaPill.
+        // 🔄 HAUS INTELLIGENT FALLBACK (v2): 
+        //    Step 1: If no chapters in user's language, check ALL languages on MangaDex first
+        //    Step 2: Only go to external sources if MangaDex has 0 chapters globally
         // ────────────────────────────────────────────────────────
-        const needsFallback = (!chaptersData.data || chaptersData.data.length === 0) || 
-                             (chaptersData.total < 5 && mangaObj.attributes.status === 'completed');
-
-        if (needsFallback && title && !mangaProvider.isExternalId(id)) {
-          console.log(`[Details] MangaDex content seems restricted for "${title}". Trying Haus Intelligence...`);
+        const hasNoLocalChapters = !chaptersData.data || chaptersData.data.length === 0;
+        
+        if (hasNoLocalChapters && !mangaProvider.isExternalId(id)) {
+          console.log(`[Details] No chapters in "${chapterLang}" for "${title}". Checking MangaDex in ALL languages...`);
+          
+          // Step 1: Ask MangaDex for chapters in ANY language
+          let allLangChapters: any = null;
           try {
-            const bestSource = await mangaProvider.findBestExternalSource(mangaObj);
-            if (bestSource) {
-              const fullId = bestSource.id; 
-              externalFallbackId.current = fullId;
-              
-              console.log(`[Details] Haus Optimized: Found accurate source on ${bestSource.source} (${fullId}).`);
-              const extChaptersData = await mangaProvider.getMangaChapters(fullId);
-              
-              if (extChaptersData.data && extChaptersData.data.length > 0) {
-                chaptersData = {
-                  data: extChaptersData.data.map((c: any) => ({
-                    id: c.id,
-                    attributes: {
-                      chapter: c.attributes.chapter,
-                      title: c.attributes.title,
-                      translatedLanguage: 'en'
-                    }
-                  })),
-                  total: extChaptersData.total
-                };
+            allLangChapters = await mangaProvider.getMangaChapters(id, null as any, 20, 0, chapterOrder, showNSFW);
+          } catch (e) {
+            console.warn('[Details] All-language check failed:', e);
+          }
 
-                if (isMounted.current) {
-                  setAvailableLangs(['en']);
-                  setIsOptimized(true);
-                  console.log(`[Details] Haus Optimization Applied via ${bestSource.source}. ${extChaptersData.total} chapters loaded.`);
-                }
-              } else {
-                console.warn(`[Details] Haus Intelligence found a match but it has 0 chapters on ${bestSource.source}.`);
-              }
-            } else {
-              if (isMounted.current) setIsOptimized(false);
+          const mdHasChaptersInOtherLangs = allLangChapters?.data && allLangChapters.data.length > 0;
+
+          if (mdHasChaptersInOtherLangs) {
+            // MangaDex HAS chapters, just not in user's language → use them directly
+            console.log(`[Details] ✅ MangaDex has ${allLangChapters.total} chapters in other languages. Switching.`);
+            chaptersData = allLangChapters;
+            
+            if (isMounted.current) {
+              // Detect the most common language and auto-switch
+              const langCounts: Record<string, number> = {};
+              allLangChapters.data.forEach((c: any) => {
+                const lang = c.attributes?.translatedLanguage || 'unknown';
+                langCounts[lang] = (langCounts[lang] || 0) + 1;
+              });
+              const bestLang = Object.entries(langCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'en';
+              setChapterLang(bestLang);
+              setIsOptimized(false); // It's still MangaDex, not external
             }
-          } catch (err) {
-            console.warn('[Details] Haus Intelligence fallback failed:', err);
+          } else {
+            // Step 2: MangaDex truly has ZERO chapters → try external sources
+            const needsExternalFallback = title && (
+              (!allLangChapters?.data || allLangChapters.data.length === 0) ||
+              (allLangChapters?.total < 5 && mangaObj.attributes.status === 'completed')
+            );
+
+            if (needsExternalFallback) {
+              console.log(`[Details] MangaDex has 0 chapters globally for "${title}". Trying Haus Intelligence...`);
+              try {
+                const bestSource = await mangaProvider.findBestExternalSource(mangaObj);
+                if (bestSource) {
+                  const fullId = bestSource.id; 
+                  externalFallbackId.current = fullId;
+                  
+                  console.log(`[Details] Haus Optimized: Found source on ${bestSource.source} (${fullId}).`);
+                  const extChaptersData = await mangaProvider.getMangaChapters(fullId);
+                  
+                  if (extChaptersData.data && extChaptersData.data.length > 0) {
+                    const isManhwaWeb = bestSource.source === 'manhwaweb';
+                    const fallbackLang = isManhwaWeb ? 'es' : 'en';
+                    
+                    chaptersData = {
+                      data: extChaptersData.data.map((c: any) => ({
+                        id: c.id,
+                        attributes: {
+                          chapter: c.attributes.chapter,
+                          title: c.attributes.title,
+                          translatedLanguage: fallbackLang
+                        }
+                      })),
+                      total: extChaptersData.total
+                    };
+
+                    if (isMounted.current) {
+                      setAvailableLangs([fallbackLang]);
+                      setIsOptimized(true);
+                      console.log(`[Details] Haus Applied via ${bestSource.source} (${fallbackLang.toUpperCase()}). ${extChaptersData.total} chapters.`);
+                    }
+                  } else {
+                    console.warn(`[Details] Haus found match but 0 chapters on ${bestSource.source}.`);
+                  }
+                } else {
+                  if (isMounted.current) setIsOptimized(false);
+                }
+              } catch (err) {
+                console.warn('[Details] Haus Intelligence fallback failed:', err);
+              }
+            }
           }
         }
 

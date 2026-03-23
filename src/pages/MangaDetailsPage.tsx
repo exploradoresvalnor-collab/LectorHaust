@@ -61,6 +61,7 @@ import { db } from '../services/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { firebaseAuthService } from '../services/firebaseAuthService';
 import { userStatsService } from '../services/userStatsService';
+import SmartImage from '../components/SmartImage';
 import './MangaDetailsPage.css';
 
 const MangaDetailsPage: React.FC = () => {
@@ -294,8 +295,12 @@ const MangaDetailsPage: React.FC = () => {
         <div className="manga-header-bg" style={{ backgroundImage: `url(${mangaProvider.getOptimizedUrl(aniData?.bannerImage || coverUrl)})` }}>
           <div className="overlay-gradient"></div>
           <div className="details-header-content animate-fade-in">
-            <img src={coverUrl} className="main-details-cover" alt={title} />
-            <div className="title-section">
+            <SmartImage 
+              src={coverUrl} 
+              className="main-details-cover" 
+              wrapperClassName="main-details-cover-wrapper"
+              alt={title} 
+            />            <div className="title-section">
               <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
                 <span className="badge-type">{manga?.attributes?.status}</span>
                 {lastReadChapterNum && (
@@ -412,7 +417,7 @@ const MangaDetailsPage: React.FC = () => {
               <div className="characters-scroll">
                 {aniData.characters.edges.map((edge: any) => (
                   <div key={edge.node.id} className="character-card">
-                    <img src={mangaProvider.getOptimizedUrl(edge.node.image.medium)} alt={edge.node.name.full} />
+                    <SmartImage src={mangaProvider.getOptimizedUrl(edge.node.image.medium)} alt={edge.node.name.full} />
                     <p>{edge.node.name.full}</p>
                     <span>{edge.role.replace('_', ' ')}</span>
                   </div>
@@ -677,10 +682,9 @@ const MangaDetailsPage: React.FC = () => {
                       onClick={() => router.push(`/manga/${rec.mdId}`)}
                     >
                       <div className="recommendation-cover-wrapper">
-                        <img 
+                        <SmartImage 
                           src={mangaProvider.getOptimizedUrl(rec.coverImage)} 
                           alt={rec.title} 
-                          loading="lazy"
                         />
                         <div className="recommendation-score">
                           <IonIcon icon={star} />

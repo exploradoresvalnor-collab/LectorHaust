@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { mangaProvider } from '../services/mangaProvider';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { getDefaultLanguage } from '../utils/translations';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
 export const FORMATS = [
   { label: 'Todos', value: null },
@@ -91,217 +92,189 @@ export const genreMapping: Record<string, string> = {
 
 export function useSearch() {
   const [activeSegment, setActiveSegment] = useState('trending');
-  const [results, setResults] = useState<any[]>([]);
-  const [trending, setTrending] = useState<any[]>([]);
-  const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
-  const [offset, setOffset] = useState(0);
-  const [isDone, setIsDone] = useState(false);
   
-  // Completed Mangas State
-  const [completedManga, setCompletedManga] = useState<any[]>([]);
-  const [completedLoading, setCompletedLoading] = useState(false);
-  const [completedOffset, setCompletedOffset] = useState(0);
+  // Completed Filters
   const [completedGenre, setCompletedGenre] = useState<string>('');
   const [completedLang, setCompletedLang] = useState<string>(getDefaultLanguage());
   const [completedDemographic, setCompletedDemographic] = useState<string | null>(null);
-  const [isCompletedDone, setIsCompletedDone] = useState(false);
+  const [completedColor, setCompletedColor] = useState(false);
   
-  // Modern Filters
+  // Search Filters
   const [activeFormat, setActiveFormat] = useState<string | null>(null);
   const [activeGenre, setActiveGenre] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState<string | null>(null);
   const [activeDemographic, setActiveDemographic] = useState<string | null>(null);
   const [activeOrder, setActiveOrder] = useState<string>('relevance');
   const [activeColor, setActiveColor] = useState(false);
-  const [completedColor, setCompletedColor] = useState(false);
+  
   const [showFilters, setShowFilters] = useState(true);
+
+  // Trending Filters
+  const [trendingOrigin, setTrendingOrigin] = useState<string | null>(null);
+  const [trendingLang, setTrendingLang] = useState<string | null>('es');
 
   const { favorites, showNSFW } = useLibraryStore();
 
-  const loadDiscoveryData = useCallback(async () => {
-    setLoading(true);
-    try {
-      // Trending
-      const trendingData = await mangaProvider.getPopularManga(null, 'es', 24, 0, null, false, showNSFW);
-      setTrending(trendingData.data);
-      
-      // Random Suggestions (mocked via latest for now if getRecommendations isn't mapped, but let's try getLatest)
-      // Since mangaProvider doesn't have getRecommendations, we'll just fetch latest random
-      const suggestedData = await mangaProvider.getLatestUpdatedManga(10, 0, 'es', 'all', showNSFW);
-      setSuggestions(suggestedData.data);
-    } catch (err) {
-      console.error('Discovery load error:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [showNSFW]);
+  // --- 1. TRENDING (Infinite Query) ---
+  const {
+    data: trendingData,
+    fetchNextPage: fetchNextTrending,
+    hasNextPage: hasNextTrending,
+    isFetchingNextPage: isFetchingMoreTrending,
+    isLoading: loadingTrending
+  } = useInfiniteQuery({
+    queryKey: ['trendingManga', trendingOrigin, trendingLang, showNSFW],
+    queryFn: ({ pageParam = 0 }) => 
+      mangaProvider.getPopularManga(trendingOrigin, trendingLang || 'all', 24, pageParam as number, null, false, showNSFW),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage: any, allPages: any[]) => {
+      return lastPage.data?.length === 24 ? allPages.length * 24 : undefined;
+    },
+    staleTime: 1000 * 60 * 15, // 15 mins
+  });
 
-  const fetchCompleted = useCallback(async (
-    isLoadMore = false, 
-    genre = completedGenre, 
-    lang = completedLang, 
-    demographic = completedDemographic, 
-    color = completedColor
-  ) => {
-    if (!isLoadMore) {
-        setCompletedLoading(true);
-        setCompletedOffset(0);
-        setIsCompletedDone(false);
-    }
-    
-    try {
-        const offsetToUse = isLoadMore ? completedOffset : 0;
-        const resp = await mangaProvider.getFullyTranslatedMasterpieces(null, lang, 10, offsetToUse, genre || null, color, showNSFW);
-        
-        let newData = resp.data || [];
-        
-        if (demographic) {
-          newData = newData.filter((m: any) => m.attributes.publicationDemographic === demographic);
-        }
-        
-        if (!newData.length) {
-            setIsCompletedDone(true);
-        } else {
-            setCompletedOffset(offsetToUse + 10); 
-        }
+  const trending = useMemo(() => {
+    const raw = trendingData?.pages.flatMap(p => p.data || []) || [];
+    const seen = new Set();
+    return raw.filter((m: any) => {
+      if (seen.has(m.id)) return false;
+      seen.add(m.id);
+      return true;
+    });
+  }, [trendingData]);
+  const trendingHero = useMemo(() => trending.slice(0, 6), [trending]);
 
-        if (isLoadMore) {
-            setCompletedManga(prev => {
-                const existing = new Set(prev.map(m => m.id));
-                const unique = newData.filter((m: any) => !existing.has(m.id));
-                return [...prev, ...unique];
-            });
-        } else {
-            setCompletedManga(newData);
-        }
-    } catch (err) {
-        console.error("Error fetching completed", err);
-    } finally {
-        if (!isLoadMore) setCompletedLoading(false);
-    }
-  }, [completedGenre, completedLang, completedDemographic, completedColor, completedOffset, showNSFW]);
-
-  const loadMoreCompleted = async (e: any) => {
-      await fetchCompleted(true);
-      e.target.complete();
-  };
-
-  const handleSearch = useCallback(async (
-    val: string, 
-    isMore = false, 
-    newFormat?: string | null, 
-    newGenre?: string | null, 
-    newStatus?: string | null, 
-    newDemographic?: string | null, 
-    order?: string, 
-    color = activeColor
-  ) => {
-    const searchVal = val !== undefined ? val : query;
-    const format = newFormat !== undefined ? newFormat : activeFormat;
-    const genre = newGenre !== undefined ? newGenre : activeGenre;
-    const status = newStatus !== undefined ? newStatus : activeStatus;
-    const demographic = newDemographic !== undefined ? newDemographic : activeDemographic;
-    
-    setQuery(searchVal);
-    
-    if ((!searchVal || searchVal.length < 2) && !format && !genre && !status && !demographic && !color) {
-      setResults([]);
-      return;
-    }
-    
-    if (!isMore) {
-      setLoading(true);
-      setOffset(0);
-      setIsDone(false);
-    }
-
-    try {
-      const currentOffset = isMore ? offset + 20 : 0;
-      const filters: any = { fullColor: color };
-      
-      if (format) filters.origin = format;
-      if (genre && genre !== 'Todos' && genreMapping[genre]) filters.tags = [genreMapping[genre]];
-      if (status) filters.status = status;
-      if (demographic) filters.demographic = demographic;
-      
-      const orderParam: any = {
-        [order || activeOrder]: 'desc'
-      };
-
-      const resp = await mangaProvider.searchManga(
-        searchVal, 
-        filters, 
-        20, 
-        currentOffset, 
-        orderParam, 
-        showNSFW
-      );
-      
-      const data = resp.data || []; 
-      if (isMore) {
-        setResults(prev => [...prev, ...(data || [])]);
-      } else {
-        setResults(data || []);
+  // --- 2. COMPLETED (Infinite Query) ---
+  const {
+    data: completedData,
+    fetchNextPage: fetchNextCompleted,
+    hasNextPage: hasNextCompleted,
+    isFetchingNextPage: isFetchingMoreCompleted,
+    isLoading: loadingCompleted
+  } = useInfiniteQuery({
+    queryKey: ['completedManga', completedLang, completedGenre, completedColor, completedDemographic, showNSFW],
+    queryFn: async ({ pageParam = 0 }) => {
+      const resp = await mangaProvider.getFullyTranslatedMasterpieces(null, completedLang, 12, pageParam as number, completedGenre || null, completedColor, showNSFW);
+      let data = resp.data || [];
+      if (completedDemographic) {
+        data = data.filter((m: any) => m.attributes.publicationDemographic === completedDemographic);
       }
+      return { ...resp, data };
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage: any, allPages: any[]) => {
+       return lastPage.data?.length >= 10 ? allPages.length * 12 : undefined;
+    },
+    staleTime: 1000 * 60 * 30, // 30 mins
+  });
 
-      setOffset(currentOffset);
-      if (data.length < 20) setIsDone(true);
-    } catch (error) {
-      console.error('Search error:', error);
-    } finally {
-      if (!isMore) setLoading(false);
-    }
-  }, [query, activeFormat, activeGenre, activeStatus, activeDemographic, activeOrder, activeColor, offset, showNSFW]);
+  const completedManga = useMemo(() => {
+    const raw = completedData?.pages.flatMap(p => p.data || []) || [];
+    const seen = new Set();
+    return raw.filter((m: any) => {
+      if (seen.has(m.id)) return false;
+      seen.add(m.id);
+      return true;
+    });
+  }, [completedData]);
 
-  const setFormatFilter = (format: string | null) => {
-    setActiveFormat(format);
-    handleSearch(query, false, format, activeGenre, activeStatus, activeDemographic);
-  };
+  // --- 3. SEARCH RESULTS (Infinite Query) ---
+  const {
+    data: searchData,
+    fetchNextPage: fetchNextSearch,
+    hasNextPage: hasNextSearch,
+    isFetchingNextPage: isFetchingMoreSearch,
+    isLoading: loadingSearch
+  } = useInfiniteQuery({
+    queryKey: ['searchManga', query, activeFormat, activeGenre, activeStatus, activeDemographic, activeOrder, activeColor, showNSFW],
+    queryFn: async ({ pageParam = 0 }) => {
+      if (!query && !activeFormat && !activeGenre && !activeStatus && !activeDemographic && !activeColor) {
+        return { data: [] };
+      }
+      const filters: any = { fullColor: activeColor };
+      if (activeFormat) filters.origin = activeFormat;
+      if (activeGenre && activeGenre !== 'Todos' && genreMapping[activeGenre]) filters.tags = [genreMapping[activeGenre]];
+      if (activeStatus) filters.status = activeStatus;
+      if (activeDemographic) filters.demographic = activeDemographic;
+      
+      const orderParam: any = { [activeOrder]: 'desc' };
+      return mangaProvider.searchManga(query, filters, 20, pageParam as number, orderParam, showNSFW);
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage: any, allPages: any[]) => {
+      return lastPage.data?.length === 20 ? allPages.length * 20 : undefined;
+    },
+    enabled: !!(query || activeFormat || activeGenre || activeStatus || activeDemographic || activeColor),
+    staleTime: 1000 * 60 * 5, // 5 mins
+  });
 
-  const setGenreFilter = (genre: string | null) => {
-    const newGenre = genre === activeGenre ? null : genre;
-    setActiveGenre(newGenre);
-    handleSearch(query, false, activeFormat, newGenre, activeStatus, activeDemographic);
-  };
+  const results = useMemo(() => {
+    const raw = searchData?.pages.flatMap(p => p.data || []) || [];
+    const seen = new Set();
+    return raw.filter((m: any) => {
+      if (seen.has(m.id)) return false;
+      seen.add(m.id);
+      return true;
+    });
+  }, [searchData]);
 
-  const setStatusFilter = (status: string | null) => {
-    const newStatus = status === activeStatus ? null : status;
-    setActiveStatus(newStatus);
-    handleSearch(query, false, activeFormat, activeGenre, newStatus, activeDemographic);
-  };
+  // --- 4. SUGGESTIONS ---
+  const { data: suggestionsData } = useQuery({
+    queryKey: ['suggestions', showNSFW],
+    queryFn: () => mangaProvider.getLatestUpdatedManga(20, 0, 'es', 'all', showNSFW),
+    staleTime: 1000 * 60 * 10, // 10 mins
+  });
 
-  const setDemographicFilter = (demographic: string | null) => {
-    const newDemographic = demographic === activeDemographic ? null : demographic;
-    setActiveDemographic(newDemographic);
-    handleSearch(query, false, activeFormat, activeGenre, activeStatus, newDemographic);
-  };
+  const suggestions = useMemo(() => suggestionsData?.data || [], [suggestionsData]);
 
-  const loadMore = async (e: any) => {
-    await handleSearch(query, true);
+  // Handlers
+  const handleSearch = useCallback((val: string) => {
+    setQuery(val);
+  }, []);
+
+  const setFormatFilter = useCallback((format: string | null) => setActiveFormat(format), []);
+  const setGenreFilter = useCallback((genre: string | null) => setActiveGenre(prev => prev === genre ? null : genre), []);
+  const setStatusFilter = useCallback((status: string | null) => setActiveStatus(prev => prev === status ? null : status), []);
+  const setDemographicFilter = useCallback((demographic: string | null) => setActiveDemographic(prev => prev === demographic ? null : demographic), []);
+
+  const loadMore = useCallback(async (e: any) => {
+    if (hasNextSearch) await fetchNextSearch();
     e.target.complete();
-  };
+  }, [fetchNextSearch, hasNextSearch]);
+
+  const loadMoreTrending = useCallback(async (e: any) => {
+    if (hasNextTrending) await fetchNextTrending();
+    e.target.complete();
+  }, [fetchNextTrending, hasNextTrending]);
+
+  const loadMoreCompleted = useCallback(async (e: any) => {
+    if (hasNextCompleted) await fetchNextCompleted();
+    e.target.complete();
+  }, [fetchNextCompleted, hasNextCompleted]);
 
   return {
     activeSegment,
     setActiveSegment,
     results,
     trending,
+    trendingHero,
     suggestions,
-    loading,
+    loading: loadingSearch,
+    trendingLoading: loadingTrending,
+    isTrendingDone: !hasNextTrending,
     query,
-    offset,
-    isDone,
+    offset: 0, // Not needed with InfiniteQuery
+    isDone: !hasNextSearch,
     completedManga,
-    completedLoading,
+    completedLoading: loadingCompleted,
     completedGenre,
     setCompletedGenre,
     completedLang,
     setCompletedLang,
     completedDemographic,
     setCompletedDemographic,
-    isCompletedDone,
+    isCompletedDone: !hasNextCompleted,
     activeFormat,
     activeGenre,
     activeStatus,
@@ -315,14 +288,19 @@ export function useSearch() {
     showFilters,
     setShowFilters,
     favorites,
-    loadDiscoveryData,
-    fetchCompleted,
+    loadDiscoveryData: () => {}, // Handled by useInfiniteQuery
+    fetchCompleted: () => {}, // Handled by useInfiniteQuery
     loadMoreCompleted,
     handleSearch,
     setFormatFilter,
     setGenreFilter,
     setStatusFilter,
     setDemographicFilter,
-    loadMore
+    loadMore,
+    loadMoreTrending,
+    trendingOrigin,
+    setTrendingOrigin,
+    trendingLang,
+    setTrendingLang
   };
 }
