@@ -295,16 +295,25 @@ export const mangaProvider = {
     async getMangaChapters(mangaId: string, lang: string | null = 'es', limit = 20, offset = 0, order: 'asc' | 'desc' = 'desc', allowNSFW = false) {
         if (this.isExternalId(mangaId)) {
             const providerStr = mangaId.split(':')[0];
+            let rawData: any = { data: [], total: 0 };
+
             if (providerStr === 'mp' || mangaId.startsWith('mp:')) {
-                return mangapillService.getMangaChapters(mangaId, lang, limit, offset, order);
+                rawData = await mangapillService.getMangaChapters(mangaId, lang, limit, offset, order);
+            } else if (providerStr === 'wc' || mangaId.startsWith('wc:')) {
+                rawData = await weebcentralService.getMangaChapters(mangaId);
+            } else if (providerStr === 'mweb' || mangaId.startsWith('mweb:')) {
+                rawData = await manhwawebService.getMangaChapters(mangaId);
             }
-            if (providerStr === 'wc' || mangaId.startsWith('wc:')) {
-                return weebcentralService.getMangaChapters(mangaId);
+            
+            // Client-side sorting for external providers that return everything at once
+            if (rawData?.data && rawData.data.length > 0) {
+               rawData.data.sort((a: any, b: any) => {
+                 const chapA = parseFloat(a.attributes?.chapter || '0');
+                 const chapB = parseFloat(b.attributes?.chapter || '0');
+                 return order === 'asc' ? chapA - chapB : chapB - chapA;
+               });
             }
-            if (providerStr === 'mweb' || mangaId.startsWith('mweb:')) {
-                return manhwawebService.getMangaChapters(mangaId);
-            }
-            return { data: [], total: 0 };
+            return rawData;
         }
         return mangadexService.getMangaChapters(mangaId, lang, limit, offset, order, allowNSFW);
     },

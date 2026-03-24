@@ -29,6 +29,8 @@ export function useMangaReader(chapterId?: string) {
   // Estado para avisar a la UI que debe hacer scroll automáticamente al abrir Webtoon
   const [initialScrollPage, setInitialScrollPage] = useState<number | null>(null);
   
+  const [retryCount, setRetryCount] = useState(0);
+
   const saveProgress = useLibraryStore(state => state.saveProgress);
   const markAsRead = useLibraryStore(state => state.markAsRead);
   const getProgress = useLibraryStore(state => state.getProgress);
@@ -88,7 +90,7 @@ export function useMangaReader(chapterId?: string) {
     let isMounted = true;
 
     const fetchPages = async () => {
-      if (!chapterId || lastLoadedId.current === chapterId) return;
+      if (!chapterId || (lastLoadedId.current === chapterId && retryCount === 0)) return;
       
       setLoading(true);
       setError(null);
@@ -156,14 +158,38 @@ export function useMangaReader(chapterId?: string) {
         }
 
         console.log('[Reader] Fetching chapter metadata...');
-        // Always fetch chapter metadata for navigation (prev/next) in parallel with details
-        const [chapterInfo, _] = await withTimeout(Promise.all([
-          mangaProvider.getChapter(chapterId),
-          (async () => {
-             // award XP if online
-             if (!downloaded && auth.currentUser) userStatsService.awardChapterXP(auth.currentUser.uid);
-          })()
-        ]));
+        let chapterInfo: any = null;
+
+        try {
+          const [ci, _] = await withTimeout(Promise.all([
+            mangaProvider.getChapter(chapterId),
+            (async () => {
+               if (!downloaded && auth.currentUser) userStatsService.awardChapterXP(auth.currentUser.uid);
+            })()
+          ]));
+          chapterInfo = ci;
+        } catch (networkErr: any) {
+          console.warn('[Reader] Network fetch for metadata failed:', networkErr.message || networkErr);
+          if (downloaded) {
+            console.log('[Reader] 📡 Offline Rescue: Using local IndexedDB metadata');
+            const meta = await offlineService.getChapterMeta(chapterId);
+            if (meta) {
+              chapterInfo = {
+                data: {
+                  id: chapterId,
+                  attributes: { chapter: meta.chapterNumber, translatedLanguage: 'es' },
+                  relationships: [{ type: 'manga', id: meta.mangaId }]
+                }
+              };
+              if (isMounted) {
+                setMangaTitle(meta.mangaTitle);
+                setMangaCover(meta.coverUrl || '');
+                setIsWebtoon(false); // Default offline view
+              }
+            }
+          }
+          if (!chapterInfo) throw networkErr; // Rethrow if no local fallback exists
+        }
 
         if (!isMounted) return;
 
@@ -252,8 +278,13 @@ export function useMangaReader(chapterId?: string) {
     fetchPages();
 
     return () => { isMounted = false; };
-  }, [chapterId, dataSaverMode, markAsRead, getProgress]);
+  }, [chapterId, dataSaverMode, markAsRead, getProgress, retryCount]);
   
+  const retry = () => {
+    lastLoadedId.current = null;
+    setRetryCount(c => c + 1);
+  };
+
   // Auto-ocultar UI para inmersión inicial
   useEffect(() => {
     if (!loading && !error && pages.length > 0) {
@@ -319,6 +350,7 @@ export function useMangaReader(chapterId?: string) {
     isOffline,
     fitMode,
     setFitMode,
-    initialScrollPage
+    initialScrollPage,
+    retry
   };
 }

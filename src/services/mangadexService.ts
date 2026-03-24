@@ -543,7 +543,8 @@ export const mangadexService = {
         }
 
         // Mode 2: Chapter-first (Best for the "All" view with maximum variety)
-        const fetchLimit = Math.min(limit * 4, 100); 
+        // Fetch more chapters to ensure we find enough UNIQUE manga (even with bulk uploads)
+        const fetchLimit = 100; 
         let url = `/chapter?limit=${fetchLimit}&offset=${offset}&order[readableAt]=desc&includes[]=manga`;
         url += this.getContentRatingParams(allowNSFW);
         
@@ -565,9 +566,10 @@ export const mangadexService = {
             for (const chapter of chapters) {
                 const mangaRel = chapter.relationships.find((r: any) => r.type === 'manga');
                 const isExternal = !!chapter.attributes.externalUrl;
-                const pageCount = chapter.attributes.pages || 0;
                 
-                if (!mangaRel || seenMangaIds.has(mangaRel.id) || isExternal || pageCount === 0) continue;
+                // Be more lenient: some valid chapters might have pageCount=0 initially in MD's feed
+                // but we definitely skip external links we can't read.
+                if (!mangaRel || seenMangaIds.has(mangaRel.id) || isExternal) continue;
 
                 seenMangaIds.add(mangaRel.id);
                 mangaIdToChapterData[mangaRel.id] = {

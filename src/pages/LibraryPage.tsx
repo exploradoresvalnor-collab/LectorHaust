@@ -83,10 +83,18 @@ const LibraryPage: React.FC = () => {
   });
 
   const clearCache = () => {
-    if (window.confirm('¿Estás seguro de que quieres borrar el cache? Esto limpiará tus favoritos locales y el historial.')) {
-        localStorage.clear();
+    if (window.confirm('¿Estás seguro? Esto limpiará el caché de datos de manga. Tu sesión, idioma y ajustes se conservarán.')) {
+        // Only remove manga-related cache keys, preserving settings, auth, and language
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.startsWith('md_') || key.startsWith('cache_') || key.startsWith('mangadex_') || key.startsWith('library_') || key.startsWith('REACT_QUERY'))) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
         sessionStorage.clear();
-        window.location.href = '/';
+        window.location.reload();
     }
   };
 

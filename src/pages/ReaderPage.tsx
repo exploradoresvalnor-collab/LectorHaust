@@ -57,7 +57,8 @@ const ReaderPage: React.FC = () => {
     fitMode,
     setFitMode,
     initialScrollPage,
-    setCurrentMangaPage
+    setCurrentMangaPage,
+    retry
   } = useMangaReader(chapterId);
 
   const { readingDirection, setReadingDirection } = useSettingsStore();
@@ -190,7 +191,7 @@ const ReaderPage: React.FC = () => {
             <div className="error-icon">⚠️</div>
             <h2>Ups, algo salió mal</h2>
             <p>{error}</p>
-            <IonButton expand="block" onClick={() => window.location.reload()}>Reintentar Carga</IonButton>
+            <IonButton expand="block" onClick={retry}>Reintentar Carga</IonButton>
           </div>
         ) : (
           <div className="reader-core">

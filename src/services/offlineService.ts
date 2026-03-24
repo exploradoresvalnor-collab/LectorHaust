@@ -1,6 +1,7 @@
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Capacitor } from '@capacitor/core';
 import localforage from 'localforage';
+import { mangaProvider } from './mangaProvider';
 
 // IndexedDB store for download metadata
 const downloadStore = localforage.createInstance({
@@ -50,16 +51,9 @@ class OfflineService {
       for (let i = 0; i < pages.length; i++) {
         let pageUrl = pages[i];
         
-        // Fix for Web CORS: Use proxy if on web and URL is MangaDex
-        if (!Capacitor.isNativePlatform() && (pageUrl.includes('mangadex.org') || pageUrl.includes('uploads.mangadex.org'))) {
-          // If it's a full URL, we need to extract the path or just routing through proxy
-          // Assuming /api-md is configured in vite.config.ts to proxy to mangadex
-          // For images, we might need a specific proxy or just use the full URL if CORS is allowed
-          // However, MangaDex covers/images often require proxying if not on their allowed list
-          if (pageUrl.includes('uploads.mangadex.org')) {
-             pageUrl = pageUrl.replace('https://uploads.mangadex.org', '/api-md/proxy-uploads');
-             // Note: This requires a proxy setup for uploads in vite.config.ts or a specialized handler
-          }
+        // Fix for Web CORS: Use mangaProvider optimized URL for proxying
+        if (!Capacitor.isNativePlatform()) {
+          pageUrl = mangaProvider.getOptimizedUrl(pageUrl);
         }
 
         // Report progress
@@ -127,6 +121,13 @@ class OfflineService {
   async isDownloaded(chapterId: string): Promise<boolean> {
     const meta = await downloadStore.getItem<DownloadedChapter>(chapterId);
     return !!meta;
+  }
+
+  /**
+   * Get metadata for a downloaded chapter
+   */
+  async getChapterMeta(chapterId: string): Promise<DownloadedChapter | null> {
+    return await downloadStore.getItem<DownloadedChapter>(chapterId);
   }
 
   /**

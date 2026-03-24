@@ -84,6 +84,13 @@ const MangaDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const router = useIonRouter();
   const queryClient = useQueryClient();
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  
+  useEffect(() => {
+    const unsub = firebaseAuthService.subscribe(user => setCurrentUser(user));
+    return () => unsub();
+  }, []);
+
   // Smart recommendations state
   const [verifiedRecs, setVerifiedRecs] = useState<any[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
@@ -233,6 +240,16 @@ const MangaDetailsPage: React.FC = () => {
     .map((t: any) => t.attributes?.name?.en || t.attributes?.name?.es || '');
 
   const handleToggleFavorite = () => {
+    if (!currentUser) {
+       presentToast({ message: '⚠️ Inicia sesión para guardar favoritos', color: 'warning', duration: 2500 });
+       const banner = document.querySelector('.auth-wall-banner');
+       if (banner) {
+         banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+         banner.classList.add('pulse-animation');
+         setTimeout(() => banner.classList.remove('pulse-animation'), 1000);
+       }
+       return;
+    }
     hapticsService.mediumImpact();
     toggleFavorite({ 
       id, 
@@ -370,6 +387,23 @@ const MangaDetailsPage: React.FC = () => {
         </div>
 
         <div className="details-body animate-fade-in">
+          
+          {/* AUTH WALL BANNER */}
+          {!currentUser && (
+            <div className="auth-wall-banner animate-slide-up" onClick={() => router.push('/profile')}>
+              <div className="auth-wall-icon">
+                <IonIcon icon={sparklesOutline} />
+              </div>
+              <div className="auth-wall-text">
+                <h3>Únete a la Aventura</h3>
+                <p>Inicia sesión o usa el <b>Modo Fantasma 👻</b> para guardar esta leyenda en tus favoritos.</p>
+              </div>
+              <IonButton shape="round" color="primary" size="small" className="auth-wall-btn">
+                Ir al Perfil
+              </IonButton>
+            </div>
+          )}
+
           <div className="action-buttons-container">
             {progress ? (
               <IonButton 

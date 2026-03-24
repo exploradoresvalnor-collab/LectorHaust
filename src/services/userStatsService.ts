@@ -105,9 +105,26 @@ export const userStatsService = {
    */
   subscribe(userId: string, callback: (stats: UserStats) => void) {
     const docRef = doc(db, 'userStats', userId);
-    return onSnapshot(docRef, (doc) => {
-      if (doc.exists()) {
-        callback(doc.data() as UserStats);
+    return onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        callback({
+          xp: data.xp || 0,
+          level: data.level || 1,
+          chaptersRead: data.chaptersRead || 0,
+          commentsPosted: data.commentsPosted || 0,
+          achievements: data.achievements || [],
+          lastUpdated: data.lastUpdated || Date.now()
+        } as UserStats);
+      } else {
+        callback({
+          xp: 0,
+          level: 1,
+          chaptersRead: 0,
+          commentsPosted: 0,
+          achievements: [],
+          lastUpdated: Date.now()
+        });
       }
     });
   },

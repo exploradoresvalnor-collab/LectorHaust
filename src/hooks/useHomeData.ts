@@ -66,8 +66,11 @@ export function useHomeData() {
       mangaProvider.getLatestUpdatedManga(15, pageParam as number, latestLang, latestType, showNSFW),
     initialPageParam: 0,
     getNextPageParam: (lastPage: any, allPages: any[]) => {
-      const currentCount = allPages.length * 15;
-      return lastPage.data?.length === 15 ? currentCount : undefined;
+      // The API fetches limit*4 chapters and deduplicates to ~limit manga.
+      // So the offset must advance by limit*4 (60) per page to avoid re-fetching the same chapters.
+      const chapterOffsetPerPage = 15 * 4; // 60 chapters per page
+      const nextOffset = allPages.length * chapterOffsetPerPage;
+      return lastPage.data?.length >= 10 ? nextOffset : undefined;
     },
     staleTime: 1000 * 60 * 5, // 5 minutes fresh
     enabled: !!masterpieces, // V.I.P Priority: Wait for masterpieces/hero assets before flooding the network with latest updates
