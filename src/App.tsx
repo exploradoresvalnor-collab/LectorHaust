@@ -22,14 +22,14 @@ import { home, search, library, chatbubbles, tvOutline } from 'ionicons/icons';
 import { getTranslation, Language, getDefaultLanguage } from './utils/translations';
 import LocalizationBanner from './components/LocalizationBanner';
 import HomePage from './pages/HomePage';
-import SearchPage from './pages/SearchPage';
-import LibraryPage from './pages/LibraryPage';
-import MangaDetailsPage from './pages/MangaDetailsPage';
-import ReaderPage from './pages/ReaderPage';
-import ProfilePage from './pages/ProfilePage';
-import ChatPage from './pages/ChatPage';
-import PrivateChatPage from './pages/PrivateChatPage';
-import SocialPage from './pages/SocialPage';
+const SearchPage = React.lazy(() => import('./pages/SearchPage'));
+const LibraryPage = React.lazy(() => import('./pages/LibraryPage'));
+const MangaDetailsPage = React.lazy(() => import('./pages/MangaDetailsPage'));
+const ReaderPage = React.lazy(() => import('./pages/ReaderPage'));
+const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
+const ChatPage = React.lazy(() => import('./pages/ChatPage'));
+const PrivateChatPage = React.lazy(() => import('./pages/PrivateChatPage'));
+const SocialPage = React.lazy(() => import('./pages/SocialPage'));
 import { useState, useEffect, useRef } from 'react';
 import { useLibraryStore } from './store/useLibraryStore';
 import { checkUpdatesForLibrary, MangaUpdate } from './services/updateService';
@@ -258,22 +258,28 @@ const AppContent: React.FC = () => {
       <LocalizationBanner lang={currentLang} onClose={() => {}} />
       <OfflineBanner />
       <IonTabs>
-        <IonRouterOutlet>
-          <Route exact path="/home" component={HomePage} />
-          <Route exact path="/manga/:id" component={MangaDetailsPage} />
-          <Route exact path="/reader/:chapterId" component={ReaderPage} />
-          <Route exact path="/search" component={SearchPage} />
-          <Route path="/library" component={LibraryPage} />
-          <Route exact path="/profile" component={ProfilePage} />
-          <Route exact path="/chat">
-            <ChatPage />
-          </Route>
-          <Route exact path="/chat/:friendId" component={PrivateChatPage} />
-          <Route exact path="/social" component={SocialPage} />
-          <Route exact path="/">
-            <Redirect to="/home" />
-          </Route>
-        </IonRouterOutlet>
+        <React.Suspense fallback={
+          <div style={{ height: '100vh', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img src="/logolh.webp" width="64" height="64" style={{ animation: 'pulse 1.5s infinite' }} />
+          </div>
+        }>
+          <IonRouterOutlet>
+            <Route exact path="/home" component={HomePage} />
+            <Route exact path="/manga/:id" component={MangaDetailsPage} />
+            <Route exact path="/reader/:chapterId" component={ReaderPage} />
+            <Route exact path="/search" component={SearchPage} />
+            <Route path="/library" component={LibraryPage} />
+            <Route exact path="/profile" component={ProfilePage} />
+            <Route exact path="/chat">
+              <ChatPage />
+            </Route>
+            <Route exact path="/chat/:friendId" component={PrivateChatPage} />
+            <Route exact path="/social" component={SocialPage} />
+            <Route exact path="/">
+              <Redirect to="/home" />
+            </Route>
+          </IonRouterOutlet>
+        </React.Suspense>
         <IonTabBar 
           slot="bottom" 
           className={shouldHideTabs ? 'tab-bar-hidden' : ''}

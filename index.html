@@ -15,14 +15,12 @@
     <meta name="msapplication-tap-highlight" content="no" />
 
     <!-- Preconnect for Performance -->
-    <link rel="preconnect" href="https://i0.wp.com" crossorigin />
+    <!-- Critical Preconnects ONLY (Limit to 3-4 to avoid congestion) -->
     <link rel="preconnect" href="https://api.mangadex.org" crossorigin />
     <link rel="preconnect" href="https://uploads.mangadex.org" crossorigin />
-    <link rel="preconnect" href="https://lectorhaus.firebaseapp.com" crossorigin />
-    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     
     <link rel="dns-prefetch" href="https://api.mangadex.org" />
-    <link rel="dns-prefetch" href="https://uploads.mangadex.org" />
     <link rel="dns-prefetch" href="https://i0.wp.com" />
     
     <link rel="manifest" href="/manifest.json" />
@@ -34,15 +32,12 @@
     <meta name="apple-mobile-web-app-title" content="Lector Haus" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-QE3PV2JNEB"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-
-      gtag('config', 'G-QE3PV2JNEB');
-    </script>
+    <!-- Non-blocking Font Loading (Lighthouse Pro Hack) -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" media="print" onload="this.media='all'" />
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" />
+    </noscript>
 
     <!-- GOBAL SEO -->
     <meta name="description" content="Lector Haus - Tu biblioteca de Manga Pro. Lee sin conexión y únete a la comunidad." />
@@ -74,5 +69,14 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Google tag (gtag.js) - Moved to bottom for TBT optimization -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-QE3PV2JNEB"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-QE3PV2JNEB');
+    </script>
   </body>
 </html>

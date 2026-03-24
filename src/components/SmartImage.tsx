@@ -63,13 +63,14 @@ const SmartImage: React.FC<SmartImageProps> = ({
 
   const finalSrc = status === 'error' ? placeholder : src;
   
-  // Critical for LCP: If eager, bypass the smooth-image opacity transitions to paint ASAP.
+  // Critical for LCP: If eager, bypass the smooth-image opacity transitions and expensive shimmer skeletons to paint ASAP.
   const isCritical = loading === 'eager';
 
   return (
     <div 
       className={`smart-image-wrapper ${status === 'loading' && !isCritical ? 'image-skeleton-wrapper' : ''} ${wrapperClassName}`} 
       onClick={onClick}
+      style={{ backgroundColor: isCritical && status === 'loading' ? '#121212' : 'transparent' }}
     >
       <img
         ref={imgRef}
