@@ -24,6 +24,15 @@ export function useHomeData() {
   const heroTimer = useRef<NodeJS.Timeout | null>(null);
   const pollTimer = useRef<NodeJS.Timeout | null>(null);
 
+  // Sync language with storage (for reactive updates from Profile Page)
+  useEffect(() => {
+    const syncLang = () => {
+      setLatestLang(getDefaultLanguage());
+    };
+    window.addEventListener('storage', syncLang);
+    return () => window.removeEventListener('storage', syncLang);
+  }, []);
+
   // --- 2. MASTERPIECES (JP/Hero prioritized) ---
   const { 
     data: masterpieces, 

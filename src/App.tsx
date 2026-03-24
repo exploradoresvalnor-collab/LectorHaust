@@ -20,7 +20,6 @@ import { useLocation } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { home, search, library, chatbubbles, tvOutline } from 'ionicons/icons';
 import { getTranslation, Language, getDefaultLanguage } from './utils/translations';
-import LocalizationBanner from './components/LocalizationBanner';
 import HomePage from './pages/HomePage';
 const SearchPage = React.lazy(() => import('./pages/SearchPage'));
 const LibraryPage = React.lazy(() => import('./pages/LibraryPage'));
@@ -199,12 +198,23 @@ const AppContent: React.FC = () => {
   // Listen for language changes from storage
   useEffect(() => {
     const checkLang = () => {
-      setCurrentLang(getDefaultLanguage());
+      const newLang = getDefaultLanguage();
+      setCurrentLang(newLang);
+      
+      // Notify user of language change (Premium Feedback)
+      presentToast({
+        message: getTranslation('home.languageChanged', newLang),
+        duration: 2500,
+        position: 'bottom',
+        color: 'dark',
+        cssClass: 'premium-toast-pill',
+        buttons: [{ text: 'OK', role: 'cancel' }]
+      });
     };
 
     window.addEventListener('storage', checkLang);
     return () => window.removeEventListener('storage', checkLang);
-  }, []);
+  }, [presentToast]);
 
   // Global Chat Notifications Logic
   useEffect(() => {
@@ -255,7 +265,6 @@ const AppContent: React.FC = () => {
 
   return (
     <>
-      <LocalizationBanner lang={currentLang} onClose={() => {}} />
       <OfflineBanner />
       <IonTabs>
         <IonRouterOutlet>

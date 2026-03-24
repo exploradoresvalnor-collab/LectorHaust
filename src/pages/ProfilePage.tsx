@@ -42,10 +42,12 @@ import {
   copyOutline,
   pencilOutline,
   chatbubbles,
-  chevronBackOutline
+  chevronBackOutline,
+  languageOutline
 } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
 import { useIonRouter } from '@ionic/react';
+import { Language, getTranslation, getDefaultLanguage } from '../utils/translations';
 import { firebaseAuthService } from '../services/firebaseAuthService';
 import { User, updateProfile } from 'firebase/auth';
 import { useLibraryStore } from '../store/useLibraryStore';
@@ -55,9 +57,11 @@ import { db } from '../services/firebase';
 import { artService } from '../services/artService';
 import { getDoc } from 'firebase/firestore';
 import ArtPickerModal from '../components/ArtPickerModal';
+import { useLanguageStore } from '../store/useLanguageStore';
 import './ProfilePage.css';
 
 const ProfilePage: React.FC = () => {
+  const { lang, setLang } = useLanguageStore();
   const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<'resumen' | 'historial' | 'ajustes'>('resumen');
   const [showEditAlert, setShowEditAlert] = useState(false);
@@ -557,19 +561,39 @@ const ProfilePage: React.FC = () => {
                       </IonLabel>
                     </IonItem>
                     
-                    <IonItem button detail={true} className="option-item" onClick={() => presentToast({ message: 'Panel de Temas próximamente ✨', duration: 2000, color: 'primary' })}>
+                    <IonItem button detail={true} className="option-item" onClick={() => presentToast({ message: getTranslation('profile.themesSoon', lang), duration: 2000, color: 'primary' })}>
                       <IonIcon icon={colorPaletteOutline} slot="start" color="primary" />
                       <IonLabel>
-                        <h2>Temas y Apariencia</h2>
-                        <p>Personaliza tu experiencia de lectura</p>
+                        <h2>{getTranslation('profile.themesTitle', lang)}</h2>
+                        <p>{getTranslation('profile.themesDesc', lang)}</p>
                       </IonLabel>
                     </IonItem>
 
-                    <IonItem button detail={true} className="option-item" onClick={() => presentToast({ message: 'Ajustes de Seguridad encriptados 🔐', duration: 2000, color: 'success' })}>
+                    <IonItem className="option-item">
+                      <IonIcon icon={languageOutline} slot="start" color="secondary" />
+                      <IonLabel>
+                        <h2>{getTranslation('profile.languageBtn', lang)}</h2>
+                        <p>{getTranslation('profile.languageDesc', lang)}</p>
+                      </IonLabel>
+                      <select 
+                        value={lang} 
+                        onChange={(e) => {
+                          const val = e.target.value as Language;
+                          setLang(val);
+                        }}
+                        style={{ background: 'transparent', color: '#fff', border: 'none', fontSize: '0.9rem', fontWeight: 700, outline: 'none', cursor: 'pointer' }}
+                      >
+                        <option value="es" style={{ background: '#121212' }}>Español</option>
+                        <option value="en" style={{ background: '#121212' }}>English</option>
+                        <option value="pt-br" style={{ background: '#121212' }}>Português</option>
+                      </select>
+                    </IonItem>
+
+                    <IonItem button detail={true} className="option-item" onClick={() => presentToast({ message: getTranslation('profile.securityPrompt', lang), duration: 2000, color: 'success' })}>
                       <IonIcon icon={shieldCheckmarkOutline} slot="start" color="success" />
                       <IonLabel>
-                        <h2>Seguridad de Cuenta</h2>
-                        <p>Gestionar tus datos en la nube</p>
+                        <h2>{getTranslation('profile.securityTitle', lang)}</h2>
+                        <p>{getTranslation('profile.securityDesc', lang)}</p>
                       </IonLabel>
                     </IonItem>
 

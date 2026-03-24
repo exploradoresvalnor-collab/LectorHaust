@@ -41,13 +41,13 @@ const SmartImage: React.FC<SmartImageProps> = ({
 
   useEffect(() => {
     // 1. CACHE SALVATION: If image is already in browser cache, it marks as 'complete' immediately.
-    // We skip the loading state to avoid skeleton flickering on fast navigations.
     if (imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0) {
       setStatus('loaded');
       return;
     }
 
-    // 2. Start loading for new src
+    // 2. Start loading ONLY if not already in cache.
+    // This prevents the flickering skeleton for preloaded images.
     setStatus('loading');
 
     // 3. 8s Kill Switch to prevent infinite skeleton

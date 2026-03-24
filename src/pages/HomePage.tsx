@@ -32,11 +32,13 @@ import EmptyState from '../components/EmptyState';
 import { useHomeData } from '../hooks/useHomeData';
 import { hapticsService } from '../services/hapticsService';
 import { getTranslation, Language } from '../utils/translations';
+import { useLanguageStore } from '../store/useLanguageStore';
 import SmartImage from '../components/SmartImage';
 import './HomePage.css';
 
 const HomePage: React.FC = () => {
   const router = useIonRouter();
+  const { lang } = useLanguageStore();
   
   const {
     heroMangas,
@@ -187,8 +189,8 @@ const HomePage: React.FC = () => {
           <div className="minimal-login-pill-top animate-fade-in" onClick={() => router.push('/profile')}>
             <div className="pill-content-inner">
               <IonIcon icon={sparklesOutline} className="mini-sparkle" />
-              <span className="pill-status-text">MODO INVITADO</span>
-              <span className="pill-action-text">Login para más funciones</span>
+              <span className="pill-status-text">{getTranslation('home.guestMode', lang)}</span>
+              <span className="pill-action-text">{getTranslation('home.loginHint', lang)}</span>
               <IonIcon icon={chevronForwardOutline} className="pill-arrow" />
             </div>
             <div className="close-pill-icon" onClick={(e) => { e.stopPropagation(); setShowLoginHint(false); }}>
@@ -201,8 +203,8 @@ const HomePage: React.FC = () => {
           <IonRefresherContent 
             pullingIcon={chevronDownOutline}
             refreshingSpinner="crescent"
-            pullingText="Desliza para actualizar"
-            refreshingText="Cargando novedades..."
+            pullingText={getTranslation('home.pullToRefresh', lang)}
+            refreshingText={getTranslation('home.refreshing', lang)}
           />
         </IonRefresher>
 
@@ -214,8 +216,8 @@ const HomePage: React.FC = () => {
                 <IonIcon icon={notifications} />
               </div>
               <div className="pill-content">
-                <span className="pill-title">{newChaptersCount} nuevo{newChaptersCount > 1 ? 's' : ''} capítulo{newChaptersCount > 1 ? 's' : ''}</span>
-                <span className="pill-subtitle">Actualiza para leer lo último</span>
+                <span className="pill-title">{newChaptersCount} {getTranslation('home.newChapters', lang)}</span>
+                <span className="pill-subtitle">{getTranslation('home.refreshToRead', lang)}</span>
               </div>
               <IonIcon icon={refreshOutline} className="pill-refresh" />
             </div>
@@ -251,13 +253,13 @@ const HomePage: React.FC = () => {
                 />
                 <div className="hero-gradient-overlay" />
                 <div className="hero-info">
-                  <span className="hero-badge">🔥 DESTACADO</span>
+                  <span className="hero-badge">{getTranslation('home.featured', lang)}</span>
                   <h1>{mangaProvider.getLocalizedTitle(currentHero) as React.ReactNode}</h1>
                   <p>
                     {(mangaProvider.getLocalizedDescription(currentHero) as string).substring(0, 150)}...
                   </p>
                   <IonButton shape="round" color="primary" size="small">
-                    Leer Ahora
+                    {getTranslation('home.readNow', lang)}
                   </IonButton>
                 </div>
                 <div className="hero-dots">
@@ -277,7 +279,7 @@ const HomePage: React.FC = () => {
                   }}
                 >
                   <IonIcon icon={chevronDownOutline} />
-                  <span>Explorar</span>
+                  <span>{getTranslation('home.explore', lang)}</span>
                 </div>
               </div>
             )
@@ -298,11 +300,11 @@ const HomePage: React.FC = () => {
                 />
                 <div className="hero-gradient-overlay-minimal" />
                 <div className="mobile-hero-content-minimal">
-                   <div className="mobile-hero-badge-minimal">RECOMENDADO</div>
+                   <div className="mobile-hero-badge-minimal">{getTranslation('home.recommended', lang)}</div>
                    <h1 className="mobile-hero-title-minimal">{mangaProvider.getLocalizedTitle(mobileHero) as React.ReactNode}</h1>
                    <div className="mobile-hero-actions-minimal">
                      <IonButton shape="round" color="primary" fill="solid" className="minimal-action-btn">
-                       Leer <IonIcon icon={chevronForwardOutline} style={{ marginLeft: '4px' }} />
+                       {getTranslation('home.read', lang)} <IonIcon icon={chevronForwardOutline} style={{ marginLeft: '4px' }} />
                      </IonButton>
                    </div>
                 </div>
@@ -319,8 +321,8 @@ const HomePage: React.FC = () => {
               <div className="section-header" style={{ paddingBottom: '0.5rem' }}>
                 <div className="accent-bar" style={{ background: '#4caf50' }}></div>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <h2>{getTranslation('home.masterpieces', latestLang as Language)} 🏆</h2>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Obras 100% traducidas</span>
+                  <h2>{getTranslation('home.masterpieces', lang)} 🏆</h2>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{getTranslation('home.fullyTranslated', lang)}</span>
                 </div>
               </div>
               <div className="carousel-wrapper">
@@ -365,9 +367,9 @@ const HomePage: React.FC = () => {
           (completedMasterpieces.length > 0 || loadingMasterpieces) && (
             <div className="optimized-mobile-section animate-fade-in">
               <div className="section-header-compact">
-                <h2 className="premium-header-title">Joyas Finalizadas</h2>
+                <h2 className="premium-header-title">{getTranslation('home.finishedGems', lang)}</h2>
                 <div className="view-all-link-compact" onClick={() => router.push('/search?status=completed')}>
-                  Ver todo <IonIcon icon={chevronForwardOutline} />
+                  {getTranslation('home.viewAll', lang)} <IonIcon icon={chevronForwardOutline} />
                 </div>
               </div>
 
@@ -398,7 +400,7 @@ const HomePage: React.FC = () => {
                       />
                       <div className="joya-info-compact">
                         <div className="joya-title-compact">{mangaProvider.getLocalizedTitle(manga) as React.ReactNode}</div>
-                        <div className="completed-tag-better">Completo 🏆</div>
+                        <div className="completed-tag-better">{getTranslation('home.completed', lang)}</div>
                       </div>
                     </div>
                   ))
@@ -420,7 +422,7 @@ const HomePage: React.FC = () => {
             {/* Latest Chapters Section */}
             <div id="latest-section" className="section-header" style={{ marginTop: '1.5rem', paddingTop: '1rem', paddingBottom: '0.5rem' }}>
               <div className="accent-bar" style={{ background: 'var(--ion-color-secondary)' }}></div>
-              <h2>{getTranslation('home.latest', latestLang as Language)}</h2>
+              <h2>{getTranslation('home.latest', lang)}</h2>
             </div>
             
 
