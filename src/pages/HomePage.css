@@ -479,6 +479,16 @@
         background: rgba(20, 20, 20, 0.98) !important;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.8) !important;
     }
+
+    /* 🔥 FIX PARA EL CLS (EVITA QUE LA PÁGINA SALTE AL CARGAR) */
+    .joyas-finalizadas-grid-compact {
+        min-height: 480px !important; /* Reserva el espacio vertical en móvil antes de que carguen las fotos */
+    }
+
+    /* El esqueleto no estaba reservando espacio para la etiqueta "Completo" */
+    .joya-info-compact {
+        min-height: 70px !important; /* Obligamos a que el texto y la etiqueta ocupen espacio fijo */
+    }
     .pill-action-text {
         font-size: 0.7rem !important;
     }

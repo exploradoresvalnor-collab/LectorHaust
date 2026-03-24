@@ -390,7 +390,7 @@ const HomePage: React.FC = () => {
                       onClick={() => router.push(`/manga/${manga.id}`)}
                     >
                       <SmartImage 
-                        src={mangaProvider.getCoverUrl(manga, '512')} 
+                        src={mangaProvider.getCoverUrl(manga, '256')} 
                         className="joya-cover-compact" 
                         alt={mangaProvider.getLocalizedTitle(manga) as string} 
                         loading={completedMasterpieces.indexOf(manga) < 2 ? 'eager' : 'lazy'}
