@@ -389,15 +389,12 @@ const HomePage: React.FC = () => {
                       className="joya-item-compact"
                       onClick={() => router.push(`/manga/${manga.id}`)}
                     >
-                      <img 
+                      <SmartImage 
                         src={mangaProvider.getCoverUrl(manga, '512')} 
-                        className="joya-cover-compact smooth-image" 
+                        className="joya-cover-compact" 
                         alt={mangaProvider.getLocalizedTitle(manga) as string} 
                         loading={completedMasterpieces.indexOf(manga) < 2 ? 'eager' : 'lazy'}
-                        decoding="async"
-                        onLoad={(e: any) => e.target.classList.add('img-loaded')}
-                        // @ts-ignore
-                        fetchpriority={completedMasterpieces.indexOf(manga) < 2 ? 'high' : 'auto'}
+                        fetchPriority={completedMasterpieces.indexOf(manga) < 2 ? 'high' : 'auto'}
                       />
                       <div className="joya-info-compact">
                         <div className="joya-title-compact">{mangaProvider.getLocalizedTitle(manga) as React.ReactNode}</div>

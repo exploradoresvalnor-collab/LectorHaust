@@ -61,7 +61,6 @@ export function useHomeData() {
       return lastPage.data?.length === 15 ? currentCount : undefined;
     },
     staleTime: 1000 * 60 * 5, // 5 minutes fresh
-    enabled: !!masterpieces || !loadingMasterpieces, // STAGGERED: Wait for masterpieces or until they fail/load
   });
 
   const latest = useMemo(() => {

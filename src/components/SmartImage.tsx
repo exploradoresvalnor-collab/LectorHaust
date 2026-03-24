@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './SmartImage.css';
 
 interface SmartImageProps {
@@ -9,7 +9,7 @@ interface SmartImageProps {
   onClick?: (e: React.MouseEvent) => void;
   timeout?: number;
   placeholder?: string;
-  children?: React.ReactNode; // For badges/overlays
+  children?: React.ReactNode;
   width?: string | number;
   height?: string | number;
   loading?: 'lazy' | 'eager';
@@ -17,11 +17,10 @@ interface SmartImageProps {
 }
 
 /**
- * SmartImage Component
- * - Handles auto-timeout (8s default)
- * - Fade-in transition on load
- * - Skeleton shimmer while loading
- * - Fallback to placeholder on error or timeout
+ * SmartImage Component (Enterprise/Webtoon Grade)
+ * - Detects browser cache via imgRef.complete (Instant load)
+ * - Optimized for LCP: Skips fade-in for 'eager' images
+ * - Handles auto-timeout and error placeholders
  */
 const SmartImage: React.FC<SmartImageProps> = ({ 
   src, 
@@ -38,44 +37,52 @@ const SmartImage: React.FC<SmartImageProps> = ({
   fetchPriority = 'auto'
 }) => {
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
-  const statusRef = React.useRef(status);
-  statusRef.current = status;
+  const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
-    // Reset status when src changes
-    setStatus('loading');
-    statusRef.current = 'loading';
+    // 1. CACHE SALVATION: If image is already in browser cache, it marks as 'complete' immediately.
+    // We skip the loading state to avoid skeleton flickering on fast navigations.
+    if (imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0) {
+      setStatus('loaded');
+      return;
+    }
 
+    // 2. Start loading for new src
+    setStatus('loading');
+
+    // 3. 8s Kill Switch to prevent infinite skeleton
     const timer = setTimeout(() => {
-      if (statusRef.current === 'loading') {
-        setStatus('error');
-      }
+      setStatus((prev) => prev === 'loading' ? 'error' : prev);
     }, timeout);
 
     return () => clearTimeout(timer);
   }, [src, timeout]);
 
-  const handleLoad = () => {
-    setStatus('loaded');
-  };
-
-  const handleError = () => {
-    setStatus('error');
-  };
+  const handleLoad = () => setStatus('loaded');
+  const handleError = () => setStatus('error');
 
   const finalSrc = status === 'error' ? placeholder : src;
+  
+  // Critical for LCP: If eager, bypass the smooth-image opacity transitions to paint ASAP.
+  const isCritical = loading === 'eager';
 
   return (
-    <div className={`smart-image-wrapper ${status === 'loading' ? 'image-skeleton-wrapper' : ''} ${wrapperClassName}`} onClick={onClick}>
+    <div 
+      className={`smart-image-wrapper ${status === 'loading' && !isCritical ? 'image-skeleton-wrapper' : ''} ${wrapperClassName}`} 
+      onClick={onClick}
+    >
       <img
+        ref={imgRef}
         src={finalSrc}
         alt={alt}
-        className={`smart-img smooth-image ${className} ${status !== 'loading' ? 'img-loaded' : ''}`}
+        className={`smart-img ${isCritical ? '' : 'smooth-image'} ${className} ${status !== 'loading' || isCritical ? 'img-loaded' : ''}`}
         loading={loading}
-        decoding="async"
+        decoding={isCritical ? "sync" : "async"}
         onLoad={handleLoad}
         onError={handleError}
-        // @ts-ignore - fetchPriority is supported in modern browsers/React
+        width={width}
+        height={height}
+        // @ts-ignore
         fetchPriority={fetchPriority}
       />
       {children}
