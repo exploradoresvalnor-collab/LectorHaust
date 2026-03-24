@@ -258,28 +258,22 @@ const AppContent: React.FC = () => {
       <LocalizationBanner lang={currentLang} onClose={() => {}} />
       <OfflineBanner />
       <IonTabs>
-        <React.Suspense fallback={
-          <div style={{ height: '100vh', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src="/logolh.webp" width="64" height="64" style={{ animation: 'pulse 1.5s infinite' }} />
-          </div>
-        }>
-          <IonRouterOutlet>
-            <Route exact path="/home" component={HomePage} />
-            <Route exact path="/manga/:id" component={MangaDetailsPage} />
-            <Route exact path="/reader/:chapterId" component={ReaderPage} />
-            <Route exact path="/search" component={SearchPage} />
-            <Route path="/library" component={LibraryPage} />
-            <Route exact path="/profile" component={ProfilePage} />
-            <Route exact path="/chat">
-              <ChatPage />
-            </Route>
-            <Route exact path="/chat/:friendId" component={PrivateChatPage} />
-            <Route exact path="/social" component={SocialPage} />
-            <Route exact path="/">
-              <Redirect to="/home" />
-            </Route>
-          </IonRouterOutlet>
-        </React.Suspense>
+        <IonRouterOutlet>
+          <Route exact path="/home" component={HomePage} />
+          <Route exact path="/manga/:id" component={MangaDetailsPage} />
+          <Route exact path="/reader/:chapterId" component={ReaderPage} />
+          <Route exact path="/search" component={SearchPage} />
+          <Route path="/library" component={LibraryPage} />
+          <Route exact path="/profile" component={ProfilePage} />
+          <Route exact path="/chat">
+            <ChatPage />
+          </Route>
+          <Route exact path="/chat/:friendId" component={PrivateChatPage} />
+          <Route exact path="/social" component={SocialPage} />
+          <Route exact path="/">
+            <Redirect to="/home" />
+          </Route>
+        </IonRouterOutlet>
         <IonTabBar 
           slot="bottom" 
           className={shouldHideTabs ? 'tab-bar-hidden' : ''}
@@ -349,7 +343,13 @@ const App: React.FC = () => (
   <QueryClientProvider client={queryClient}>
     <IonApp>
       <IonReactRouter>
-        <AppContent />
+        <React.Suspense fallback={
+          <div style={{ height: '100vh', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img src="/logolh.webp" width="64" height="64" style={{ filter: 'drop-shadow(0 0 15px rgba(var(--ion-color-primary-rgb), 0.5))' }} />
+          </div>
+        }>
+          <AppContent />
+        </React.Suspense>
       </IonReactRouter>
     </IonApp>
   </QueryClientProvider>
