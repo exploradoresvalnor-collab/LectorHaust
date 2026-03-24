@@ -32,7 +32,7 @@ export function useMangaReader(chapterId?: string) {
   const saveProgress = useLibraryStore(state => state.saveProgress);
   const markAsRead = useLibraryStore(state => state.markAsRead);
   const getProgress = useLibraryStore(state => state.getProgress);
-  const dataSaverMode = useSettingsStore(state => state.dataSaverMode);
+  const { dataSaverMode, readingDirection, setReadingDirection } = useSettingsStore();
   
   const currentPageIndex = useRef(0);
   const lastLoadedId = useRef<string | null>(null);
@@ -177,15 +177,22 @@ export function useMangaReader(chapterId?: string) {
           const hasWebtoonTag = tags.some((t: any) => {
             const name = t.attributes?.name?.en?.toLowerCase() || '';
             const description = t.attributes?.description?.en?.toLowerCase() || '';
-            return name === 'long strip' || name === 'webtoon' || name === 'manhwa' || description.includes('manhwa');
+            return name === 'long-strip' || name === 'long strip' || name === 'webtoon' || name === 'manhwa' || description.includes('manhwa');
           });
           
           // Determine if it should be scroll (Webtoon) or pages (Manga)
-          // Default to FALSE (Pages) for Japanese Manga (ja)
-          const webtoonStatus = format === 'ko' || format === 'zh' || hasWebtoonTag;
+          // Defensivo: Si el ID viene de ManhwaWeb o WeebCentral, es 99% Manhwa/Scroll
+          const isKnownManhwaSource = chapterId.startsWith('mweb:') || chapterId.startsWith('wc:');
+          const webtoonStatus = format === 'ko' || format === 'zh' || hasWebtoonTag || isKnownManhwaSource;
           
           console.log(`[Reader] Format: ${format}, WebtoonTag: ${hasWebtoonTag} -> Mode: ${webtoonStatus ? 'Scroll' : 'Pages'}`);
           setIsWebtoon(webtoonStatus);
+          
+          // Auto-detect reading direction if not webtoon
+          if (!webtoonStatus) {
+            setReadingDirection(format === 'ja' ? 'rtl' : 'ltr');
+          }
+
           if (webtoonStatus) {
             setFitMode('fitWidth');
           }
@@ -261,13 +268,16 @@ export function useMangaReader(chapterId?: string) {
 
     const { clientX } = e;
     const width = window.innerWidth;
+    const isRtl = readingDirection === 'rtl';
 
-    // RTL Reading (Manga Style): 
-    // Tap Left (0-30%) -> Next Page
-    // Tap Right (70-100%) -> Prev Page
-    // Tap Center (30-70%) -> Toggle UI
+    // Tap Zones for Non-Webtoon (Paged) Mode
+    // LTR: Left (0-30%) -> Prev, Right (70-100%) -> Next
+    // RTL: Left (0-30%) -> Next, Right (70-100%) -> Prev
     
-    if (clientX < width * 0.3) {
+    const isNextZone = isRtl ? (clientX < width * 0.3) : (clientX > width * 0.7);
+    const isPrevZone = isRtl ? (clientX > width * 0.7) : (clientX < width * 0.3);
+
+    if (isNextZone) {
       if (currentMangaPage < pages.length - 1) {
         setCurrentMangaPage(prev => prev + 1);
         hapticsService.lightImpact();
@@ -277,7 +287,7 @@ export function useMangaReader(chapterId?: string) {
         hapticsService.mediumImpact();
       }
     } 
-    else if (clientX > width * 0.7) {
+    else if (isPrevZone) {
       if (currentMangaPage > 0) {
         setCurrentMangaPage(prev => prev - 1);
         hapticsService.lightImpact();

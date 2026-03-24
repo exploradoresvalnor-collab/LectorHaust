@@ -126,11 +126,12 @@ export function useSearch() {
   } = useInfiniteQuery({
     queryKey: ['trendingManga', trendingOrigin, trendingLang, showNSFW],
     queryFn: ({ pageParam = 0 }) => 
-      mangaProvider.getPopularManga(trendingOrigin, trendingLang || 'all', 24, pageParam as number, null, false, showNSFW),
+      mangaProvider.getPopularManga(trendingOrigin, trendingLang || 'all', 16, pageParam as number, null, false, showNSFW),
     initialPageParam: 0,
     getNextPageParam: (lastPage: any, allPages: any[]) => {
-      return lastPage.data?.length === 24 ? allPages.length * 24 : undefined;
+      return lastPage.data?.length === 16 ? allPages.length * 16 : undefined;
     },
+    enabled: activeSegment === 'trending', // STAGGERED
     staleTime: 1000 * 60 * 15, // 15 mins
   });
 
@@ -166,6 +167,7 @@ export function useSearch() {
     getNextPageParam: (lastPage: any, allPages: any[]) => {
        return lastPage.data?.length >= 10 ? allPages.length * 12 : undefined;
     },
+    enabled: activeSegment === 'completed', // STAGGERED
     staleTime: 1000 * 60 * 30, // 30 mins
   });
 
@@ -199,13 +201,13 @@ export function useSearch() {
       if (activeDemographic) filters.demographic = activeDemographic;
       
       const orderParam: any = { [activeOrder]: 'desc' };
-      return mangaProvider.searchManga(query, filters, 20, pageParam as number, orderParam, showNSFW);
+      return mangaProvider.searchManga(query, filters, 16, pageParam as number, orderParam, showNSFW);
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage: any, allPages: any[]) => {
-      return lastPage.data?.length === 20 ? allPages.length * 20 : undefined;
+      return lastPage.data?.length === 16 ? allPages.length * 16 : undefined;
     },
-    enabled: !!(query || activeFormat || activeGenre || activeStatus || activeDemographic || activeColor),
+    enabled: activeSegment === 'search' && !!(query || activeFormat || activeGenre || activeStatus || activeDemographic || activeColor), // STAGGERED
     staleTime: 1000 * 60 * 5, // 5 mins
   });
 
@@ -222,7 +224,8 @@ export function useSearch() {
   // --- 4. SUGGESTIONS ---
   const { data: suggestionsData } = useQuery({
     queryKey: ['suggestions', showNSFW],
-    queryFn: () => mangaProvider.getLatestUpdatedManga(20, 0, 'es', 'all', showNSFW),
+    queryFn: () => mangaProvider.getLatestUpdatedManga(16, 0, 'es', 'all', showNSFW),
+    enabled: activeSegment === 'search' && !query, // Only fetch suggestions if in search mode and no query
     staleTime: 1000 * 60 * 10, // 10 mins
   });
 

@@ -13,6 +13,7 @@ interface SmartImageProps {
   width?: string | number;
   height?: string | number;
   loading?: 'lazy' | 'eager';
+  fetchPriority?: 'high' | 'low' | 'auto';
 }
 
 /**
@@ -33,7 +34,8 @@ const SmartImage: React.FC<SmartImageProps> = ({
   children,
   width,
   height,
-  loading = 'lazy'
+  loading = 'lazy',
+  fetchPriority = 'auto'
 }) => {
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
   const statusRef = React.useRef(status);
@@ -73,6 +75,8 @@ const SmartImage: React.FC<SmartImageProps> = ({
         decoding="async"
         onLoad={handleLoad}
         onError={handleError}
+        // @ts-ignore - fetchPriority is supported in modern browsers/React
+        fetchPriority={fetchPriority}
       />
       {children}
     </div>

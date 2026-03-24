@@ -22,8 +22,16 @@ import {
   IonSelectOption,
   IonPopover,
   IonModal,
-  useIonToast
+  useIonToast,
+  useIonViewWillEnter, 
+  IonGrid, 
+  IonRow, 
+  IonCol,
+  IonSearchbar,
+  IonSegment,
+  IonSegmentButton
 } from '@ionic/react';
+import { useQueryClient } from '@tanstack/react-query';
 import { 
   heart, 
   heartOutline, 
@@ -45,7 +53,15 @@ import {
   paperPlane,
   copyOutline,
   shareOutline,
-  sparklesOutline
+  sparklesOutline,
+  playOutline,
+  peopleOutline,
+  timeOutline,
+  languageOutline,
+  statsChartOutline,
+  trendingUpOutline,
+  checkmarkCircleOutline,
+  listOutline
 } from 'ionicons/icons';
 import { useParams } from 'react-router-dom';
 import { mangaProvider } from '../services/mangaProvider';
@@ -67,6 +83,7 @@ import './MangaDetailsPage.css';
 const MangaDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const router = useIonRouter();
+  const queryClient = useQueryClient();
   // Smart recommendations state
   const [verifiedRecs, setVerifiedRecs] = useState<any[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
@@ -155,6 +172,22 @@ const MangaDetailsPage: React.FC = () => {
     verify();
     return () => { cancelled = true; };
   }, [aniData]);
+
+  // Pro-Level Prefetching Strategy
+  useEffect(() => {
+    if (chapters && chapters.length > 0) {
+      const firstChapter = chapterOrder === 'desc' ? chapters[chapters.length - 1] : chapters[0];
+      if (firstChapter?.id) {
+        console.log(`[Pro-Prefetch] Pre-loading first chapter pages: ${firstChapter.id}`);
+        // Prefetch pages to cache
+        queryClient.prefetchQuery({
+          queryKey: ['chapterPages', firstChapter.id, 'data'],
+          queryFn: () => mangaProvider.getChapterPages(firstChapter.id, 'data'),
+          staleTime: 1000 * 60 * 5 // 5 minutes
+        });
+      }
+    }
+  }, [chapters, chapterOrder, queryClient]);
 
   if (loading) {
     return (
@@ -292,16 +325,25 @@ const MangaDetailsPage: React.FC = () => {
 
       <IonContent>
         {/* Dynamic Cinematic Header */}
-        <div className="manga-header-bg" style={{ backgroundImage: `url(${mangaProvider.getOptimizedUrl(aniData?.bannerImage || coverUrl)})` }}>
+        <div className="manga-header-bg">
+          {/* Optimized Banner Image for LCP */}
+          <img 
+            src={mangaProvider.getOptimizedUrl(aniData?.bannerImage || coverUrl)} 
+            alt="Banner"
+            className="banner-img-layer"
+            loading="eager"
+            onError={(e) => (e.currentTarget.style.display = 'none')}
+          />
           <div className="overlay-gradient"></div>
           <div className="details-header-content animate-fade-in">
             <SmartImage 
               src={coverUrl} 
               className="main-details-cover" 
               wrapperClassName="main-details-cover-wrapper"
-              alt={title} 
+              alt={title || 'Portada'} 
               width={180}
               height={260}
+              loading="eager"
             />
             <div className="title-section">
               <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
@@ -407,9 +449,9 @@ const MangaDetailsPage: React.FC = () => {
           <p className="description-text">{bestDescription}</p>
 
           <div className="manga-details-tags">
-             {(aniData?.genres || manga?.attributes?.tags || []).slice(0, 8).map((tag: any) => (
+             {Array.isArray(aniData?.genres || manga?.attributes?.tags) && (aniData?.genres || manga?.attributes?.tags || []).slice(0, 8).map((tag: any) => (
                <IonBadge key={tag.id || tag} color="light" mode="ios" style={{ marginBottom: '5px', marginRight: '5px' }}>
-                 {tag.attributes?.name?.en || tag}
+                 {tag.attributes?.name?.en || tag.attributes?.name?.es || tag}
                </IonBadge>
              ))}
           </div>

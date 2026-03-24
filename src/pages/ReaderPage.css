@@ -121,14 +121,30 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.mode-toggle-btn, .fit-toggle-btn {
-  --color: #fff;
-  font-size: 0.8rem;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  margin-right: 8px;
-  --padding-start: 10px;
-  --padding-end: 10px;
+.fit-toggle-btn, .direction-toggle-btn {
+    --color: white;
+    --background: rgba(255, 255, 255, 0.05);
+    --border-radius: 20px;
+    height: 34px;
+    margin: 0 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.direction-toggle-btn {
+    width: auto;
+    padding: 0 10px;
+    background: rgba(var(--ion-color-primary-rgb), 0.15);
+    border: 1px solid rgba(var(--ion-color-primary-rgb), 0.3);
+}
+
+.direction-toggle-btn span {
+    color: var(--ion-color-primary);
+    font-size: 0.75rem;
+    font-weight: 800;
 }
 
 /* --- MODO 1: WEBTOON (VERTICAL) --- */

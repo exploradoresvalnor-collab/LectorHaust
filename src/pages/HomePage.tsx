@@ -21,8 +21,7 @@ import {
   IonBadge,
   IonChip,
   IonLabel,
-  IonToast,
-  IonModal
+  IonToast
 } from '@ionic/react';
 import { personCircleOutline, notifications, refreshOutline, chevronDownOutline, libraryOutline, sparklesOutline, checkmarkCircle, chevronBackOutline, chevronForwardOutline, logInOutline, closeOutline, cloudUploadOutline, chatbubblesOutline, trophyOutline, logoGoogle, personOutline } from 'ionicons/icons';
 import MangaCard from '../components/MangaCard';
@@ -65,6 +64,19 @@ const HomePage: React.FC = () => {
     loadMoreLatest,
     setLoading
   } = useHomeData();
+  
+  const [isDesktop, setIsDesktop] = React.useState(window.innerWidth > 992);
+
+  React.useEffect(() => {
+    console.log('[Responsiveness] Current width:', window.innerWidth);
+    const handleResize = () => {
+      const desktop = window.innerWidth > 992;
+      console.log('[Responsiveness] Resize detected. Width:', window.innerWidth, 'isDesktop:', desktop);
+      setIsDesktop(desktop);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const [showToast, setShowToast] = React.useState(false);
   const [toastMsg, setToastMsg] = React.useState('');
@@ -98,6 +110,18 @@ const HomePage: React.FC = () => {
   };
 
   const currentHero = heroMangas[heroIndex];
+
+  // Logic for Fixed Mobile Hero (Changes every 8 hours)
+  const mobileHeroIndex = React.useMemo(() => {
+    if (heroMangas.length === 0) return 0;
+    const now = Date.now();
+    const eightHoursInMs = 8 * 60 * 60 * 1000;
+    const windowIndex = Math.floor(now / eightHoursInMs);
+    // Use the window index to pick a stable item from the 5 featured ones
+    return windowIndex % Math.min(heroMangas.length, 5);
+  }, [heroMangas.length]);
+
+  const mobileHero = heroMangas[mobileHeroIndex];
 
 
   const handleAnonymousLogin = async () => {
@@ -160,13 +184,14 @@ const HomePage: React.FC = () => {
       <IonContent fullscreen className="ion-padding">
         {/* Subtle Sign-in Prompt */}
         {showLoginHint && (!currentUser || currentUser.isAnonymous) && (
-          <div className="subtle-login-prompt animate-fade-in" onClick={() => router.push('/profile')}>
-            <IonIcon icon={sparklesOutline} className="sparkle-icon" />
-            <span>Inicia sesión y disfruta más</span>
-            <IonButton fill="clear" size="small" className="login-prompt-btn">
-              Entrar
-            </IonButton>
-            <div className="close-prompt" onClick={(e) => { e.stopPropagation(); setShowLoginHint(false); }}>
+          <div className="minimal-login-pill-top animate-fade-in" onClick={() => router.push('/profile')}>
+            <div className="pill-content-inner">
+              <IonIcon icon={sparklesOutline} className="mini-sparkle" />
+              <span className="pill-status-text">MODO INVITADO</span>
+              <span className="pill-action-text">Login para más funciones</span>
+              <IonIcon icon={chevronForwardOutline} className="pill-arrow" />
+            </div>
+            <div className="close-pill-icon" onClick={(e) => { e.stopPropagation(); setShowLoginHint(false); }}>
               <IonIcon icon={closeOutline} />
             </div>
           </div>
@@ -197,7 +222,7 @@ const HomePage: React.FC = () => {
           </div>
         )}
 
-        {/* Rotating Hero Banner */}
+        {/* --- HERO BANNER SECTION --- */}
         <div className="hero-container animate-fade-in">
           {loading ? (
              <div className="hero-card hero-skeleton">
@@ -208,106 +233,182 @@ const HomePage: React.FC = () => {
                  <IonSkeletonText animated style={{ width: '140px', height: '36px', borderRadius: '18px' }} />
                </div>
              </div>
-          ) : currentHero ? (
-            <div 
-              className="hero-card hero-transition" 
-              key={heroIndex}
-              onClick={() => handleMangaClick(currentHero)}
-            >
-              <SmartImage 
-                src={mangaProvider.getCoverUrl(currentHero, '512')}
-                alt={mangaProvider.getLocalizedTitle(currentHero) as string}
-                className="hero-img-layer"
-                wrapperClassName="hero-img-wrapper"
-                loading="eager"
-              />
-              <div className="hero-gradient-overlay" />
-              <div className="hero-info">
-                <span className="hero-badge">🔥 DESTACADO</span>
-                <h1>{mangaProvider.getLocalizedTitle(currentHero) as React.ReactNode}</h1>
-                <p>
-                  {(mangaProvider.getLocalizedDescription(currentHero) as string).substring(0, 150)}...
-                </p>
-                <IonButton shape="round" color="primary" size="small">
-                  Leer Ahora
-                </IonButton>
-              </div>
-              <div className="hero-dots">
-                {heroMangas.map((_: any, i: number) => (
-                  <span 
-                    key={i} 
-                    className={`hero-dot ${i === heroIndex ? 'active' : ''}`}
-                    onClick={(e) => { e.stopPropagation(); setHeroIndex(i); }}
-                  />
-                ))}
-              </div>
+          ) : isDesktop ? (
+            /* --- DESKTOP: Rotating Carousel --- */
+            currentHero && (
               <div 
-                className="scroll-indicator"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  document.getElementById('latest-section')?.scrollIntoView({ behavior: 'smooth' });
-                }}
+                className="hero-card hero-transition" 
+                key={heroIndex}
+                onClick={() => handleMangaClick(currentHero)}
               >
-                <IonIcon icon={chevronDownOutline} />
-                <span>Explorar</span>
+                <SmartImage 
+                  src={mangaProvider.getCoverUrl(currentHero, '512')}
+                  alt={mangaProvider.getLocalizedTitle(currentHero) as string}
+                  className="hero-img-layer"
+                  wrapperClassName="hero-img-wrapper"
+                  loading="eager"
+                  fetchPriority="high"
+                />
+                <div className="hero-gradient-overlay" />
+                <div className="hero-info">
+                  <span className="hero-badge">🔥 DESTACADO</span>
+                  <h1>{mangaProvider.getLocalizedTitle(currentHero) as React.ReactNode}</h1>
+                  <p>
+                    {(mangaProvider.getLocalizedDescription(currentHero) as string).substring(0, 150)}...
+                  </p>
+                  <IonButton shape="round" color="primary" size="small">
+                    Leer Ahora
+                  </IonButton>
+                </div>
+                <div className="hero-dots">
+                  {heroMangas.map((_: any, i: number) => (
+                    <span 
+                      key={i} 
+                      className={`hero-dot ${i === heroIndex ? 'active' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); setHeroIndex(i); }}
+                    />
+                  ))}
+                </div>
+                <div 
+                  className="scroll-indicator"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    document.getElementById('latest-section')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                >
+                  <IonIcon icon={chevronDownOutline} />
+                  <span>Explorar</span>
+                </div>
               </div>
-            </div>
+            )
           ) : (
-            <div className="hero-card">
-              <div className="hero-info">
-                <span className="hero-badge">Cargando a la aventura...</span>
-                <h1>LECTOR HAUS</h1>
-                <p>Tu puerta al mundo del manga, manhwa y manhua.</p>
+            /* --- MOBILE: Fixed Pro Banner (Changes every 8h) --- */
+            mobileHero && (
+              <div 
+                className="hero-card mobile-fixed-hero-minimal" 
+                onClick={() => handleMangaClick(mobileHero)}
+              >
+                <SmartImage 
+                  src={mangaProvider.getCoverUrl(mobileHero, '512')}
+                  alt={mangaProvider.getLocalizedTitle(mobileHero) as string}
+                  className="hero-img-layer smooth-image"
+                  wrapperClassName="hero-img-wrapper"
+                  loading="eager"
+                  fetchPriority="high"
+                />
+                <div className="hero-gradient-overlay-minimal" />
+                <div className="mobile-hero-content-minimal">
+                   <div className="mobile-hero-badge-minimal">RECOMENDADO</div>
+                   <h1 className="mobile-hero-title-minimal">{mangaProvider.getLocalizedTitle(mobileHero) as React.ReactNode}</h1>
+                   <div className="mobile-hero-actions-minimal">
+                     <IonButton shape="round" color="primary" fill="solid" className="minimal-action-btn">
+                       Leer <IonIcon icon={chevronForwardOutline} style={{ marginLeft: '4px' }} />
+                     </IonButton>
+                   </div>
+                </div>
               </div>
-            </div>
+            )
           )}
         </div>
 
-        {/* --- CAROUSEL: Joyas Finalizadas --- */}
-        {(completedMasterpieces.length > 0 || loadingMasterpieces) && (
-          <div className="animate-fade-in" style={{ marginTop: '1.5rem' }}>
-            <div className="section-header" style={{ paddingBottom: '0.5rem' }}>
-              <div className="accent-bar" style={{ background: '#4caf50' }}></div>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <h2>{getTranslation('home.masterpieces', latestLang as Language)} 🏆</h2>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Obras 100% traducidas</span>
+        {/* --- SECTION: Joyas Finalizadas --- */}
+        {isDesktop ? (
+          /* --- DESKTOP CAROUSEL --- */
+          (completedMasterpieces.length > 0 || loadingMasterpieces) && (
+            <div className="animate-fade-in" style={{ marginTop: '1.5rem' }}>
+              <div className="section-header" style={{ paddingBottom: '0.5rem' }}>
+                <div className="accent-bar" style={{ background: '#4caf50' }}></div>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <h2>{getTranslation('home.masterpieces', latestLang as Language)} 🏆</h2>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Obras 100% traducidas</span>
+                </div>
+              </div>
+              <div className="carousel-wrapper">
+                <IonButton fill="clear" className="carousel-scroll-btn left" onClick={(e) => { e.stopPropagation(); scrollCarousel('completed-carousel', 'left'); }}>
+                  <IonIcon icon={chevronBackOutline} />
+                </IonButton>
+                <div className="manga-carousel" id="completed-carousel">
+                  {loadingMasterpieces ? (
+                     [1,2,3,4,5].map(i => (
+                      <div key={`skel-comp-${i}`} className="carousel-card">
+                        <IonSkeletonText animated style={{ width: '130px', height: '190px', borderRadius: '8px' }} />
+                      </div>
+                    ))
+                  ) : (
+                    completedMasterpieces.map((manga: any) => (
+                      <div 
+                        key={`comp-${manga.id}`} 
+                        className="carousel-card"
+                        onClick={() => router.push(`/manga/${manga.id}`)}
+                      >
+                        <SmartImage 
+                          src={mangaProvider.getCoverUrl(manga)} 
+                          className="carousel-cover" 
+                          alt={mangaProvider.getLocalizedTitle(manga) as string} 
+                          width={130}
+                          height={190}
+                          loading={completedMasterpieces.indexOf(manga) < 4 ? 'eager' : 'lazy'}
+                        />
+                        <div className="carousel-title">{mangaProvider.getLocalizedTitle(manga) as React.ReactNode}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <IonButton fill="clear" className="carousel-scroll-btn right" onClick={(e) => { e.stopPropagation(); hapticsService.lightImpact(); scrollCarousel('completed-carousel', 'right'); }}>
+                  <IonIcon icon={chevronForwardOutline} />
+                </IonButton>
               </div>
             </div>
-            <div className="carousel-wrapper">
-              <IonButton fill="clear" className="carousel-scroll-btn left" onClick={(e) => { e.stopPropagation(); scrollCarousel('completed-carousel', 'left'); }}>
-                <IonIcon icon={chevronBackOutline} />
-              </IonButton>
-              <div className="manga-carousel" id="completed-carousel">
+          )
+        ) : (
+          /* --- MOBILE OPTIMIZED GRID (Webtoon Style) --- */
+          (completedMasterpieces.length > 0 || loadingMasterpieces) && (
+            <div className="optimized-mobile-section animate-fade-in">
+              <div className="section-header-compact">
+                <h2 className="premium-header-title">Joyas Finalizadas</h2>
+                <div className="view-all-link-compact" onClick={() => router.push('/search?status=completed')}>
+                  Ver todo <IonIcon icon={chevronForwardOutline} />
+                </div>
+              </div>
+
+              <div className="joyas-finalizadas-grid-compact">
                 {loadingMasterpieces ? (
-                   [1,2,3,4,5].map(i => (
-                    <div key={`skel-comp-${i}`} className="carousel-card">
-                      <IonSkeletonText animated style={{ width: '130px', height: '190px', borderRadius: '8px' }} />
+                  [1,2,3,4].map(i => (
+                    <div key={`joya-skel-${i}`} className="joya-item-compact">
+                      <IonSkeletonText animated style={{ width: '100%', aspectRatio: '2/3', borderRadius: '12px 12px 0 0' }} />
+                      <div className="joya-info-compact">
+                        <IonSkeletonText animated style={{ width: '80%', height: '14px', marginBottom: '6px' }} />
+                        <IonSkeletonText animated style={{ width: '40%', height: '12px' }} />
+                      </div>
                     </div>
                   ))
                 ) : (
-                  completedMasterpieces.map((manga: any) => (
+                  completedMasterpieces.slice(0, 4).map((manga: any) => (
                     <div 
-                      key={`comp-${manga.id}`} 
-                      className="carousel-card"
+                      key={`joya-mob-${manga.id}`} 
+                      className="joya-item-compact"
                       onClick={() => router.push(`/manga/${manga.id}`)}
                     >
-                      <SmartImage 
-                        src={mangaProvider.getCoverUrl(manga)} 
-                        className="carousel-cover" 
+                      <img 
+                        src={mangaProvider.getCoverUrl(manga, '512')} 
+                        className="joya-cover-compact smooth-image" 
                         alt={mangaProvider.getLocalizedTitle(manga) as string} 
-                        width={130}
-                        height={190}
+                        loading={completedMasterpieces.indexOf(manga) < 2 ? 'eager' : 'lazy'}
+                        decoding="async"
+                        onLoad={(e: any) => e.target.classList.add('img-loaded')}
+                        // @ts-ignore
+                        fetchpriority={completedMasterpieces.indexOf(manga) < 2 ? 'high' : 'auto'}
                       />
-                      <div className="carousel-title">{mangaProvider.getLocalizedTitle(manga) as React.ReactNode}</div>
+                      <div className="joya-info-compact">
+                        <div className="joya-title-compact">{mangaProvider.getLocalizedTitle(manga) as React.ReactNode}</div>
+                        <div className="completed-tag-better">Completo 🏆</div>
+                      </div>
                     </div>
                   ))
                 )}
               </div>
-              <IonButton fill="clear" className="carousel-scroll-btn right" onClick={(e) => { e.stopPropagation(); hapticsService.lightImpact(); scrollCarousel('completed-carousel', 'right'); }}>
-                <IonIcon icon={chevronForwardOutline} />
-              </IonButton>
             </div>
-          </div>
+          )
         )}
 
 

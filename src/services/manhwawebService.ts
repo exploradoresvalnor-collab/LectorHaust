@@ -175,7 +175,11 @@ export const manhwawebService = {
           translatedLanguage: 'es'
         },
         relationships: [
-          { id: data?.chapter?.manhwa_link || '', type: 'manga' }
+          { 
+            id: `mweb:${data?.chapter?.manhwa_link || ''}`, 
+            type: 'manga',
+            attributes: { originalLanguage: 'ko' } 
+          }
         ]
       }
     };
@@ -188,15 +192,22 @@ export const manhwawebService = {
     try {
       const data = await apiFetch('/manhwa/nuevos');
       const weeklyTop = data?.top?.manhwas_esp || [];
-      return weeklyTop.map((m: any) => ({
-        id: `mweb:${m.link || m._id || m.slug}`,
-        attributes: {
-          title: { en: m.name || m.the_real_name || '', es: m.name || '' },
-          originalLanguage: 'ko'
-        },
-        _mwebCover: m.imagen || m._imagen || '',
-        _mwebSlug: m.link || m._id || m.slug
-      }));
+      return weeklyTop.map((m: any) => {
+        let id = m.id_manhwa || m._id || m.slug || m.link || m.real_id;
+        if (typeof id === 'string' && id.includes('/')) {
+            const parts = id.split('/');
+            id = parts[parts.length - 1]; // Take only the slug part
+        }
+        return {
+          id: `mweb:${id}`,
+          attributes: {
+            title: { en: m.name || m.the_real_name || '', es: m.name || '' },
+            originalLanguage: 'ko'
+          },
+          _mwebCover: m.imagen || m._imagen || '',
+          _mwebSlug: id
+        };
+      });
     } catch (err) {
       console.warn('[ManhwaWeb] Top weekly failed:', err);
       return [];
@@ -210,15 +221,22 @@ export const manhwawebService = {
     try {
       const data = await apiFetch('/manhwa/nuevos');
       const globalTop = data?.top?.manhwas_raw || [];
-      return globalTop.map((m: any) => ({
-        id: `mweb:${m.link || m._id || m.slug}`,
-        attributes: {
-          title: { en: m.name || m.the_real_name || '', es: m.name || '' },
-          originalLanguage: 'ko'
-        },
-        _mwebCover: m.imagen || m._imagen || '',
-        _mwebSlug: m.link || m._id || m.slug
-      }));
+      return globalTop.map((m: any) => {
+        let id = m.id_manhwa || m._id || m.slug || m.link || m.real_id;
+        if (typeof id === 'string' && id.includes('/')) {
+            const parts = id.split('/');
+            id = parts[parts.length - 1];
+        }
+        return {
+          id: `mweb:${id}`,
+          attributes: {
+            title: { en: m.name || m.the_real_name || '', es: m.name || '' },
+            originalLanguage: 'ko'
+          },
+          _mwebCover: m.imagen || m._imagen || '',
+          _mwebSlug: id
+        };
+      });
     } catch (err) {
       console.warn('[ManhwaWeb] Top global failed:', err);
       return [];

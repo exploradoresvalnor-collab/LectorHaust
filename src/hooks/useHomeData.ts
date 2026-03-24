@@ -138,6 +138,26 @@ export function useHomeData() {
     return () => { if (pollTimer.current) clearInterval(pollTimer.current); };
   }, [latestLang]);
 
+  // --- 4. PRELOAD ASSETS (Webtoon speed) ---
+  useEffect(() => {
+    if (heroMangas.length > 0) {
+      // Preload current hero (for Desktop rotation)
+      const currentUrl = mangaProvider.getCoverUrl(heroMangas[heroIndex], '512');
+      const img = new Image();
+      img.src = currentUrl;
+
+      // Preload the specific Mobile Hero (stable 8h rotation)
+      const now = Date.now();
+      const eightHoursInMs = 8 * 60 * 60 * 1000;
+      const mIndex = Math.floor(now / eightHoursInMs) % Math.min(heroMangas.length, 5);
+      const mobileUrl = mangaProvider.getCoverUrl(heroMangas[mIndex], '512');
+      const img2 = new Image();
+      img2.src = mobileUrl;
+      
+      console.log('[Performance] Preloading hero assets:', { currentUrl, mobileUrl });
+    }
+  }, [heroMangas, heroIndex]);
+
   // Firebase auth & notifications
   useEffect(() => {
     let unsubsNotif: (() => void) | null = null;

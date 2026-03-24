@@ -25,6 +25,7 @@ import { mangaProvider } from '../services/mangaProvider';
 import CommentSection from '../components/CommentSection';
 import { useMangaReader } from '../hooks/useMangaReader';
 import { hapticsService } from '../services/hapticsService';
+import { useSettingsStore } from '../store/useSettingsStore';
 import './ReaderPage.css';
 
 import { 
@@ -59,6 +60,8 @@ const ReaderPage: React.FC = () => {
     setCurrentMangaPage
   } = useMangaReader(chapterId);
 
+  const { readingDirection, setReadingDirection } = useSettingsStore();
+
   // NUEVO EFFECT: Hace el salto automático a la página para Manhwas (Webtoons)
   React.useEffect(() => {
     if (isWebtoon && initialScrollPage !== null && pages.length > 0) {
@@ -75,11 +78,13 @@ const ReaderPage: React.FC = () => {
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isWebtoon) return;
+      const isRtl = readingDirection === 'rtl';
+
       if (e.key === 'ArrowRight') {
-        const tapEvent = { clientX: window.innerWidth * 0.9 } as any; // Simula tap en zona "adelante" (LTR)
+        const tapEvent = { clientX: isRtl ? window.innerWidth * 0.1 : window.innerWidth * 0.9 } as any; 
         handleMangaTap(tapEvent);
       } else if (e.key === 'ArrowLeft') {
-        const tapEvent = { clientX: window.innerWidth * 0.1 } as any; // Simula tap en zona "atrás" (LTR)
+        const tapEvent = { clientX: isRtl ? window.innerWidth * 0.9 : window.innerWidth * 0.1 } as any;
         handleMangaTap(tapEvent);
       }
     };
@@ -152,6 +157,17 @@ const ReaderPage: React.FC = () => {
             {/* Espacio reservado para no tapar el persistent */}
             <div style={{ height: '40px' }}></div>
             <IonButtons slot="end">
+              {!isWebtoon && (
+                <IonButton fill="clear" onClick={() => {
+                  hapticsService.selection();
+                  setReadingDirection(readingDirection === 'rtl' ? 'ltr' : 'rtl');
+                }} className="direction-toggle-btn">
+                  <span style={{ fontSize: '0.7rem', fontWeight: 'bold', marginRight: '4px' }}>
+                    {readingDirection === 'rtl' ? 'RTL' : 'LTR'}
+                  </span>
+                  <IonIcon slot="icon-only" icon={refreshCircleOutline} />
+                </IonButton>
+              )}
               <IonButton fill="clear" onClick={() => setFitMode(fitMode === 'fitWidth' ? 'fitScreen' : 'fitWidth')} className="fit-toggle-btn">
                 <IonIcon slot="icon-only" icon={fitMode === 'fitWidth' ? contractOutline : expandOutline} />
               </IonButton>
