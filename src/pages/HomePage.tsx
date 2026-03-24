@@ -538,6 +538,8 @@ const HomePage: React.FC = () => {
                               className="list-item-cover" 
                               width={80}
                               height={110}
+                              loading="lazy"
+                              fetchPriority="low"
                             >
                               <div className="list-item-lang-badge">
                                 {(() => {

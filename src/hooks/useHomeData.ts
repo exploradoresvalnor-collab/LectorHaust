@@ -61,6 +61,7 @@ export function useHomeData() {
       return lastPage.data?.length === 15 ? currentCount : undefined;
     },
     staleTime: 1000 * 60 * 5, // 5 minutes fresh
+    enabled: !!masterpieces, // V.I.P Priority: Wait for masterpieces/hero assets before flooding the network with latest updates
   });
 
   const latest = useMemo(() => {
