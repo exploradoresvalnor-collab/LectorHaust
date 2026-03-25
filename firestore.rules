@@ -90,5 +90,11 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow update: if false; // No se permite editar privados
     }
+    
+    // 8. Calificaciones de Contenido (Lectura pública, Escritura autenticada)
+    match /content_ratings/{ratingId} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
   }
 }

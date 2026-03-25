@@ -32,7 +32,6 @@ export const gogoanimeService = {
    */
   async search(query: string): Promise<any[]> {
     try {
-      console.log(`📡 [GogoanimeNative] Buscando: ${query}`);
       const html = await fetchHtml(`${BASE_URL}/search.html?keyword=${encodeURIComponent(query)}`);
       
       const results: any[] = [];
@@ -49,14 +48,12 @@ export const gogoanimeService = {
           // Si Gogoanime no tiene el título exacto, limpiar y re-intentar con primeras 2 palabras
           const shortQuery = query.split(' ').slice(0, 2).join(' ');
           if (shortQuery !== query) {
-              console.log(`[GogoanimeNative] Reintentando búsqueda con: ${shortQuery}`);
               return this.search(shortQuery);
           }
           const fallbackSlug = query.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
           return [{ id: fallbackSlug, title: query }];
       }
       
-      console.log(`✅ [GogoanimeNative] Encontrados ${results.length} resultados.`);
       return results;
     } catch (error) {
        console.error('[GogoanimeNative] Search error:', error);
@@ -79,7 +76,6 @@ export const gogoanimeService = {
    */
   async getEpisodeSources(episodeId: string, server: string = 'vidcdn'): Promise<{ sources: GogoSource[] } | null> {
     try {
-      console.log(`📡 [GogoanimeNative] Scrapeando directamente: ${BASE_URL}/${episodeId}`);
       const html = await fetchHtml(`${BASE_URL}/${episodeId}`);
       
       // Gogoanime incrusta los videos en un iframe, los links están en atributos 'data-video'
@@ -95,7 +91,6 @@ export const gogoanimeService = {
           iframeUrl = 'https:' + iframeUrl;
       }
 
-      console.log(`✅ [GogoanimeNative] ¡Iframe capturado con éxito!: ${iframeUrl}`);
 
       return {
         sources: [

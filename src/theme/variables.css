@@ -56,6 +56,35 @@
    */
   --radius-md: 8px;
   --radius-lg: 12px;
+
+  /**
+   * Spacing Tokens (Native App Standard)
+   */
+  --app-side-padding: 30px; /* Base for Mobile */
+  --section-gap: 32px;
+  --card-gap: 16px;
+}
+
+/* --- Responsive Layout Tokens (Desktop Pro) --- */
+@media (min-width: 1024px) {
+  :root {
+    --app-side-padding: 40px;
+    --section-gap: 40px;
+  }
+}
+
+@media (min-width: 1440px) {
+  :root {
+    --app-side-padding: 6vw; /* Cinematic padding for large desktops */
+    --section-gap: 48px;
+  }
+}
+
+@media (min-width: 1920px) {
+  :root {
+    --app-side-padding: 10vw; /* Maximum breathing room for 4K/Ultrawide */
+    --section-gap: 64px;
+  }
 }
 
 /* Glassmorphism utility */

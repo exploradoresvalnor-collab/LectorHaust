@@ -29,7 +29,9 @@ import {
   IonCol,
   IonSearchbar,
   IonSegment,
-  IonSegmentButton
+  IonSegmentButton,
+  IonInfiniteScroll,
+  IonInfiniteScrollContent
 } from '@ionic/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { 
@@ -70,7 +72,10 @@ import ChapterItem from '../components/ChapterItem';
 
 import LoadingScreen from '../components/LoadingScreen';
 import CommentSection from '../components/CommentSection';
+import UniversalEngagementBar from '../components/UniversalEngagementBar';
+import CrossMediaBanner from '../components/CrossMediaBanner';
 import { useMangaDetails } from '../hooks/useMangaDetails';
+import { useCrossMedia } from '../hooks/useCrossMedia';
 import { hapticsService } from '../services/hapticsService';
 import { offlineService } from '../services/offlineService';
 import { db } from '../services/firebase';
@@ -117,10 +122,14 @@ const MangaDetailsPage: React.FC = () => {
     mdStats,
     chapterOrder,
     isOptimized,
+    isFetchingMore,
     setChapterOrder,
     handleLangChange,
-    loadPage
+    loadMoreChapters
   } = useMangaDetails(id);
+
+  const parsedTitle = manga ? mangaProvider.getLocalizedTitle(manga) : null;
+  const { crossMedia, loadingCrossMedia } = useCrossMedia(parsedTitle as string, 'MANGA');
 
   // Verify recommendations have chapters on MangaDex
   useEffect(() => {
@@ -482,6 +491,10 @@ const MangaDetailsPage: React.FC = () => {
           <h2 className="section-subtitle">Sinopsis</h2>
           <p className="description-text">{bestDescription}</p>
 
+          {!loadingCrossMedia && crossMedia && (
+            <CrossMediaBanner crossMedia={crossMedia} />
+          )}
+
           <div className="manga-details-tags">
              {Array.isArray(aniData?.genres || manga?.attributes?.tags) && (aniData?.genres || manga?.attributes?.tags || []).slice(0, 8).map((tag: any) => (
                <IonBadge key={tag.id || tag} color="light" mode="ios" style={{ marginBottom: '5px', marginRight: '5px' }}>
@@ -687,60 +700,16 @@ const MangaDetailsPage: React.FC = () => {
               </div>
             )}
             
-            {/* Advanced Pro Pagination Controls */}
+            {/* Advanced Pro Infinite Pagination */}
             {!loadingChapters && totalPages > 1 && (
-              <div className="pro-pagination-container animate-fade-in">
-                <div className="pro-pagination-bar">
-                  <IonButton 
-                    fill="clear" 
-                    className="pro-page-btn"
-                    disabled={currentPage === 1}
-                    onClick={() => loadPage(1)}
-                    title="Primera página"
-                  >
-                    <IonIcon icon={playSkipBackOutline} />
-                  </IonButton>
-
-                  <IonButton 
-                    fill="clear" 
-                    className="pro-page-btn"
-                    disabled={currentPage === 1}
-                    onClick={() => loadPage(currentPage - 1)}
-                  >
-                    <IonIcon icon={chevronBackOutline} />
-                  </IonButton>
-                  
-                  <div className="pro-page-indicator" id="jump-page-trigger" style={{ cursor: 'pointer' }}>
-                    <span className="pro-page-info">PÁGINA</span>
-                    <span className="pro-page-current">{currentPage}</span>
-                    <span className="pro-page-separator">/</span>
-                    <span className="pro-page-total">{totalPages}</span>
-                  </div>
-
-                  <IonButton 
-                    fill="clear" 
-                    className="pro-page-btn"
-                    disabled={currentPage === totalPages}
-                    onClick={() => loadPage(currentPage + 1)}
-                  >
-                    <IonIcon icon={chevronForwardOutline} />
-                  </IonButton>
-
-                  <IonButton 
-                    fill="clear" 
-                    className="pro-page-btn"
-                    disabled={currentPage === totalPages}
-                    onClick={() => loadPage(totalPages)}
-                    title="Última página"
-                  >
-                    <IonIcon icon={playSkipForwardOutline} />
-                  </IonButton>
-                </div>
-                
-                <div className="total-info-badge">
+              <>
+                <div className="total-info-badge animate-fade-in" style={{ margin: '15px auto', display: 'flex', justifyContent: 'center' }}>
                   {totalChapters} Capítulos encontrados
                 </div>
-              </div>
+                <IonInfiniteScroll disabled={currentPage >= totalPages} onIonInfinite={loadMoreChapters} threshold="200px">
+                  <IonInfiniteScrollContent loadingSpinner="bubbles" loadingText="Cargando más capítulos..." />
+                </IonInfiniteScroll>
+              </>
             )}
           </div>
 
@@ -787,7 +756,8 @@ const MangaDetailsPage: React.FC = () => {
             </div>
           )}
 
-          {/* El Muro Haus (Comments) */}
+          {/* Universal Engagement & Comments */}
+          {id && <UniversalEngagementBar contentId={id} title={title as string || 'Manga'} type="manga" coverUrl={coverUrl} />}
           <CommentSection mangaId={id} title="El Muro Haus - Opiniones" />
         </div>
       </IonContent>

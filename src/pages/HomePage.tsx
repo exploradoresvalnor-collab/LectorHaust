@@ -70,10 +70,8 @@ const HomePage: React.FC = () => {
   const [isDesktop, setIsDesktop] = React.useState(window.innerWidth > 992);
 
   React.useEffect(() => {
-    console.log('[Responsiveness] Current width:', window.innerWidth);
     const handleResize = () => {
       const desktop = window.innerWidth > 992;
-      console.log('[Responsiveness] Resize detected. Width:', window.innerWidth, 'isDesktop:', desktop);
       setIsDesktop(desktop);
     };
     window.addEventListener('resize', handleResize);
@@ -420,7 +418,7 @@ const HomePage: React.FC = () => {
         ) : latest.length > 0 ? (
           <div className="animate-fade-in">
             {/* Latest Chapters Section */}
-            <div id="latest-section" className="section-header" style={{ marginTop: '1.5rem', paddingTop: '1rem', paddingBottom: '0.5rem' }}>
+            <div id="latest-section" className="section-header">
               <div className="accent-bar" style={{ background: 'var(--ion-color-secondary)' }}></div>
               <h2>{getTranslation('home.latest', lang)}</h2>
             </div>

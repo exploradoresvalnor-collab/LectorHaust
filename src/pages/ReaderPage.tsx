@@ -23,6 +23,7 @@ import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { useParams } from 'react-router-dom';
 import { mangaProvider } from '../services/mangaProvider';
 import CommentSection from '../components/CommentSection';
+import UniversalEngagementBar from '../components/UniversalEngagementBar';
 import { useMangaReader } from '../hooks/useMangaReader';
 import { hapticsService } from '../services/hapticsService';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -127,6 +128,7 @@ const ReaderPage: React.FC = () => {
         Volver al Inicio
       </IonButton>
 
+      {mangaId && <UniversalEngagementBar contentId={chapterId || mangaId} title={`Capítulo ${chapterNum}`} type="chapter" />}
       {mangaId && <CommentSection mangaId={mangaId} chapterId={chapterId} title={`Comentarios del Cap. ${chapterNum}`} />}
     </div>
   );

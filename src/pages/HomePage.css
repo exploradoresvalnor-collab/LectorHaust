@@ -1,9 +1,9 @@
 .manga-grid {
     display: flex;
     flex-wrap: wrap;
-    gap: 16px 12px !important; /* Increased vertical and horizontal gap */
-    padding: 16px 12px !important; /* More breathing room on sides */
-    justify-content: flex-start; /* Align start for consistency */
+    gap: 16px 12px !important;
+    padding: 20px var(--app-side-padding) !important;
+    justify-content: flex-start;
 }
 
 .ion-no-padding {
@@ -53,7 +53,8 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--section-gap, 32px);
+    padding: 0 var(--app-side-padding);
 }
 
 .accent-bar {
@@ -258,8 +259,8 @@
     padding: 0;
     margin: -16px -16px 0 !important;
     width: calc(100% + 32px) !important;
-    height: auto; /* Changed from 100svh to wrap content */
-    min-height: 450px; /* Base for desktop, will override in media query */
+    height: auto;
+    min-height: 480px; /* Mas respiro */
     position: relative;
     overflow: hidden;
 }
@@ -278,8 +279,7 @@
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    /* Extra bottom padding to clear the 65px floating tab bar + bottom safe area + spacing */
-    padding: 40px 20px calc(110px + env(safe-area-inset-bottom));
+    padding: 40px var(--app-side-padding) calc(110px + env(safe-area-inset-bottom));
 }
 
 .hero-img-wrapper {
@@ -461,6 +461,8 @@
     .home-page-container .optimized-mobile-section {
         margin-top: 0 !important; /* Reset to 0 since corners are flat now */
         padding-top: 15px !important;
+        padding-left: var(--app-side-padding) !important;
+        padding-right: var(--app-side-padding) !important;
     }
     .minimal-login-pill-top {
         top: 70px !important;
@@ -641,23 +643,31 @@
 /* .hero-card::before, .hero-card::after have been removed */
 
 .hero-info {
-    max-width: 600px;
+    max-width: 550px;
     position: relative;
     z-index: 5;
-    margin-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.hero-info ion-button {
+    width: fit-content;
+    --padding-start: 24px;
+    --padding-end: 24px;
 }
 
 .hero-badge {
-    background: rgba(139, 92, 246, 0.2);
+    width: fit-content;
+    background: rgba(139, 92, 246, 0.15);
     color: var(--ion-color-primary);
-    border: 1px solid var(--ion-color-primary);
+    border: 1px solid rgba(139, 92, 246, 0.3);
     padding: 4px 12px;
-    border-radius: 4px;
+    border-radius: 6px;
     font-size: 0.65rem;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 2px;
     backdrop-filter: blur(4px);
+    margin-bottom: 12px;
 }
 
 .hero-info h1 {
@@ -793,8 +803,8 @@
 .manga-carousel {
     display: flex;
     overflow-x: auto;
-    gap: 12px;
-    padding: 10px 15px 20px 15px;
+    gap: 16px; /* Wider gaps */
+    padding: 10px var(--app-side-padding) 24px;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
     scroll-snap-type: x mandatory;
@@ -923,7 +933,7 @@
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
-    padding: 0 4px 20px;
+    padding: 0 var(--app-side-padding) 20px;
 }
 
 .manga-list-item {
@@ -1061,7 +1071,7 @@
 .home-lang-filters {
     display: flex;
     gap: 10px;
-    padding: 8px 16px 12px;
+    padding: 8px var(--app-side-padding) 12px;
     overflow-x: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;

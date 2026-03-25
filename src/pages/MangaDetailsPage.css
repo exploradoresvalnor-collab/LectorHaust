@@ -51,7 +51,7 @@
     position: relative;
     z-index: 30; /* Increased above details-body (20) so text never clips behind it */
     display: flex;
-    padding: 20px 20px 50px 20px; /* Massive bottom padding to radically push text up */
+    padding: 20px var(--app-side-padding) 50px var(--app-side-padding); /* Massive bottom padding to radically push text up */
     gap: 15px;
     width: 100%;
     align-items: flex-end;
@@ -106,7 +106,7 @@
 }
 
 .details-body {
-    padding: 25px 20px calc(120px + env(safe-area-inset-bottom)); /* Enhanced bottom padding for safe areas */
+    padding: 25px var(--app-side-padding) calc(120px + env(safe-area-inset-bottom)); /* Enhanced bottom padding for safe areas */
     background: var(--ion-background-color);
     border-radius: 25px 25px 0 0;
     margin-top: -25px;
@@ -521,18 +521,25 @@
 }
 
 .total-info-badge {
-    background: rgba(var(--ion-color-primary-rgb), 0.1);
+    background: linear-gradient(135deg, rgba(var(--ion-color-primary-rgb), 0.12), rgba(var(--ion-color-secondary-rgb), 0.08));
     color: var(--ion-color-primary);
-    padding: 4px 12px;
-    border-radius: 10px;
-    font-size: 0.75rem;
+    padding: 6px 16px;
+    border-radius: 12px;
+    font-size: 0.78rem;
     font-weight: 700;
     border: 1px solid rgba(var(--ion-color-primary-rgb), 0.2);
+    text-align: center;
+    letter-spacing: 0.3px;
+    box-shadow: 0 2px 10px rgba(var(--ion-color-primary-rgb), 0.08);
 }
 
 @media (max-width: 480px) {
     .pro-page-info { display: none; }
     .pro-pagination-bar { padding: 5px 8px; }
+    .total-info-badge {
+        font-size: 0.72rem;
+        padding: 5px 14px;
+    }
 }
 /* Jump to Page Popover */
 .jump-page-popover {
@@ -646,7 +653,7 @@
     display: flex;
     gap: 15px;
     overflow-x: auto;
-    padding: 10px 5px 20px;
+    padding: 10px var(--app-side-padding) 20px;
     scrollbar-width: none;
     -ms-overflow-style: none;
     scroll-snap-type: x mandatory;

@@ -29,6 +29,7 @@ export function useMangaDetails(id?: string) {
   const [totalChapters, setTotalChapters] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [hasMoreChapters, setHasMoreChapters] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [chapterLang, setChapterLang] = useState('es');
   const [availableLangs, setAvailableLangs] = useState<string[]>([]);
   const [mdStats, setMdStats] = useState<{ rating: number | null, follows: number }>({ rating: null, follows: 0 });
@@ -162,37 +163,52 @@ export function useMangaDetails(id?: string) {
             if (needsExternalFallback) {
               console.log(`[Details] MangaDex has 0 chapters globally for "${title}". Trying Haus Intelligence...`);
               try {
-                const bestSource = await mangaProvider.findBestExternalSource(mangaObj);
-                if (bestSource) {
-                  const fullId = bestSource.id; 
-                  externalFallbackId.current = fullId;
+                const candidates = await mangaProvider.findBestExternalSources(mangaObj);
+                
+                if (candidates && candidates.length > 0) {
+                  let foundValidSource = false;
                   
-                  console.log(`[Details] Haus Optimized: Found source on ${bestSource.source} (${fullId}).`);
-                  const extChaptersData = await mangaProvider.getMangaChapters(fullId);
-                  
-                  if (extChaptersData.data && extChaptersData.data.length > 0) {
-                    const isManhwaWeb = bestSource.source === 'manhwaweb';
-                    const fallbackLang = isManhwaWeb ? 'es' : 'en';
+                  for (const bestSource of candidates) {
+                    const fullId = bestSource.id; 
+                    console.log(`[Details] Testing candidate: ${bestSource.source} (${fullId})...`);
                     
-                    chaptersData = {
-                      data: extChaptersData.data.map((c: any) => ({
-                        id: c.id,
-                        attributes: {
-                          chapter: c.attributes.chapter,
-                          title: c.attributes.title,
-                          translatedLanguage: fallbackLang
-                        }
-                      })),
-                      total: extChaptersData.total
-                    };
+                    try {
+                      const extChaptersData = await mangaProvider.getMangaChapters(fullId);
+                      
+                      if (extChaptersData.data && extChaptersData.data.length > 0) {
+                        externalFallbackId.current = fullId;
+                        const isManhwaWeb = bestSource.source === 'manhwaweb';
+                        const fallbackLang = isManhwaWeb ? 'es' : 'en';
+                        
+                        chaptersData = {
+                          data: extChaptersData.data.map((c: any) => ({
+                            id: c.id,
+                            attributes: {
+                              chapter: c.attributes.chapter,
+                              title: c.attributes.title,
+                              translatedLanguage: fallbackLang
+                            }
+                          })),
+                          total: extChaptersData.total
+                        };
 
-                    if (isMounted.current) {
-                      setAvailableLangs([fallbackLang]);
-                      setIsOptimized(true);
-                      console.log(`[Details] Haus Applied via ${bestSource.source} (${fallbackLang.toUpperCase()}). ${extChaptersData.total} chapters.`);
+                        if (isMounted.current) {
+                          setAvailableLangs([fallbackLang]);
+                          setIsOptimized(true);
+                          setChapterLang(fallbackLang);
+                          console.log(`[Details] Haus Applied via ${bestSource.source} (${fallbackLang.toUpperCase()}). ${extChaptersData.total} chapters.`);
+                        }
+                        
+                        foundValidSource = true;
+                        break; // Stop at first valid source
+                      }
+                    } catch (chapErr) {
+                      console.warn(`[Details] Candidate ${bestSource.source} failed chapter fetch:`, chapErr);
                     }
-                  } else {
-                    console.warn(`[Details] Haus found match but 0 chapters on ${bestSource.source}.`);
+                  }
+
+                  if (!foundValidSource && isMounted.current) {
+                    setIsOptimized(false);
                   }
                 } else {
                   if (isMounted.current) setIsOptimized(false);
@@ -249,12 +265,16 @@ export function useMangaDetails(id?: string) {
     setHasMoreChapters(true);
   }, []);
 
-  const loadPage = useCallback(async (pageIndex: number) => {
-    if (!id || pageIndex < 1 || (totalPages > 0 && pageIndex > totalPages)) return;
+  const loadMoreChapters = useCallback(async (e?: any) => {
+    if (!id || currentPage >= totalPages || isFetchingMore) {
+      if (e) e.target.complete();
+      return;
+    }
     
-    setLoadingChapters(true);
+    setIsFetchingMore(true);
     try {
-      const offset = (pageIndex - 1) * 20;
+      const nextPageIndex = currentPage + 1;
+      const offset = (nextPageIndex - 1) * 20;
       // Use external fallback ID if available, otherwise use the original ID
       const chapterId = externalFallbackId.current || id;
       
@@ -280,17 +300,17 @@ export function useMangaDetails(id?: string) {
       if (!isMounted.current) return;
 
       const rawNewChapters = data.data || [];
-      setHasMoreChapters(pageIndex < totalPages);
-      setChapters(deduplicateChapters(rawNewChapters));
-      setCurrentPage(pageIndex);
+      setHasMoreChapters(nextPageIndex < totalPages);
+      setChapters(prev => deduplicateChapters([...prev, ...rawNewChapters]));
+      setCurrentPage(nextPageIndex);
       
-      document.querySelector('.chapters-container')?.scrollIntoView({ behavior: 'smooth' });
     } catch (err) {
-      console.error('Error loading chapters page:', err);
+      console.error('Error loading more chapters:', err);
     } finally {
-      if (isMounted.current) setLoadingChapters(false);
+      if (isMounted.current) setIsFetchingMore(false);
+      if (e) e.target.complete();
     }
-  }, [id, chapterLang, chapterOrder, totalPages]);
+  }, [id, chapterLang, chapterOrder, totalPages, currentPage, isFetchingMore, showNSFW]);
 
   return {
     manga,
@@ -307,9 +327,10 @@ export function useMangaDetails(id?: string) {
     mdStats,
     chapterOrder,
     isOptimized,
+    isFetchingMore,
     setChapterOrder,
     handleLangChange,
-    loadPage
+    loadMoreChapters
   };
 }
 

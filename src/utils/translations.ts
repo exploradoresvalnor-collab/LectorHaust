@@ -4,6 +4,7 @@ export const translations = {
   tabs: {
     home: { es: 'Inicio', en: 'Home', 'pt-br': 'Início' },
     explore: { es: 'Explorar', en: 'Explore', 'pt-br': 'Explorar' },
+    anime: { es: 'Anime', en: 'Anime', 'pt-br': 'Anime' },
     chat: { es: 'Comunidad', en: 'Community', 'pt-br': 'Comunidade' },
     library: { es: 'Biblioteca', en: 'Library', 'pt-br': 'Biblioteca' },
   },

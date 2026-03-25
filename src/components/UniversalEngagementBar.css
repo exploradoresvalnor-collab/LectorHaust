@@ -1,0 +1,149 @@
+/* ═══════════════════════════════════════════════════
+   Universal Engagement Bar — Premium Social Strip
+   ═══════════════════════════════════════════════════ */
+
+.universal-engagement-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, rgba(20, 20, 35, 0.7), rgba(30, 25, 50, 0.5));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 14px 18px;
+  margin: 20px 0;
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  gap: 12px;
+}
+
+/* Rating Section */
+.ueb-rating-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.ueb-stars {
+  display: flex;
+  gap: 4px;
+}
+
+.ueb-stars ion-icon {
+  font-size: 28px;
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), 
+              color 0.3s ease, 
+              filter 0.3s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ueb-stars ion-icon:active {
+  transform: scale(1.2);
+}
+
+.star-active {
+  color: #ffc409;
+  filter: drop-shadow(0 0 6px rgba(255, 196, 9, 0.6));
+}
+
+.star-inactive {
+  color: rgba(255, 255, 255, 0.2);
+  filter: none;
+}
+
+.star-inactive:hover {
+  color: rgba(255, 196, 9, 0.5);
+}
+
+.ueb-score {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 600;
+  padding-left: 2px;
+  letter-spacing: 0.2px;
+}
+
+/* Actions */
+.ueb-actions {
+  display: flex;
+  align-items: center;
+}
+
+.ueb-action-btn {
+  --color: #a78bfa;
+  --padding-start: 14px;
+  --padding-end: 14px;
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.85rem;
+  background: linear-gradient(135deg, rgba(140, 82, 255, 0.15), rgba(140, 82, 255, 0.06));
+  border: 1px solid rgba(140, 82, 255, 0.2);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  height: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ueb-action-btn:active {
+  background: linear-gradient(135deg, rgba(140, 82, 255, 0.3), rgba(140, 82, 255, 0.12));
+  transform: scale(0.95);
+}
+
+.ueb-action-btn ion-icon {
+  font-size: 1.1rem;
+}
+
+/* Star Bounce Animation */
+.focus-bounce {
+  animation: starBounce 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes starBounce {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.35); }
+  70%  { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+/* Mobile */
+@media (max-width: 400px) {
+  .universal-engagement-bar {
+    padding: 12px 14px;
+    border-radius: 14px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .ueb-rating-section {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .ueb-stars ion-icon {
+    font-size: 30px;
+  }
+
+  .ueb-actions {
+    justify-content: stretch;
+  }
+
+  .ueb-action-btn {
+    width: 100%;
+    font-size: 0.9rem;
+    height: 46px;
+    --padding-start: 0;
+    --padding-end: 0;
+  }
+}
+
+/* Desktop */
+@media (min-width: 768px) {
+  .universal-engagement-bar {
+    padding: 16px 22px;
+    max-width: 600px;
+  }
+}

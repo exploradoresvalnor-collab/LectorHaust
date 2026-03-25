@@ -4,6 +4,7 @@
  */
 
 import { Capacitor } from '@capacitor/core';
+import { animeflvService } from './animeflvService';
 
 // Si estamos en un móvil nativo, usamos la API real directo (Capacitor no sufre de CORS).
 // Si estamos en Web, usamos el Proxy de Vite para evadir CORS.
@@ -29,43 +30,53 @@ async function fetchAniwatch(endpoint: string, options?: RequestInit) {
         });
 
         if (!response.ok) {
-            console.warn(`[fetchAniwatch] HTTP Error ${response.status} en ${endpoint}`);
+            // Silenciar logs de error 500 para evitar ruido en consola
             return null;
         }
 
         const data = await response.json();
         
         if (data.success === false) {
-             console.warn(`[fetchAniwatch] API Error: ${data.message}`);
              return null;
         }
 
         return data;
     } catch (error) {
-        console.error(`[fetchAniwatch] Network/Parse Error en ${endpoint}:`, error);
         return null;
     }
 }
+
+import { mangadexService } from './mangadexService';
+
+// ... (previous lines)
 
 /**
  * Función auxiliar para estandarizar los datos de la API
  * Traduce campos de la API al formato de la app
  * Incluye metadata: géneros, tipo, episodios, idiomas
  */
-const formatAnimeCard = (anime: any) => ({
-  id: anime.id,
-  title: anime.name || anime.jname || anime.title || 'Sin título',
-  image: anime.poster || anime.image || '',
-  category: anime.type || anime.category || 'Anime',
-  type: anime.type || anime.category || 'TV',
-  genres: anime.genres || anime.genre || [],
-  episodes: anime.episodes || { sub: 0, dub: 0 },
-  hasSub: anime.episodes?.sub > 0 || anime.episodes?.episodes?.sub > 0 || false,
-  hasDub: anime.episodes?.dub > 0 || anime.episodes?.episodes?.dub > 0 || false,
-  rating: anime.rating || anime.malscore || '',
-  description: anime.description || '',
-  jname: anime.jname || anime.name || ''
-});
+const formatAnimeCard = (anime: any) => {
+  const rawPoster = anime.poster || anime.image || '';
+  // Optimizamos la portada con el proxy de Cloudinary/Photon si existe
+  const optimizedImage = rawPoster.startsWith('http') 
+    ? mangadexService.getOptimizedUrl(rawPoster) 
+    : rawPoster;
+
+  return {
+    id: anime.id,
+    title: anime.name || anime.jname || anime.title || 'Sin título',
+    image: optimizedImage,
+    category: anime.type || anime.category || 'Anime',
+    type: anime.type || anime.category || 'TV',
+    genres: anime.genres || anime.genre || [],
+    episodes: anime.episodes || { sub: 0, dub: 0 },
+    hasSub: anime.episodes?.sub > 0 || anime.episodes?.episodes?.sub > 0 || false,
+    hasDub: anime.episodes?.dub > 0 || anime.episodes?.episodes?.dub > 0 || false,
+    rating: anime.rating || anime.malscore || '',
+    description: anime.description || '',
+    jname: anime.jname || anime.name || ''
+  };
+};
 
 /**
  * Response structures (InferredTypes)
@@ -140,16 +151,12 @@ export const aniwatchService = {
 
   /**
    * Obtiene la info del anime y su lista de episodios
-   * VERSIÓN MEJORADA: Mapea correctamente la estructura de HiAnime
-   * Ahora carga episodios desde endpoint dedicado
    */
-  async getAnimeInfo(animeId: string): Promise<AnimeInfo | null> {
+  async getAnimeInfo(animeId: string, fetchSpanish: boolean = false): Promise<AnimeInfo | null> {
     if (!animeId) return null;
     
     const res = await fetchAniwatch(`/api/v2/hianime/anime/${animeId}`);
     if (!res) return null;
-    
-    console.log('📖 [AniWatch] Raw anime info response:', res);
     
     const animeData = res.data?.anime; 
     const info = animeData?.info || animeData;
@@ -163,11 +170,16 @@ export const aniwatchService = {
       let episodes = [];
       const epData = await fetchAniwatch(`/api/v2/hianime/anime/${animeId}/episodes`);
       if (epData) {
-        episodes = epData.data?.episodes || [];
-        console.log(`✅ ${episodes.length} episodios cargados para ${animeId}`);
+        const rawEps = epData.data?.episodes || [];
+        episodes = rawEps.map((ep: any) => ({
+          id: ep.episodeId || ep.id,
+          number: ep.number,
+          title: ep.title,
+          isFiller: ep.isFiller
+        }));
       }
 
-      return {
+      const infoObj: AnimeInfo = {
         id: animeId,
         title: info.name || info.title || 'Sin título',
         image: info.poster || info.image || '',
@@ -177,6 +189,40 @@ export const aniwatchService = {
         totalEpisodes: episodes.length || info.stats?.episodes?.sub || 0,
         rating: moreInfo.malscore || info.score || 'N/A'
       };
+
+      if (fetchSpanish && infoObj.title) {
+        try {
+          const spDesc = await this.getSpanishInfo(infoObj.title);
+          if (spDesc) infoObj.description = spDesc;
+        } catch (e) {
+          console.warn('[AniWatch] Spanish fetch failed', e);
+        }
+      }
+
+      return infoObj;
+  },
+
+  /**
+   * Busca descripción en español usando AnimeFLV
+   */
+  async getSpanishInfo(title: string): Promise<string | null> {
+    try {
+      if (!title) return null;
+      // Normalizamos el título para la búsqueda
+      const cleanTitle = title.replace(/\(TV\)/g, '').split(':')[0].trim();
+      const flvResults = await animeflvService.search(cleanTitle);
+      
+      if (flvResults.length > 0) {
+        // Obtenemos el primero (probablemente el match más cercano)
+        const flvInfo = await animeflvService.getAnimeInfo(flvResults[0].id);
+        if (flvInfo && flvInfo.description && flvInfo.description !== 'Sin descripción') {
+          return flvInfo.description;
+        }
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
   },
 
   /**
@@ -203,7 +249,6 @@ export const aniwatchService = {
       // La clave es encodeURIComponent sobre el episodeId completo (Estándar Anito)
       const encodedId = encodeURIComponent(episodeId);
       const url = `${BASE_URL}/api/v2/hianime/episode/servers?animeEpisodeId=${encodedId}`;
-      console.log('📡 [AniWatchService] Servers URL:', url);
       
       const response = await fetch(url);
       const data = await response.json();
@@ -213,7 +258,6 @@ export const aniwatchService = {
       }
       return null;
     } catch (error) {
-      console.error('[AniWatch] Servers Error:', error);
       return null;
     }
   },
@@ -233,7 +277,6 @@ export const aniwatchService = {
     
     // Fallback Proactivo a Servidor Local si falla
     if (!data) {
-      console.warn(`[AniWatch] Vercel failed. Trying LOCAL BACKEND...`);
       const localUrl = `/api-local/anime/hianime/watch/${encodedId}?server=${server}&category=${category}`;
       // Usar fetch estándar para backend local (ya que usaría base distinto si fuera wrapper)
       try {
@@ -245,7 +288,6 @@ export const aniwatchService = {
     }
     
     if (!data) return null;
-    console.log('📦 [AniWatchService] Final Sources response:', data);
     
     const sources = data.data?.sources || data.sources || [];
     const subtitles = data.data?.subtitles || data.subtitles || [];

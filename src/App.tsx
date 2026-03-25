@@ -29,6 +29,9 @@ const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
 const ChatPage = React.lazy(() => import('./pages/ChatPage'));
 const PrivateChatPage = React.lazy(() => import('./pages/PrivateChatPage'));
 const SocialPage = React.lazy(() => import('./pages/SocialPage'));
+const AnimePage = React.lazy(() => import('./pages/AnimePage'));
+const AnimeDetailsPage = React.lazy(() => import('./pages/AnimeDetailsPage'));
+const AnimeDirectoryPage = React.lazy(() => import('./pages/AnimeDirectoryPage'));
 import { useState, useEffect, useRef } from 'react';
 import { useLibraryStore } from './store/useLibraryStore';
 import { checkUpdatesForLibrary, MangaUpdate } from './services/updateService';
@@ -90,7 +93,9 @@ const AppContent: React.FC = () => {
 
   // Paths where we want to HIDE the bottom tab bar
   const shouldHideTabs = 
+    location.pathname === '/anime' ||
     location.pathname.startsWith('/manga/') || 
+    location.pathname.startsWith('/anime/') || 
     location.pathname.startsWith('/reader/') ||
     location.pathname.startsWith('/chat') ||
     location.pathname.startsWith('/social') ||
@@ -279,6 +284,9 @@ const AppContent: React.FC = () => {
           </Route>
           <Route exact path="/chat/:friendId" component={PrivateChatPage} />
           <Route exact path="/social" component={SocialPage} />
+          <Route exact path="/anime" component={AnimePage} />
+          <Route exact path="/anime-directory" component={AnimeDirectoryPage} />
+          <Route exact path="/anime/:id" component={AnimeDetailsPage} />
           <Route exact path="/">
             <Redirect to="/home" />
           </Route>
@@ -294,6 +302,10 @@ const AppContent: React.FC = () => {
           <IonTabButton tab="search" href="/search" onClick={() => hapticsService.lightImpact()}>
             <IonIcon aria-hidden="true" icon={search} />
             <IonLabel>{getTranslation('tabs.explore', currentLang)}</IonLabel>
+          </IonTabButton>
+          <IonTabButton tab="anime" href="/anime" onClick={() => hapticsService.lightImpact()}>
+            <IonIcon aria-hidden="true" icon={tvOutline} />
+            <IonLabel>{getTranslation('tabs.anime', currentLang)}</IonLabel>
           </IonTabButton>
           <IonTabButton tab="chat" href="/social" onClick={() => hapticsService.lightImpact()}>
             <IonIcon aria-hidden="true" icon={chatbubbles} />

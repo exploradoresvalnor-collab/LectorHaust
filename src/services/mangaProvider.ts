@@ -27,7 +27,41 @@ const normalizeTitle = (title: any): string => {
   }
 };
 
-// Helper: Deduplicar resultados por ID y por título normalizado (resistente a leetspeak)
+// Helper: Limpiar sufijos comunes de capítulos/escaneos para comparación de títulos
+const cleanJunkSuffixes = (title: string): string => {
+    // Eliminar: "Capitulo X", "Chapter X", "Ch.X", "Ep.X", "Scan", etc.
+    const junkRegex = / (capitulo|chapter|cap|ch|episode|ep|scan|tv|vol|volume)[\s-]*\d+(\.\d+)?/gi;
+    return title.replace(junkRegex, '').replace(/\s+/g, ' ').trim();
+};
+
+// Helper: Coincidencia Robusta de Títulos
+const isRobustMatch = (targetNom: string, targetDeleet: string, resultNom: string, resultDeleet: string): boolean => {
+    // 1. Coincidencia exacta o de-leeted
+    if (targetNom === resultNom || targetDeleet === resultDeleet) return true;
+
+    // 2. Limpieza de sufijos (Capítulo 15, etc)
+    const cleanResult = cleanJunkSuffixes(resultNom);
+    const cleanResultDeleet = cleanJunkSuffixes(resultDeleet);
+    
+    if (targetNom === cleanResult || targetDeleet === cleanResultDeleet) return true;
+
+    // 3. Bloqueo de secuelas/spin-offs (si el resultado tiene estas palabras pero el target no)
+    const sequelKeywords = ['ragnarok', 'sequel', 'side story', 'gaiden', 'anthology', 'spin off', 'special', 'arise', 'hunter origin', 'hunter-origin', 'origin', 'reboot', 'remake'];
+    const resultHasSequel = sequelKeywords.some(word => resultNom.includes(word));
+    const targetHasSequel = sequelKeywords.some(word => targetNom.includes(word));
+    if (resultHasSequel && !targetHasSequel) return false;
+
+    // 4. Coincidencia de prefijo (si es casi igual pero tiene algo al final no captado por junkRegex)
+    if (resultNom.startsWith(targetNom) && (resultNom.length - targetNom.length) < 12) return true;
+    if (targetNom.startsWith(resultNom) && (targetNom.length - resultNom.length) < 12) return true;
+
+    // 5. Soporte para prefijo deleeted
+    if (resultDeleet.startsWith(targetDeleet) && (resultDeleet.length - targetDeleet.length) < 12) return true;
+
+    return false;
+};
+
+// Helper: Deduplicar resultados por ID y por título normalizado (resistente a leetspeak y duplicidad entre fuentes)
 const deduplicateResults = (results: any[]): any[] => {
   const seenIds = new Set<string>();
   const seenTitles = new Set<string>();
@@ -45,19 +79,20 @@ const deduplicateResults = (results: any[]): any[] => {
     if (typeof rawTitle === 'string') {
         titleStr = rawTitle;
     } else if (typeof rawTitle === 'object' && rawTitle !== null) {
-        titleStr = rawTitle['en'] || Object.values(rawTitle)[0] as string || '';
+        titleStr = rawTitle['en'] || rawTitle['es'] || Object.values(rawTitle)[0] as string || '';
     }
     
     const titleNom = normalizeTitle(titleStr);
     const titleDeleeted = deLeet(titleNom);
+    const cleanTitle = cleanJunkSuffixes(titleDeleeted);
     
     // Descartar si el ID ya existe
     if (seenIds.has(id)) return false;
     seenIds.add(id);
     
-    // Descartar si el título deleeted ya existe
-    if (titleDeleeted && seenTitles.has(titleDeleeted)) return false;
-    if (titleDeleeted) seenTitles.add(titleDeleeted);
+    // Descartar si el título limpio (deleeted y sin caps) ya existe
+    if (cleanTitle && seenTitles.has(cleanTitle)) return false;
+    if (cleanTitle) seenTitles.add(cleanTitle);
     
     return true;
   });
@@ -140,26 +175,25 @@ export const mangaProvider = {
             const hasStrictFilters = filters.demographic || filters.status || (filters.tags && filters.tags.length > 0) || filters.fullColor;
             const hasQuery = query && query.trim().length > 1;
 
-            // Si tenemos pocos resultados en español, buscamos en otras fuentes e inglés como respaldo
-            // REGLA: Sólo hacer cascada si hay una búsqueda de texto real y no hay filtros estrictos que rompan la lógica externa.
-            if ((allResults.length < 8 || filters.origin === 'ko') && hasQuery && !hasStrictFilters) {
-                console.log('[Search] Low Spanish results or Manhwa specific. Triggering cascade fallbacks...');
+            // 🔄 HAUS INTELLIGENT SEARCH (v2):
+            // Si hay pocos resultados O el usuario busca específicamente Manhwa/Manhua/Manga,
+            // activamos la cascada inteligente hacia fuentes externas.
+            const isManhwaSearch = filters.origin === 'ko';
+            const isManhuaSearch = filters.origin === 'zh';
+            const isMangaSearch = filters.origin === 'ja';
+            
+            if ((allResults.length < 10 || isManhwaSearch || isManhuaSearch || isMangaSearch) && hasQuery && !hasStrictFilters) {
+                console.log(`[Search] Low results or specific origin (${filters.origin}). Triggering Haus Intelligence...`);
                 
-                // Inteligencia de Selección de Fuente:
-                // Si buscan Manhwa (ko), priorizar WeebCentral. Si buscan Manga (ja), priorizar MangaPill.
-                const origin = filters.origin || null;
-                const isManhwaSearch = origin === 'ko';
-                const isMangaSearch = origin === 'ja';
-
-                const [mdEnglishResults, wcResults, mpResults, mwebResults] = await Promise.all([
-                    // Stage 2: Fallback to English on MangaDex
-                    mangadexService.searchManga(query, { ...filters, lang: 'en' }, 10, 0, order, allowNSFW).catch(() => ({ data: [] })),
-                    // Stage 3: External sources tailored to format
-                    (!isMangaSearch ? weebcentralService.searchManga(query, { status: filters.status, origin: filters.origin, order: order ? Object.keys(order)[0] : undefined }) : Promise.resolve([])).catch(() => []),
-                    (!isManhwaSearch ? mangapillService.searchManga(query) : Promise.resolve([])).catch(() => []),
-                    // Stage 4: ManhwaWeb (ES) - Excellent for licensed Manhwa in Spanish
-                    manhwawebService.searchManga(query).catch(() => [])
-                ]);
+                // Intelligent Source Selection:
+                // Map the results back to their variables
+                const fallbackPromises = [
+                    mangadexService.searchManga(query, { ...filters, lang: 'en' }, limit, offset, order, allowNSFW),
+                    manhwawebService.searchManga(query, filters),
+                    weebcentralService.searchManga(query, { ...filters, order: order ? Object.keys(order)[0] : undefined }),
+                    mangapillService.searchManga(query, allowNSFW)
+                ];
+                const [mdEnglishResults, mwebResults, wcResults, mpResults] = await Promise.all(fallbackPromises);
 
                 allResults = [
                     ...allResults,
@@ -390,13 +424,14 @@ export const mangaProvider = {
 
     // --- INTELLIGENT FALLBACK HELPERS ---
     
-    async findBestExternalSource(manga: any): Promise<{ id: string, source: MangaSource } | null> {
-        if (!manga || !manga.attributes) return null;
+    async findBestExternalSources(manga: any): Promise<{ id: string, source: MangaSource }[]> {
+        if (!manga || !manga.attributes) return [];
         
+        const candidates: { id: string, source: MangaSource }[] = [];
+        const seenCandidateIds = new Set<string>();
+
         // 1. Recopilar todos los títulos posibles (Principal + Alternativos)
         const targetTitles: string[] = [];
-        
-        // Títulos principales
         if (manga.attributes.title) {
             if (typeof manga.attributes.title === 'string') {
                 targetTitles.push(manga.attributes.title);
@@ -404,8 +439,6 @@ export const mangaProvider = {
                 Object.values(manga.attributes.title).forEach((t: any) => targetTitles.push(t));
             }
         }
-        
-        // Títulos alternativos
         if (manga.attributes.altTitles && Array.isArray(manga.attributes.altTitles)) {
             manga.attributes.altTitles.forEach((alt: any) => {
                 if (typeof alt === 'string') {
@@ -417,7 +450,7 @@ export const mangaProvider = {
         }
 
         const normalizedTargets = targetTitles.map(t => normalizeTitle(t)).filter(Boolean);
-        if (normalizedTargets.length === 0) return null;
+        if (normalizedTargets.length === 0) return [];
 
         const searchTitle = (typeof manga.attributes.title === 'string' ? manga.attributes.title : (manga.attributes.title?.['en'] || manga.attributes.title?.['ja-ro'] || targetTitles[0]));
         const isManhwa = manga.attributes?.originalLanguage === 'ko' || manga.attributes?.originalLanguage === 'zh';
@@ -427,13 +460,12 @@ export const mangaProvider = {
         const deLeetedTargets = normalizedTargets.map(t => deLeet(t));
 
         try {
-            // Try different search terms (Primary, then alternative titles)
             const searchQueries = [...new Set([searchTitle, ...targetTitles])].filter(q => q && (q as string).length > 2);
             
             for (const query of searchQueries) {
                 console.log(`[Intelligence] 🌐 Searching "${query}" on external sources...`);
                 
-                // 1. ManhwaWeb (Spanish - High Priority for ES users)
+                // --- 1. ManhwaWeb (ES) ---
                 try {
                     const mwebResults = await manhwawebService.searchManga(query as string);
                     if (mwebResults && mwebResults.length > 0) {
@@ -444,84 +476,67 @@ export const mangaProvider = {
                             
                             const isMatch = normalizedTargets.some((target, idx) => {
                                 const targetDeleeted = deLeetedTargets[idx];
-                                
-                                // Exact or DeLeeted match is perfect
-                                if (target === resultNom || targetDeleeted === resultDeleeted) return true;
-
-                                // If result is significantly longer, it might be a sequel (e.g. "Solo Leveling Ragnarok")
-                                // Only allow inclusion if the target is also long or the result doesn't have "sequel" keywords
-                                const sequelKeywords = ['ragnarok', 'sequel', 'side story', 'gaiden', 'anthology', 'spin off', 'special', 'arise', 'hunter origin', 'hunter-origin', 'origin'];
-                                const resultHasSequelWord = sequelKeywords.some(word => resultNom.includes(word));
-                                const targetHasSequelWord = sequelKeywords.some(word => target.includes(word));
-
-                                if (resultHasSequelWord && !targetHasSequelWord) return false;
-
-                                // Exact de-leeted check without extra words
-                                if (resultDeleeted === targetDeleeted) return true;
-
-                                // Length-based fuzzy match for short titles
-                                if (target.length > 8) {
-                                   return (resultNom.includes(target) || target.includes(resultNom)) && 
-                                          Math.abs(resultNom.length - target.length) < 10;
-                                }
-                                return false;
+                                return isRobustMatch(target, targetDeleeted, resultNom, resultDeleeted);
                             });
                             
-                            if (isMatch) {
-                                console.log(`[Intelligence] ✅ Accurate match on ManhwaWeb (ES): "${resultTitle}"`);
-                                return { id: result.id, source: 'manhwaweb' };
+                            if (isMatch && !seenCandidateIds.has(result.id)) {
+                                candidates.push({ id: result.id, source: 'manhwaweb' });
+                                seenCandidateIds.add(result.id);
                             }
                         }
                     }
-                } catch (e) { console.warn('[Intelligence] ManhwaWeb search failed for query:', query); }
+                } catch (e) { }
 
-                // 2. WeebCentral (Manhwas/Manhuas)
+                // --- 2. WeebCentral (Manhwas/Manhuas) ---
                 if (isManhwa) {
-                    const wcResults = await weebcentralService.searchManga(query as string);
-                    if (wcResults && wcResults.length > 0) {
-                        for (const result of wcResults) {
+                    try {
+                        const wcResults = await weebcentralService.searchManga(query as string);
+                        if (wcResults && wcResults.length > 0) {
+                            for (const result of wcResults) {
+                                const resultTitle = result.attributes?.title?.['en'] || '';
+                                const resultNom = normalizeTitle(resultTitle);
+                                const resultDeleeted = deLeet(resultNom);
+
+                                const isMatch = normalizedTargets.some((target, idx) => {
+                                    const targetDeleeted = deLeetedTargets[idx];
+                                    return isRobustMatch(target, targetDeleeted, resultNom, resultDeleeted);
+                                });
+
+                                if (isMatch && !seenCandidateIds.has(result.id)) {
+                                    candidates.push({ id: result.id, source: 'weebcentral' });
+                                    seenCandidateIds.add(result.id);
+                                }
+                            }
+                        }
+                    } catch (e) { }
+                }
+
+                // --- 3. MangaPill ---
+                try {
+                    const mpResults = await mangapillService.searchManga(query as string);
+                    if (mpResults && mpResults.length > 0) {
+                        for (const result of mpResults) {
                             const resultTitle = result.attributes?.title?.['en'] || '';
                             const resultNom = normalizeTitle(resultTitle);
                             const resultDeleeted = deLeet(resultNom);
 
                             const isMatch = normalizedTargets.some((target, idx) => {
                                 const targetDeleeted = deLeetedTargets[idx];
-                                return target === resultNom || targetDeleeted === resultDeleeted;
+                                return isRobustMatch(target, targetDeleeted, resultNom, resultDeleeted);
                             });
 
-                            if (isMatch) {
-                                console.log(`[Intelligence] ✅ Accurate Manhwa match on WeebCentral: "${resultTitle}"`);
-                                return { id: result.id, source: 'weebcentral' };
+                            if (isMatch && !seenCandidateIds.has(result.id)) {
+                                candidates.push({ id: result.id, source: 'mangapill' });
+                                seenCandidateIds.add(result.id);
                             }
                         }
                     }
-                }
-
-                // 3. MangaPill 
-                const mpResults = await mangapillService.searchManga(query as string);
-                if (mpResults && mpResults.length > 0) {
-                    for (const result of mpResults) {
-                        const resultTitle = result.attributes?.title?.['en'] || '';
-                        const resultNom = normalizeTitle(resultTitle);
-                        const resultDeleeted = deLeet(resultNom);
-
-                        const isMatch = normalizedTargets.some((target, idx) => {
-                            const targetDeleeted = deLeetedTargets[idx];
-                            return target === resultNom || targetDeleeted === resultDeleeted;
-                        });
-
-                        if (isMatch) {
-                            console.log(`[Intelligence] ✅ Accurate match on MangaPill: "${resultTitle}"`);
-                            return { id: result.id, source: 'mangapill' };
-                        }
-                    }
-                }
+                } catch (e) { }
             }
-            
-            console.warn(`[Intelligence] ⚠️ No accurate match found after trying all titles for: ${searchTitle}`);
         } catch (err) {
             console.error('[Intelligence] Fallback search failed:', err);
         }
-        return null;
+        
+        return candidates;
     }
 };

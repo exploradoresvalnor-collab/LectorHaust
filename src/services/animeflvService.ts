@@ -77,7 +77,6 @@ export const animeflvService = {
       if (genres.length > 0) {
           url += '&' + genres.map(g => `genre[]=${g}`).join('&');
       }
-      console.log(`📡 [AnimeFLV] Buscando avanzado: ${url}`);
       const html = await fetchHtml(url);
       
       const results: any[] = [];
@@ -150,7 +149,6 @@ export const animeflvService = {
 
   async getEpisodeSources(episodeId: string): Promise<{ sources: FLVSource[] } | null> {
     try {
-      console.log(`📡 [AnimeFLV] Scrapeando episodio: ${BASE_URL}/ver/${episodeId}`);
       const html = await fetchHtml(`${BASE_URL}/ver/${episodeId}`);
       
       
@@ -168,7 +166,6 @@ export const animeflvService = {
           throw new Error('El objeto videos no tiene servidores SUB/LAT.');
       }
 
-      console.log(`✅ [AnimeFLV] ¡Encontrados ${subs.length} servidores de Iframe!`);
       
       // Mapeamos todos los servidores para que el reproductor los ponga como opciones
       const sources: FLVSource[] = subs.map((s: any) => {
