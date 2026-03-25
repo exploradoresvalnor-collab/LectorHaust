@@ -29,18 +29,20 @@ import {
   informationCircleOutline,
   optionsOutline
 } from 'ionicons/icons';
-import { aniwatchService, HomeData, AnimeSearchResult } from '../services/aniwatchService';
 import { animeflvService } from '../services/animeflvService';
 import { tioanimeService } from '../services/tioanimeService';
+import { anilistService } from '../services/anilistService';
 import { hapticsService } from '../services/hapticsService';
 import SmartImage from '../components/SmartImage';
 import AnimeCardItem from '../components/AnimeCardItem';
+import './AnimeCommon.css';
 import './AnimePage.css'; 
 
 const AnimePage: React.FC = () => {
-  const [homeData, setHomeData] = useState<HomeData | null>(null);
+  const [spotlightAnimes, setSpotlightAnimes] = useState<any[]>([]);
+  const [latestEpisodes, setLatestEpisodes] = useState<any[]>([]);
   const [latinoAnimes, setLatinoAnimes] = useState<any[]>([]);
-  const [searchResults, setSearchResults] = useState<AnimeSearchResult[]>([]);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [loadingPrimary, setLoadingPrimary] = useState(true);    // Hero + Tendencias
   const [loadingSecondary, setLoadingSecondary] = useState(true); // Nuevos Episodios
   const [loadingTertiary, setLoadingTertiary] = useState(true);   // Latino + Populares
@@ -55,18 +57,32 @@ const AnimePage: React.FC = () => {
     setLoadingSecondary(true);
     setLoadingTertiary(true);
     try {
-      // FASE 1: Hero + Tendencias (datos principales)
-      const data = await aniwatchService.getHomeData();
-      setHomeData(data);
+      const [flvTrending, flvRecent] = await Promise.all([
+          animeflvService.getTrendingAnime(),
+          animeflvService.getRecentEpisodes()
+      ]);
+      
+      const topTrending = (flvTrending || []).slice(0, 5);
+      const enhancedTrending = await Promise.all(topTrending.map(async (anime) => {
+         const anilistInfo = await anilistService.getAnimeDetailsByName(anime.title);
+         if (anilistInfo) {
+             return {
+                 ...anime,
+                 image: anilistInfo.bannerImage || anilistInfo.coverImage?.extraLarge || anime.image,
+                 coverImage: anilistInfo.coverImage?.extraLarge || anime.image
+             };
+         }
+         return anime;
+      }));
+      
+      setSpotlightAnimes([...enhancedTrending, ...(flvTrending || []).slice(5)]);
+      setLatestEpisodes(flvRecent || []);
       setLoadingPrimary(false);
 
-      // FASE 2: Revelar Nuevos Episodios con micro-delay para render progresivo
       await new Promise(r => setTimeout(r, 150));
       setLoadingSecondary(false);
 
-      // FASE 3: Latino (fetch separado) + Top Populares
       try {
-        // En lugar de una búsqueda ruidosa, usamos los últimos animes de TioAnime (que son 100% español)
         const latino = await tioanimeService.getLatestAnimes();
         if (latino && Array.isArray(latino)) {
           setLatinoAnimes(latino.slice(0, 20).map(a => ({ ...a, preferredProvider: 'animeflv' })));
@@ -94,7 +110,7 @@ const AnimePage: React.FC = () => {
     setQuery(val);
     if (val.length > 2) {
       setSearchLoading(true);
-      const results = await aniwatchService.searchAnime(val);
+      const results = await animeflvService.search(val);
       setSearchResults(results);
       setSearchLoading(false);
     } else {
@@ -102,7 +118,7 @@ const AnimePage: React.FC = () => {
     }
   };
 
-  const spotlight = homeData?.spotlightAnimes?.[0]; // Best hero anime
+  const spotlight = spotlightAnimes.length > 0 ? spotlightAnimes[0] : null;
 
   return (
     <IonPage>
@@ -130,7 +146,7 @@ const AnimePage: React.FC = () => {
                 className="header-custom-search"
               />
             </div>
-            <IonButton fill="clear" onClick={() => router.push('/anime-directory')} style={{ '--color': 'var(--ion-color-primary)' }}>
+            <IonButton fill="clear" onClick={() => router.push('/browse-anime')} style={{ '--color': 'var(--ion-color-primary)' }}>
               <IonIcon icon={optionsOutline} />
             </IonButton>
             <IonButton fill="clear" onClick={() => hapticsService.mediumImpact()}>
@@ -150,29 +166,28 @@ const AnimePage: React.FC = () => {
             
             <h2 className="section-title" style={{ marginTop: '20px' }}>Resultados de "{query}"</h2>
             {searchLoading ? (
-               <IonGrid>
-                <IonRow>
+               <IonGrid className="anime-grid-v">
+                <IonRow className="anime-row-v">
                   {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                    <IonCol size="6" sizeSm="4" sizeMd="3" key={i}>
-                      <div className="skeleton-card">
-                        <IonSkeletonText animated style={{ height: '220px', borderRadius: '15px', marginBottom: '10px' }} />
+                    <IonCol size="6" sizeSm="4" sizeMd="3" key={i} className="anime-col-v">
+                      <div className="card-media" style={{ marginBottom: '8px' }}>
+                        <IonSkeletonText animated style={{ position: 'absolute', inset: 0, margin: 0 }} />
                       </div>
+                      <IonSkeletonText animated style={{ width: '80%', height: '12px', borderRadius: '4px' }} />
                     </IonCol>
                   ))}
                 </IonRow>
               </IonGrid>
             ) : searchResults.length > 0 ? (
-              <IonGrid>
-                <IonRow>
-                  {searchResults.map((anime) => (
-                    <IonCol size="6" sizeSm="4" sizeMd="3" sizeLg="2" key={anime.id}>
-                      <div className="vertical-card" onClick={() => router.push(`/anime/${anime.id}`)}>
-                        <div className="vertical-card-image">
-                          <SmartImage src={anime.image || ''} alt={anime.title || 'Anime'} />
-                          <div className="play-overlay"><IonIcon icon={playCircleOutline} /></div>
-                        </div>
-                        <p className="vertical-card-title">{anime.title}</p>
-                      </div>
+              <IonGrid className="anime-grid-v">
+                <IonRow className="anime-row-v">
+                  {searchResults.map((anime, idx) => (
+                    <IonCol size="6" sizeSm="4" sizeMd="3" key={anime.id} className="anime-col-v">
+                       <AnimeCardItem 
+                          anime={anime} 
+                          onClick={() => router.push(`/anime/${anime.id}`)}
+                          index={idx}
+                       />
                     </IonCol>
                   ))}
                 </IonRow>
@@ -199,7 +214,10 @@ const AnimePage: React.FC = () => {
                            <span className="premium-badge-featured"><IonIcon icon={starOutline} /> Destacado</span>
                         </div>
                         <h1 className="hero-title-main">{spotlight.title}</h1>
-                        <p className="hero-desc-main">Sé el primero en ver los estrenos de esta temporada. Calidad premium y velocidad inigualable.</p>
+                        <p 
+                           className="hero-desc-main" 
+                           dangerouslySetInnerHTML={{ __html: spotlight.description || 'Sé el primero en ver los estrenos de esta temporada. Calidad premium y velocidad inigualable.' }}
+                        />
                         <div className="hero-main-actions">
                            <IonButton 
                               className="btn-details-main"
@@ -217,55 +235,56 @@ const AnimePage: React.FC = () => {
             <div className="catalog-sections animate-fade-in" style={{ marginTop: '-40px', position: 'relative', zIndex: 10, paddingBottom: '40px' }}>
               <div className="main-content-wrapper">
                 
-              {/* === GRID DE NOVEDADES (PARRILLA DE CUADROS) === */}
-              <div className="catalog-row section-visible" style={{ marginTop: '0', animationDelay: '0.1s' }}>
-                <div className="section-header" style={{ marginBottom: '20px' }}>
-                  <div className="accent-bar" style={{ background: 'var(--ion-color-primary)' }}></div>
-                  <h2 className="section-title">Últimas Actualizaciones</h2>
-                  <IonBadge color="primary" mode="ios" style={{ marginLeft: '10px' }}>NUEVO</IonBadge>
+                {/* === GRID DE NOVEDADES (PARRILLA DE CUADROS) === */}
+                <div className="catalog-row section-visible" style={{ marginTop: '0', animationDelay: '0.1s' }}>
+                  <div className="section-header" style={{ marginBottom: '20px' }}>
+                    <div className="accent-bar" style={{ background: 'var(--ion-color-primary)' }}></div>
+                    <h2 className="section-title">Últimas Actualizaciones</h2>
+                    <IonBadge color="primary" mode="ios" style={{ marginLeft: '10px' }}>NUEVO</IonBadge>
+                  </div>
+                  
+                  {loadingSecondary ? (
+                    <IonGrid className="anime-grid-v">
+                      <IonRow className="anime-row-v">
+                        {[1,2,3,4,5,6,7,8,9,12].map(i => (
+                          <IonCol size="6" sizeSm="4" sizeMd="3" className="anime-col-5 anime-col-v" key={i}>
+                            <div className="card-media" style={{ marginBottom: '8px' }}>
+                              <IonSkeletonText animated style={{ position: 'absolute', inset: 0, margin: 0 }} />
+                            </div>
+                          </IonCol>
+                        ))}
+                      </IonRow>
+                    </IonGrid>
+                  ) : (
+                    <IonGrid className="anime-grid-v">
+                      <IonRow className="anime-row-v">
+                        {latestEpisodes.map((ep, idx) => (
+                          <IonCol size="6" sizeSm="4" sizeMd="3" className="anime-col-5 anime-col-v" key={'ep-'+(ep.id || ep.animeId)+idx}>
+                            <AnimeCardItem 
+                              anime={{ id: ep.animeId || ep.id, title: ep.animeName || ep.title, image: ep.animePoster || ep.image, hasSub: true }} 
+                              onClick={() => router.push(`/anime/${ep.animeId || ep.id}`)}
+                              index={idx}
+                              showEpisode={true}
+                            />
+                          </IonCol>
+                        ))}
+                      </IonRow>
+                    </IonGrid>
+                  )}
                 </div>
-                
-                {loadingSecondary ? (
-                  <IonGrid style={{ padding: '0' }}>
-                    <IonRow>
-                      {[1,2,3,4,5,6,7,8,9,12].map(i => (
-                        <IonCol size="6" sizeSm="3" sizeMd="2" key={i} style={{ padding: '6px' }}>
-                          <IonSkeletonText animated style={{ aspectRatio: '3/4', borderRadius: '12px', width: '100%' }} />
-                        </IonCol>
-                      ))}
-                    </IonRow>
-                  </IonGrid>
-                ) : (
-                  <IonGrid style={{ padding: '0' }}>
-                    <IonRow>
-                      {homeData?.latestEpisodeAnimes?.map((ep, idx) => (
-                        <IonCol size="6" sizeSm="3" sizeMd="2" key={'ep-'+ep.id+idx} style={{ padding: '6px' }}>
-                          <AnimeCardItem 
-                            anime={{ ...ep, hasSub: true }} 
-                            onClick={() => router.push(`/anime/${ep.id}`)}
-                            index={idx}
-                            showEpisode={true}
-                          />
-                        </IonCol>
-                      ))}
-                    </IonRow>
-                  </IonGrid>
-                )}
-              </div>
 
-              <div style={{ display: 'flex', justifyContent: 'center', margin: '40px 0' }}>
-                 <IonButton fill="solid" color="primary" onClick={() => router.push('/browse-anime')} style={{ '--border-radius': '15px', fontWeight: 900, height: '50px', paddingInline: '30px', boxShadow: '0 10px 25px rgba(var(--ion-color-primary-rgb), 0.3)' }}>
-                    EXPLORAR TODO EL CATÁLOGO
-                 </IonButton>
-              </div>
+                <div style={{ display: 'flex', justifyContent: 'center', margin: '40px 0' }}>
+                   <IonButton fill="solid" color="primary" onClick={() => router.push('/browse-anime')} style={{ '--border-radius': '15px', fontWeight: 900, height: '50px', paddingInline: '30px', boxShadow: '0 10px 25px rgba(var(--ion-color-primary-rgb), 0.3)' }}>
+                      EXPLORAR TODO EL CATÁLOGO
+                   </IonButton>
+                </div>
 
-              {/* FOOTER PROFESIONAL (PHASE 12) */}
-              <footer className="page-footer">
-                <div className="footer-divider"></div>
-                <p>KamiReader • Animedex</p>
-                <span>Explora el universo Haus • v2.9</span>
-              </footer>
-
+                {/* FOOTER PROFESIONAL (PHASE 12) */}
+                <footer className="page-footer">
+                  <div className="footer-divider"></div>
+                  <p>KamiReader • Animedex</p>
+                  <span>Explora el universo Haus • v2.9</span>
+                </footer>
               </div>
             </div>
           </>

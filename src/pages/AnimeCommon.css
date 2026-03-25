@@ -1,0 +1,147 @@
+/* --- Shared Anime UI Components (Cards, Grid, Common Header) --- */
+
+:root {
+    --app-side-padding: 24px; /* Aumentado de nuevo para margen lateral ultra limpio */
+}
+
+@media (min-width: 768px) {
+    :root {
+        --app-side-padding: 10%; 
+    }
+}
+
+.main-content-wrapper {
+    width: 100%;
+    padding: 0 var(--app-side-padding); 
+    box-sizing: border-box !important;
+    display: block;
+}
+
+/* 5 Column Grid for Desktop */
+@media (min-width: 768px) {
+    .anime-col-5 {
+        flex: 0 0 20% !important;
+        max-width: 20% !important;
+    }
+}
+
+.manga-card-pro {
+    cursor: pointer;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    background: transparent; /* Fondo transparente ahora que el nombre va abajo */
+    margin-bottom: 12px;
+}
+
+.manga-card-pro:hover .card-media {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 24px rgba(var(--ion-color-primary-rgb), 0.3);
+}
+
+.card-media {
+    width: 100%;
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #1a1a1a;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+/* El hack definitivo de proporción (Vertical 10:15 / 2:3) */
+.card-media::before {
+    content: "";
+    display: block;
+    padding-top: 150%; 
+}
+
+.card-media > .smart-image-wrapper {
+    position: absolute;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover !important;
+}
+
+.card-overlay {
+    position: absolute;
+    inset: 0;
+    /* Quitamos el degradado oscuro pesado, solo lo dejamos si hay texto encima */
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+}
+
+.card-tags-container {
+    display: flex;
+    flex-direction: column; /* Apiladas verticalmente en la esquina */
+    align-items: flex-start;
+    gap: 4px;
+    width: 100%;
+    height: 100%;
+}
+
+.card-tag {
+    color: #fff;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    font-size: 0.6rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+
+.card-tag.tv { background: rgba(52, 152, 219, 0.85); border-color: transparent; }
+.card-tag.movie { background: rgba(155, 89, 182, 0.85); border-color: transparent; }
+.card-tag.sub { background: rgba(46, 204, 113, 0.85); border-color: transparent; }
+.card-tag.dub { background: rgba(231, 76, 60, 0.75); border-color: transparent; }
+.card-tag.eps { background: rgba(241, 196, 15, 0.85); color: #000; border-color: transparent; }
+
+.card-title-pro {
+    margin: 8px 0 2px;
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    white-space: normal;
+    height: 2.6em; /* Un poco mas de espacio para evitar cortes feos */
+}
+
+/* Clases de utilidad para Grids Estables */
+.anime-grid-v {
+    padding: 20px 0 !important;
+}
+
+.anime-row-v {
+    margin: 0 -8px !important;
+}
+
+.anime-col-v {
+    padding: 0 8px 16px !important;
+}
+
+.glass-effect-header {
+    --background: rgba(15, 16, 20, 0.95) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}

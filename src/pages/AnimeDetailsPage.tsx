@@ -34,9 +34,11 @@ import {
   alertCircleOutline
 } from 'ionicons/icons';
 import { useParams } from 'react-router-dom';
-import { aniwatchService, AnimeInfo } from '../services/aniwatchService';
+import { animeflvService } from '../services/animeflvService';
+import { anilistService } from '../services/anilistService';
 import LoadingScreen from '../components/LoadingScreen';
 import SmartImage from '../components/SmartImage';
+import './AnimeCommon.css';
 import './AnimePage.css';
 import VideoPlayer from '../components/VideoPlayer';
 import CommentSection from '../components/CommentSection';
@@ -50,7 +52,7 @@ const AnimeDetailsPage: React.FC = () => {
   const router = useIonRouter();
   const epListRef = useRef<HTMLDivElement>(null);
 
-  const [anime, setAnime] = useState<AnimeInfo | null>(null);
+  const [anime, setAnime] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedEpisode, setSelectedEpisode] = useState<any>(null);
   const [showPlayer, setShowPlayer] = useState(false);
@@ -77,8 +79,14 @@ const AnimeDetailsPage: React.FC = () => {
       if (!id) return;
       setLoading(true);
       try {
-        // Pass 'true' to fetch Spanish description
-        const data = await aniwatchService.getAnimeInfo(id, true);
+        const data = await animeflvService.getAnimeInfo(id);
+        if (data) {
+           const anilistInfo = await anilistService.getAnimeDetailsByName(data.title);
+           if (anilistInfo) {
+              data.image = anilistInfo.bannerImage || anilistInfo.coverImage?.extraLarge || data.image;
+              (data as any).coverImage = anilistInfo.coverImage?.extraLarge || data.image;
+           }
+        }
         setAnime(data);
       } catch (err) {
         console.error("Failed to fetch anime info:", err);
@@ -150,10 +158,10 @@ const AnimeDetailsPage: React.FC = () => {
                 <IonSearchbar 
                   placeholder="Buscar..." 
                   className="header-custom-search"
-                  onIonFocus={() => router.push('/anime-directory')}
+                  onIonFocus={() => router.push('/browse-anime')}
                 />
              </div>
-             <IonButton fill="clear" onClick={() => router.push('/anime-directory')} style={{ '--color': 'var(--ion-color-primary)' }}>
+             <IonButton fill="clear" onClick={() => router.push('/browse-anime')} style={{ '--color': 'var(--ion-color-primary)' }}>
                <IonIcon icon={searchOutline} />
              </IonButton>
           </IonButtons>
@@ -171,7 +179,7 @@ const AnimeDetailsPage: React.FC = () => {
               animeTitle={anime.title || 'Anime'}
               onEpisodeChange={(ep) => setSelectedEpisode(ep)}
               onClose={() => setShowPlayer(false)}
-              sourceProvider={sourceProvider}
+              sourceProvider="animeflv"
             />
           </div>
         )}

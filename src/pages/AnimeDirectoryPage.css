@@ -5,67 +5,68 @@
 .directory-filters-container {
     background: rgba(15, 16, 20, 0.95);
     backdrop-filter: blur(20px);
-    padding: 10px 15px 15px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 12px 0 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px; /* Reducido para que quepan dos filas comodamente */
+    z-index: 100;
+}
+
+.filter-row {
+    padding: 0 var(--app-side-padding);
 }
 
 .directory-search {
-    --background: rgba(255, 255, 255, 0.03);
+    --background: rgba(255, 255, 255, 0.06);
     --border-radius: 12px;
     --color: #fff;
-    --placeholder-color: #666;
+    --placeholder-color: rgba(255, 255, 255, 0.4);
     padding: 0;
-}
-
-/* Estilo para los chips premium (Estilo Manga) */
-.haus-chip {
-    --background: rgba(255, 255, 255, 0.05);
-    --color: rgba(255, 255, 255, 0.6);
-    --border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    font-size: 0.75rem;
-    font-weight: 700;
     margin: 0;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.haus-chip.active {
-    --background: var(--ion-color-primary);
-    --color: #000;
-    border-color: transparent;
-    box-shadow: 0 4px 15px rgba(var(--ion-color-primary-rgb), 0.4);
-    transform: scale(1.05);
-}
-
-.premium-scroll {
-    overflow-x: auto;
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none;  /* IE and Edge */
+/* Dual Selectors Layout */
+.dual-selectors {
     display: flex;
-    gap: 8px;
-    padding: 5px 0;
+    gap: 12px;
+    padding: 0 var(--app-side-padding);
 }
 
-.premium-scroll::-webkit-scrollbar {
-    display: none; /* Chrome/Safari */
-}
-
-.type-row {
-    margin-top: 5px;
+.flex-1 {
+    flex: 1;
 }
 
 .filter-select-wrapper {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    padding: 0 15px;
-    height: 42px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    padding: 0 14px;
+    height: 48px;
     display: flex;
     align-items: center;
+    transition: all 0.3s ease;
+}
+
+.filter-select-wrapper:active {
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(0.98);
+}
+
+.select-icon {
+    margin-right: 8px;
+    font-size: 18px;
+    color: var(--ion-color-primary);
+    opacity: 0.8;
+}
+
+.custom-select {
     width: 100%;
+    --placeholder-color: rgba(255, 255, 255, 0.6);
+    --placeholder-opacity: 1;
+    font-size: 0.85rem;
+    font-weight: 600;
 }
 
 .empty-icon-pulse {
@@ -82,17 +83,56 @@
     100% { transform: scale(1); opacity: 0.6; }
 }
 
-/* Ajustes adicionales para la rejilla premium */
-.directory-content .main-content-wrapper {
-    padding-bottom: 120px;
+/* Paginación Inteligente CSS */
+.pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    margin: 30px 0;
+    padding: 0 var(--app-side-padding);
 }
 
-@media (max-width: 480px) {
-    .directory-filters-container {
-        padding: 5px 10px 15px;
-    }
-    
-    .section-title {
-        font-size: 1.2rem;
-    }
+.page-nav-btn {
+    --color: #fff;
+    --background: rgba(255, 255, 255, 0.05);
+    --border-radius: 12px;
+    font-weight: 700;
+    text-transform: none;
+    height: 44px;
+    min-width: 100px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
 }
+
+.page-indicator {
+    background: var(--ion-color-primary);
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(var(--ion-color-primary-rgb), 0.4);
+}
+
+.current-page {
+    color: #000;
+    font-weight: 900;
+    font-size: 1.1rem;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.end-of-catalog {
+    text-align: center;
+    padding: 20px;
+    opacity: 0.6;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ion-color-primary);
+}
+
+

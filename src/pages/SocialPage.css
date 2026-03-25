@@ -10,12 +10,16 @@
 .segment-toolbar {
   --background: #08080a;
   padding: 0 16px 8px;
+  display: flex;
+  justify-content: center;
 }
 
 .social-segment {
   background: rgba(255, 255, 255, 0.03);
   border-radius: 12px;
   padding: 4px;
+  max-width: 500px;
+  width: 100%;
 }
 
 .social-segment ion-segment-button {
@@ -30,7 +34,12 @@
 
 .social-content {
   --background: #08080a;
-  max-width: 1000px;
+  background: #08080a;
+}
+
+.tab-container {
+  width: 100%;
+  max-width: 1400px; /* Mas amplio para PC */
   margin: 0 auto;
 }
 

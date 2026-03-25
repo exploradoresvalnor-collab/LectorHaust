@@ -1974,3 +1974,12 @@ body.hide-tabs ion-tab-bar {
     font-size: 1.4rem !important;
   }
 }
+
+/* Ocultar la sección del carrusel completo en PC */
+@media (min-width: 1024px) {
+    .manga-carousel, 
+    .carousel-wrapper,
+    .carousel-scroll-btn {
+        display: none !important;
+    }
+}

@@ -39,7 +39,8 @@ export const animeflvService = {
       while ((match = regex.exec(html)) !== null && results.length < 15) {
         let imgUrl = match[2];
         if (imgUrl.startsWith('/')) imgUrl = `${BASE_URL}${imgUrl}`;
-        results.push({ id: match[1], name: match[3], image: imgUrl, title: match[3] });
+        const proxiedImg = `https://i0.wp.com/${imgUrl.replace(/^https?:\/\//, '')}`;
+        results.push({ id: match[1], name: match[3], image: proxiedImg, title: match[3] });
       }
       return results;
     } catch (e) { console.error(e); return []; }
@@ -53,7 +54,11 @@ export const animeflvService = {
       let match;
       while ((match = regex.exec(html)) !== null && results.length < 15) {
         let imgUrl = match[2];
+        if (imgUrl.includes('/thumbs/')) {
+            imgUrl = imgUrl.replace('/thumbs/', '/covers/');
+        }
         if (imgUrl.startsWith('/')) imgUrl = `${BASE_URL}${imgUrl}`;
+        const proxiedImg = `https://i0.wp.com/${imgUrl.replace(/^https?:\/\//, '')}`;
         // En AnimeFLV, el ID del anime se puede inferir quitando el -number del link del episodio
         const epId = match[1];
         const epNum = match[3];
@@ -64,18 +69,27 @@ export const animeflvService = {
           animeId: animeId,
           animeName: match[4],
           title: `Episodio ${epNum}`,
-          animePoster: imgUrl
+          animePoster: proxiedImg
         });
       }
       return results;
     } catch (e) { console.error(e); return []; }
   },
 
-  async search(query: string = '', genres: string[] = []): Promise<any[]> {
+  async search(query: string = '', genres: string[] = [], page: number = 1, type: string = '', year: string = '', order: string = 'default'): Promise<any[]> {
     try {
-      let url = `${BASE_URL}/browse?q=${encodeURIComponent(query)}`;
-      if (genres.length > 0) {
-          url += '&' + genres.map(g => `genre[]=${g}`).join('&');
+      let url = `${BASE_URL}/browse?q=${encodeURIComponent(query)}&page=${page}`;
+      if (genres.length > 0 && genres[0] !== 'all') {
+          url += '&' + genres.map(g => `genre[]=${g.toLowerCase()}`).join('&');
+      }
+      if (type && type !== 'all') {
+          url += `&type[]=${type.toLowerCase()}`;
+      }
+      if (year && year !== 'all') {
+          url += `&year[]=${year}`;
+      }
+      if (order && order !== 'default') {
+          url += `&order=${order}`;
       }
       const html = await fetchHtml(url);
       
@@ -107,10 +121,11 @@ export const animeflvService = {
       if (titleMatch) title = titleMatch[1];
 
       let image = '';
-      const imgMatch = html.match(/<div class="AnimeCover">\s*<img src="([^"]+)"/);
+      const imgMatch = html.match(/<div class="AnimeCover">[\s\S]*?<img src="([^"]+)"/);
       if (imgMatch) {
          image = imgMatch[1];
          if (image.startsWith('/')) image = `${BASE_URL}${image}`;
+         image = `https://i0.wp.com/${image.replace(/^https?:\/\//, '')}`;
       }
 
       let description = 'Sin descripción';

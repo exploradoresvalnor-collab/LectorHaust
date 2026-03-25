@@ -32,22 +32,17 @@ const AnimeCardItem: React.FC<AnimeCardItemProps> = ({ anime, onClick, index = 0
           src={anime.image} 
           alt={anime.title || anime.name} 
           className="card-img"
-          width={200}
-          height={300}
         />
         <div className="card-overlay">
-          <div className="card-content-bottom">
-            <div className="card-tags-container">
-              <span className={`card-tag ${type.toLowerCase()}`}>{type}</span>
-              <span className={`card-tag ${status.toLowerCase()}`}>{status}</span>
-              {eps && <span className="card-tag eps">{isLatest ? `CAP. ${eps}` : `${eps} EP`}</span>}
-              {hasSub && <span className="card-tag sub">SUB</span>}
-              {hasDub && <span className="card-tag dub">LAT</span>}
-            </div>
-            <h3 className="card-title-pro">{anime.title || anime.name}</h3>
+          <div className="card-tags-container">
+            <span className={`card-tag ${type.toLowerCase()}`}>{type}</span>
+            {eps && <span className="card-tag eps">{isLatest ? `CAP. ${eps}` : `${eps} EP`}</span>}
+            {hasSub && <span className="card-tag sub">SUB</span>}
+            {hasDub && <span className="card-tag dub">LAT</span>}
           </div>
         </div>
       </div>
+      <h3 className="card-title-pro">{anime.title || anime.name}</h3>
     </div>
   );
 };

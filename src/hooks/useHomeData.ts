@@ -114,13 +114,19 @@ export function useHomeData() {
     e.target.complete();
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-  // Hero auto-scroll
+  // Hero stable rotation (Every 4 hours)
   useEffect(() => {
-    if (heroMangas.length <= 1) return;
+    const calculateIndex = () => {
+      if (heroMangas.length === 0) return 0;
+      const fourHoursMs = 4 * 60 * 60 * 1000;
+      return Math.floor(Date.now() / fourHoursMs) % Math.min(heroMangas.length, 5);
+    };
+
+    setHeroIndex(calculateIndex());
     if (heroTimer.current) clearInterval(heroTimer.current);
     heroTimer.current = setInterval(() => {
-      setHeroIndex(prev => (prev + 1) % heroMangas.length);
-    }, 8000);
+      setHeroIndex(calculateIndex());
+    }, 60000); // Check every minute if the 4 hours have passed
     return () => { if (heroTimer.current) clearInterval(heroTimer.current); };
   }, [heroMangas]);
 
@@ -152,21 +158,12 @@ export function useHomeData() {
 
   // --- 4. PRELOAD ASSETS (Webtoon speed) ---
   useEffect(() => {
-    if (heroMangas.length > 0) {
-      // Preload current hero (for Desktop rotation)
+    if (heroMangas.length > 0 && heroIndex >= 0 && heroMangas[heroIndex]) {
+      // Only preload the single stable hero
       const currentUrl = mangaProvider.getCoverUrl(heroMangas[heroIndex], '512');
       const img = new Image();
       img.src = currentUrl;
-
-      // Preload the specific Mobile Hero (stable 8h rotation)
-      const now = Date.now();
-      const eightHoursInMs = 8 * 60 * 60 * 1000;
-      const mIndex = Math.floor(now / eightHoursInMs) % Math.min(heroMangas.length, 5);
-      const mobileUrl = mangaProvider.getCoverUrl(heroMangas[mIndex], '512');
-      const img2 = new Image();
-      img2.src = mobileUrl;
-      
-      console.log('[Performance] Preloading hero assets:', { currentUrl, mobileUrl });
+      console.log('[Performance] Preloading stable hero asset:', { currentUrl });
     }
   }, [heroMangas, heroIndex]);
 

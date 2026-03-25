@@ -111,19 +111,6 @@ const HomePage: React.FC = () => {
 
   const currentHero = heroMangas[heroIndex];
 
-  // Logic for Fixed Mobile Hero (Changes every 8 hours)
-  const mobileHeroIndex = React.useMemo(() => {
-    if (heroMangas.length === 0) return 0;
-    const now = Date.now();
-    const eightHoursInMs = 8 * 60 * 60 * 1000;
-    const windowIndex = Math.floor(now / eightHoursInMs);
-    // Use the window index to pick a stable item from the 5 featured ones
-    return windowIndex % Math.min(heroMangas.length, 5);
-  }, [heroMangas.length]);
-
-  const mobileHero = heroMangas[mobileHeroIndex];
-
-
   const handleAnonymousLogin = async () => {
     try {
       await firebaseAuthService.loginAnonymously();
@@ -261,13 +248,7 @@ const HomePage: React.FC = () => {
                   </IonButton>
                 </div>
                 <div className="hero-dots">
-                  {heroMangas.map((_: any, i: number) => (
-                    <span 
-                      key={i} 
-                      className={`hero-dot ${i === heroIndex ? 'active' : ''}`}
-                      onClick={(e) => { e.stopPropagation(); setHeroIndex(i); }}
-                    />
-                  ))}
+                  {/* Carousel completely removed as per user request to save loading time */}
                 </div>
                 <div 
                   className="scroll-indicator"
@@ -282,15 +263,15 @@ const HomePage: React.FC = () => {
               </div>
             )
           ) : (
-            /* --- MOBILE: Fixed Pro Banner (Changes every 8h) --- */
-            mobileHero && (
+            /* --- MOBILE: Fixed Pro Banner (Changes every 4h) --- */
+            currentHero && (
               <div 
                 className="hero-card mobile-fixed-hero-minimal" 
-                onClick={() => handleMangaClick(mobileHero)}
+                onClick={() => handleMangaClick(currentHero)}
               >
                 <SmartImage 
-                  src={mangaProvider.getCoverUrl(mobileHero, '512')}
-                  alt={mangaProvider.getLocalizedTitle(mobileHero) as string}
+                  src={mangaProvider.getCoverUrl(currentHero, '512')}
+                  alt={mangaProvider.getLocalizedTitle(currentHero) as string}
                   className="hero-img-layer smooth-image"
                   wrapperClassName="hero-img-wrapper"
                   loading="eager"
@@ -299,7 +280,7 @@ const HomePage: React.FC = () => {
                 <div className="hero-gradient-overlay-minimal" />
                 <div className="mobile-hero-content-minimal">
                    <div className="mobile-hero-badge-minimal">{getTranslation('home.recommended', lang)}</div>
-                   <h1 className="mobile-hero-title-minimal">{mangaProvider.getLocalizedTitle(mobileHero) as React.ReactNode}</h1>
+                   <h1 className="mobile-hero-title-minimal">{mangaProvider.getLocalizedTitle(currentHero) as React.ReactNode}</h1>
                    <div className="mobile-hero-actions-minimal">
                      <IonButton shape="round" color="primary" fill="solid" className="minimal-action-btn">
                        {getTranslation('home.read', lang)} <IonIcon icon={chevronForwardOutline} style={{ marginLeft: '4px' }} />

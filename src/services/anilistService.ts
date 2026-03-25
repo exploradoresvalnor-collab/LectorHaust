@@ -114,5 +114,25 @@ export const anilistService = {
         `;
         const data = await postGraphQL(BASE_URL, query, { search });
         return data.data.Page.media;
+    },
+
+    async getAnimeDetailsByName(search: string) {
+        const query = `
+        query ($search: String) {
+          Media (search: $search, type: ANIME, sort: SEARCH_MATCH) {
+             id
+             title { romaji english }
+             bannerImage
+             coverImage { extraLarge large }
+             description
+          }
+        }
+        `;
+        try {
+           const data = await postGraphQL(BASE_URL, query, { search });
+           return data?.data?.Media || null;
+        } catch {
+           return null;
+        }
     }
 };
