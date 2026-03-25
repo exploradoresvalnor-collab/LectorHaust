@@ -165,7 +165,7 @@ export function useHomeData() {
       img.src = currentUrl;
       console.log('[Performance] Preloading stable hero asset:', { currentUrl });
     }
-  }, [heroMangas, heroIndex]);
+  }, [heroMangas]); // HeroIndex removed to avoid redundant preloading cycles
 
   // Firebase auth & notifications
   useEffect(() => {

@@ -775,3 +775,18 @@
         min-height: 380px;
     }
 }
+/* --- Player Protection & Anti-Ad Layer --- */
+.anime-player-overlay iframe {
+    pointer-events: auto;
+    position: relative;
+    z-index: 1;
+    background: #000;
+}
+
+.video-player-container {
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    background: #000;
+    border-radius: 12px;
+}

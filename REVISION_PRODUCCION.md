@@ -81,15 +81,18 @@ Todos los sistemas críticos de LectorHaus han sido auditados, parchados y verif
 - [X] **Paginación Inteligente:** Reemplazado scroll infinito por sistema de 20 ítems por página con control de navegación Anterior/Siguiente.
 - [X] **Filtros Avanzados 4-Vías:** Implementados selectores para Género, Formato (Tipo), Año y Orden (Ranking/Recientes).
 - [X] **UX Premium:** Añadido fade-in de 0.5s para carga de portadas y auto-scroll al inicio al cambiar de página o filtro.
-- [X] **Proxy & CORS:** Uso garantizado de proxy de imágenes (Photon) y proxy de datos para estabilidad en producción.
+- [X] **Seguridad del Video:** Implementado `no-referrer` y `sandbox` refinado en `VideoPlayer.tsx` para bloquear publicidad y rastreo.
+- [X] **Anti-Click Layer:** Capa de protección CSS agregada para mitigar overlays publicitarios en el reproductor.
+- [X] **Optimización Home:** Corregido bucle de precarga en `useHomeData.ts` eliminando dependencia de `heroIndex`.
 
 ---
 
 ## 🎯 ESTADO: PRODUCCIÓN READY ✅
 
-**Sistemas Auditos:** 18
-**Bugs encontrados y arreglados en esta auditoría:** 4
+**Sistemas Auditados:** 18
+**Bugs encontrados y arreglados en esta auditoría:** 5
 1. `CommentSection.tsx` → `formatTime` crash con timestamps numéricos
 2. `useHomeData.ts` → Infinite scroll offset incorrecto (15 vs 60)
 3. `LibraryPage.tsx` → `clearCache` destruía toda la configuración del usuario
 4. `AnimeDirectoryPage.tsx` → Race condition en sincronización de paginado (Fix: Explicit Page Override)
+5. `useHomeData.ts` → Bucle infinito en precarga de assets (Preload Hero Index Loop)

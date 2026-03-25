@@ -308,9 +308,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <iframe 
             title="Video Player" 
             src={iframeUrl} 
+            className="iframe-player"
             style={{ width: '100%', height: '100%', border: 'none' }} 
             allowFullScreen 
-            sandbox="allow-scripts allow-same-origin allow-presentation allow-forms" 
+            /* sandbox restringido: permite scripts necesarios pero bloquea popups */
+            sandbox="allow-forms allow-scripts allow-same-origin allow-presentation" 
+            /* Oculta el origen de la petición para evitar bloqueos del servidor */
+            referrerPolicy="no-referrer"
+            /* Permite funciones esenciales del reproductor */
+            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
           />
         ) : (
           <video ref={videoRef} controls autoPlay style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
