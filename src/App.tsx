@@ -94,6 +94,7 @@ const AppContent: React.FC = () => {
   // Paths where we want to HIDE the bottom tab bar
   const shouldHideTabs = 
     location.pathname === '/anime' ||
+    location.pathname === '/browse-anime' ||
     location.pathname.startsWith('/manga/') || 
     location.pathname.startsWith('/anime/') || 
     location.pathname.startsWith('/reader/') ||
@@ -285,7 +286,7 @@ const AppContent: React.FC = () => {
           <Route exact path="/chat/:friendId" component={PrivateChatPage} />
           <Route exact path="/social" component={SocialPage} />
           <Route exact path="/anime" component={AnimePage} />
-          <Route exact path="/anime-directory" component={AnimeDirectoryPage} />
+          <Route exact path="/browse-anime" component={AnimeDirectoryPage} />
           <Route exact path="/anime/:id" component={AnimeDetailsPage} />
           <Route exact path="/">
             <Redirect to="/home" />

@@ -20,62 +20,79 @@
     padding: 0;
 }
 
-.filter-chips-row {
-    display: flex;
-    gap: 10px;
-    overflow-x: auto;
-    padding-bottom: 5px;
-}
-
-/* Estilo para los IonSelect como chips elegantes */
-.filter-select-wrapper {
-    background: rgba(255, 255, 255, 0.05);
+/* Estilo para los chips premium (Estilo Manga) */
+.haus-chip {
+    --background: rgba(255, 255, 255, 0.05);
+    --color: rgba(255, 255, 255, 0.6);
+    --border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    padding: 0 12px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    white-space: nowrap;
-    transition: all 0.2s;
-}
-
-.filter-select-wrapper:active {
-    background: rgba(var(--ion-color-primary-rgb), 0.2);
-    border-color: var(--ion-color-primary);
-}
-
-.filter-select-wrapper ion-select {
     font-size: 0.75rem;
     font-weight: 700;
-    --placeholder-color: #888;
-    --placeholder-opacity: 1;
+    margin: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.haus-chip.active {
+    --background: var(--ion-color-primary);
+    --color: #000;
+    border-color: transparent;
+    box-shadow: 0 4px 15px rgba(var(--ion-color-primary-rgb), 0.4);
+    transform: scale(1.05);
+}
+
+.premium-scroll {
+    overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none;  /* IE and Edge */
+    display: flex;
+    gap: 8px;
+    padding: 5px 0;
+}
+
+.premium-scroll::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+}
+
+.type-row {
+    margin-top: 5px;
+}
+
+.filter-select-wrapper {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 0 15px;
+    height: 42px;
+    display: flex;
+    align-items: center;
     width: 100%;
 }
 
-.empty-state {
+.empty-icon-pulse {
+    animation: pulse-glow 2s infinite;
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 100px 20px;
-    text-align: center;
+    margin-bottom: 20px;
 }
 
-.empty-state h4 {
-    font-weight: 800;
-    margin: 20px 0 10px;
+@keyframes pulse-glow {
+    0% { transform: scale(1); opacity: 0.6; }
+    50% { transform: scale(1.1); opacity: 1; filter: drop-shadow(0 0 15px rgba(var(--ion-color-primary-rgb), 0.4)); }
+    100% { transform: scale(1); opacity: 0.6; }
 }
 
-.empty-state p {
-    color: #666;
-    margin-bottom: 25px;
+/* Ajustes adicionales para la rejilla premium */
+.directory-content .main-content-wrapper {
+    padding-bottom: 120px;
 }
 
-/* Responsividad para Directorio */
-@media (min-width: 768px) {
-    .filter-chips-row {
-        overflow-x: visible;
-        flex-wrap: wrap;
+@media (max-width: 480px) {
+    .directory-filters-container {
+        padding: 5px 10px 15px;
+    }
+    
+    .section-title {
+        font-size: 1.2rem;
     }
 }

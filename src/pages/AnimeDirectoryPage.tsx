@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonGrid, IonRow, IonCol, 
   IonSearchbar, IonButtons, IonButton, IonIcon, IonSkeletonText, useIonRouter,
-  IonSelect, IonSelectOption, IonInfiniteScroll, IonInfiniteScrollContent, IonBadge, IonBackButton
+  IonSelect, IonSelectOption, IonInfiniteScroll, IonInfiniteScrollContent, IonBadge, IonBackButton,
+  IonChip
 } from '@ionic/react';
 import { filterOutline, optionsOutline, searchOutline, arrowUpOutline } from 'ionicons/icons';
 import { aniwatchService, AnimeSearchResult } from '../services/aniwatchService';
@@ -114,7 +115,7 @@ const AnimeDirectoryPage: React.FC = () => {
               <img src="/logolh.webp" width="24" height="24" style={{ filter: 'drop-shadow(0 0 8px rgba(var(--ion-color-primary-rgb), 0.6))' }} />
               <div style={{ marginLeft: '10px', display: 'flex', flexDirection: 'column', lineHeight: '1.1' }}>
                 <span style={{ fontWeight: 900, fontSize: '0.9rem', color: '#fff', letterSpacing: '0.5px' }}>Haus<span style={{ color: 'var(--ion-color-primary)' }}>Anime</span></span>
-                <span style={{ fontSize: '0.5rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '1px' }}>DIRECTORIO PREMIUM</span>
+                <span style={{ fontSize: '0.5rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '1px' }}>CATÁLOGO PREMIUM</span>
               </div>
             </div>
           </IonTitle>
@@ -131,24 +132,32 @@ const AnimeDirectoryPage: React.FC = () => {
              <IonSearchbar 
                 value={query}
                 onIonInput={e => setQuery(e.detail.value!)}
-                placeholder="Buscar en el catálogo..."
+                placeholder="Busca tu próximo anime..."
                 className="directory-search"
                 debounce={500}
              />
            </div>
            
-           <div className="filter-chips-row">
+           <div className="filter-chips-row premium-scroll">
+              <IonChip 
+                className={`haus-chip ${genre === 'all' ? 'active' : ''}`} 
+                onClick={() => setGenre('all')}
+              >Todos</IonChip>
+              {genres.map(g => (
+                <IonChip 
+                  key={g} 
+                  className={`haus-chip ${genre === g ? 'active' : ''}`} 
+                  onClick={() => setGenre(g)}
+                >{g}</IonChip>
+              ))}
+           </div>
+
+           <div className="filter-chips-row type-row">
               <div className="filter-select-wrapper">
-                <IonSelect value={genre} placeholder="Género" interface="popover" onIonChange={e => setGenre(e.detail.value)}>
-                   <IonSelectOption value="all">Todos los Géneros</IonSelectOption>
-                   {genres.map(g => <IonSelectOption key={g} value={g}>{g}</IonSelectOption>)}
-                </IonSelect>
-              </div>
-              
-              <div className="filter-select-wrapper">
+                <IonIcon icon={optionsOutline} style={{ marginRight: '5px', fontSize: '14px' }} />
                 <IonSelect value={type} placeholder="Tipo" interface="popover" onIonChange={e => setType(e.detail.value)}>
-                   <IonSelectOption value="all">Todo</IonSelectOption>
-                   <IonSelectOption value="TV">TV</IonSelectOption>
+                   <IonSelectOption value="all">Formato</IonSelectOption>
+                   <IonSelectOption value="TV">Series TV</IonSelectOption>
                    <IonSelectOption value="Movie">Películas</IonSelectOption>
                    <IonSelectOption value="OVA">OVA</IonSelectOption>
                    <IonSelectOption value="ONA">ONA</IonSelectOption>
@@ -162,20 +171,21 @@ const AnimeDirectoryPage: React.FC = () => {
       <IonContent fullscreen className="directory-content">
         <div className="main-content-wrapper" style={{ paddingTop: '10px' }}>
           {loading && results.length === 0 ? (
-            <IonGrid>
+            <IonGrid style={{ padding: '0 8px' }}>
               <IonRow>
-                 {[1,2,3,4,5,6,7,8,9,10,11,12].map(i => (
-                   <IonCol size="6" sizeSm="4" sizeMd="2.4" key={i}>
-                      <IonSkeletonText animated style={{ aspectRatio: '2/3', borderRadius: '12px' }} />
+                 {[1,2,3,4,5,6,7,8,9,10].map(i => (
+                   <IonCol size="6" sizeSm="4" sizeMd="2.4" key={i} style={{ padding: '6px' }}>
+                      <IonSkeletonText animated style={{ aspectRatio: '2/3', borderRadius: '12px', marginBottom: '8px' }} />
+                      <IonSkeletonText animated style={{ width: '80%', height: '12px', borderRadius: '4px' }} />
                    </IonCol>
                  ))}
               </IonRow>
             </IonGrid>
           ) : results.length > 0 ? (
-            <IonGrid style={{ padding: '0' }}>
+            <IonGrid style={{ padding: '0 4px' }}>
                <IonRow>
                   {results.map((anime, idx) => (
-                    <IonCol size="6" sizeSm="4" sizeMd="2.4" key={`${anime.id}-${idx}`} style={{ padding: '6px' }}>
+                    <IonCol size="6" sizeSm="4" sizeMd="2.4" key={`${anime.id}-${idx}`} style={{ padding: '4px' }}>
                        <AnimeCardItem 
                           anime={anime} 
                           onClick={() => router.push(`/anime/${anime.id}`)}
@@ -187,18 +197,20 @@ const AnimeDirectoryPage: React.FC = () => {
             </IonGrid>
           ) : (
             <div className="empty-state">
-               <IonIcon icon={searchOutline} style={{ fontSize: '4rem', color: 'rgba(255,255,255,0.1)' }} />
-               <h4>No se encontraron animes</h4>
-               <p>Prueba ajustando los filtros de búsqueda</p>
-               <IonButton fill="clear" onClick={resetFilters} style={{ '--color': 'var(--ion-color-primary)' }}>Limpiar Filtros</IonButton>
+               <div className="empty-icon-pulse">
+                  <IonIcon icon={searchOutline} style={{ fontSize: '4rem', color: 'rgba(var(--ion-color-primary-rgb), 0.2)' }} />
+               </div>
+               <h4 style={{ fontWeight: 800 }}>Misión de Búsqueda Fallida</h4>
+               <p>No encontramos nada bajo esos criterios en nuestra base de datos elite.</p>
+               <IonButton fill="solid" color="primary" onClick={resetFilters} style={{ '--border-radius': '12px', fontWeight: 700 }}>VER TODO EL CATÁLOGO</IonButton>
             </div>
           )}
 
           <IonInfiniteScroll disabled={!hasMore} onIonInfinite={loadMore} threshold="150px">
-             <IonInfiniteScrollContent loadingSpinner="dots" loadingText="Buscando más joyas..." />
+             <IonInfiniteScrollContent loadingSpinner="dots" loadingText="Sincronizando con servidores de Haus..." />
           </IonInfiniteScroll>
           
-          <div style={{ height: '80px' }} />
+          <div style={{ height: '100px' }} />
         </div>
       </IonContent>
     </IonPage>

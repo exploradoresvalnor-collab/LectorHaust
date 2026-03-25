@@ -254,7 +254,7 @@ const AnimePage: React.FC = () => {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'center', margin: '40px 0' }}>
-                 <IonButton fill="solid" color="primary" onClick={() => router.push('/anime-directory')} style={{ '--border-radius': '15px', fontWeight: 900, height: '50px', paddingInline: '30px', boxShadow: '0 10px 25px rgba(var(--ion-color-primary-rgb), 0.3)' }}>
+                 <IonButton fill="solid" color="primary" onClick={() => router.push('/browse-anime')} style={{ '--border-radius': '15px', fontWeight: 900, height: '50px', paddingInline: '30px', boxShadow: '0 10px 25px rgba(var(--ion-color-primary-rgb), 0.3)' }}>
                     EXPLORAR TODO EL CATÁLOGO
                  </IonButton>
               </div>
