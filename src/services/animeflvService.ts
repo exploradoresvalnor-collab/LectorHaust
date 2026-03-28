@@ -78,9 +78,58 @@ export const animeflvService = {
 
   async search(query: string = '', genres: string[] = [], page: number = 1, type: string = '', year: string = '', order: string = 'default'): Promise<any[]> {
     try {
+      const flvGenreMap: { [key: string]: string } = {
+        'Acción': 'accion', 'Action': 'accion',
+        'Artes Marciales': 'artes-marciales',
+        'Aventuras': 'aventura', 'Adventure': 'aventura',
+        'Carreras': 'carreras', 'Cars': 'carreras',
+        'Ciencia Ficción': 'ciencia-ficcion', 'Sci-Fi': 'ciencia-ficcion',
+        'Comedia': 'comedia', 'Comedy': 'comedia',
+        'Demencia': 'demencia', 'Dementia': 'demencia',
+        'Demonios': 'demonios', 'Demons': 'demonios',
+        'Deportes': 'deportes', 'Sports': 'deportes',
+        'Drama': 'drama',
+        'Ecchi': 'ecchi',
+        'Escolares': 'escolares', 'School': 'escolares',
+        'Espacio': 'espacio', 'Space': 'espacio',
+        'Fantasía': 'fantasia', 'Fantasy': 'fantasia',
+        'Harem': 'harem',
+        'Histórico': 'historico', 'Historical': 'historico',
+        'Infantil': 'infantil', 'Kids': 'infantil',
+        'Isekai': 'isekai',
+        'Josei': 'josei',
+        'Juegos': 'juegos', 'Game': 'juegos',
+        'Magia': 'magia', 'Magic': 'magia',
+        'Mecha': 'mecha',
+        'Militar': 'militar', 'Military': 'militar',
+        'Misterio': 'misterio', 'Mystery': 'misterio',
+        'Música': 'musica', 'Music': 'musica',
+        'Parodia': 'parodia', 'Parody': 'parodia',
+        'Policial': 'policia', 'Police': 'policia',
+        'Psicológico': 'psicologico', 'Psychological': 'psicologico',
+        'Romance': 'romance',
+        'Samurai': 'samurai',
+        'Seinen': 'seinen',
+        'Shoujo': 'shoujo',
+        'Shoujo Ai': 'shoujo',
+        'Shounen': 'shounen',
+        'Shounen Ai': 'shounen',
+        'Slice of Life': 'recuentos-de-la-vida',
+        'Sobrenatural': 'sobrenatural', 'Supernatural': 'sobrenatural',
+        'Superpoderes': 'superpoderes', 'Super Power': 'superpoderes',
+        'Suspenso': 'suspenso', 'Thriller': 'suspenso',
+        'Terror': 'terror', 'Horror': 'terror',
+        'Vampiros': 'vampiros', 'Vampire': 'vampiros',
+        'Yaoi': 'yaoi',
+        'Yuri': 'yuri'
+      };
+
       let url = `${BASE_URL}/browse?q=${encodeURIComponent(query)}&page=${page}`;
       if (genres.length > 0 && genres[0] !== 'all') {
-          url += '&' + genres.map(g => `genre[]=${g.toLowerCase()}`).join('&');
+          url += '&' + genres.map(g => {
+              const mapped = flvGenreMap[g] || g.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-');
+              return `genre[]=${mapped}`;
+          }).join('&');
       }
       if (type && type !== 'all') {
           url += `&type[]=${type.toLowerCase()}`;
@@ -103,6 +152,18 @@ export const animeflvService = {
           const proxiedImg = `https://i0.wp.com/${imgUrl.replace(/^https?:\/\//, '')}`;
           results.push({ id: match[1], title: match[3], name: match[3], image: proxiedImg });
       }
+
+      // Extraer paginación para calcular volumen total
+      let maxPage = 1;
+      const pagesRegex = /href="[^"]*page=(\d+)[^"]*"/g;
+      let pageMatch;
+      while ((pageMatch = pagesRegex.exec(html)) !== null) {
+          const p = parseInt(pageMatch[1], 10);
+          if (p > maxPage) maxPage = p;
+      }
+      
+      // AnimeFLV suele retornar 24 items por página (o la cantidad en la última)
+      (results as any).totalCount = maxPage > 1 ? maxPage * 24 : results.length;
       
       return results;
     } catch (error) {

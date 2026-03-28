@@ -8,6 +8,7 @@ import {
 } from 'ionicons/icons';
 import { animeflvService } from '../services/animeflvService';
 import { tioanimeService } from '../services/tioanimeService';
+import { lacartoonsService } from '../services/lacartoonsService';
 import CommentSection from './CommentSection';
 
 interface VideoPlayerProps {
@@ -15,7 +16,7 @@ interface VideoPlayerProps {
   episodes: any[];
   animeTitle: string;
   animeId: string;
-  sourceProvider?: 'hianime' | 'animeflv' | 'tioanime';
+  sourceProvider?: 'hianime' | 'animeflv' | 'tioanime' | 'lacartoons';
   onEpisodeChange: (ep: any) => void;
   onClose: () => void;
 }
@@ -38,7 +39,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
-  const [sourceProvider, setSourceProvider] = useState<'hianime' | 'animeflv' | 'tioanime'>(initialSource || 'animeflv');
+  const [sourceProvider, setSourceProvider] = useState<'hianime' | 'animeflv' | 'tioanime' | 'lacartoons'>(initialSource || 'animeflv');
   const [flvId, setFlvId] = useState<string | null>(null);
   const [tioId, setTioId] = useState<string | null>(null);
   const [servers, setServers] = useState<{sub: Server[], dub: Server[]}>({sub: [], dub: []});
@@ -48,10 +49,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [subtitles, setSubtitles] = useState<any[]>([]);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
-  const [availableProviders, setAvailableProviders] = useState<{hianime: boolean, animeflv: boolean, tioanime: boolean}>({
+  const [availableProviders, setAvailableProviders] = useState<{hianime: boolean, animeflv: boolean, tioanime: boolean, lacartoons: boolean}>({
     hianime: true, // Siempre asumimos HiAnime como base
     animeflv: false,
-    tioanime: false
+    tioanime: false,
+    lacartoons: initialSource === 'lacartoons'
   });
 
   const episodeNumber = Number(episode.number);
@@ -61,6 +63,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   useEffect(() => {
     const checkProviders = async () => {
       if (!animeTitle) return;
+      if (initialSource === 'lacartoons') return; // Caricaturas no se cruzan con anime servers
       
       const checks = [
         animeflvService.search(animeTitle).then(res => res && res.length > 0).catch(() => false),
@@ -81,7 +84,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     };
     
     checkProviders();
-  }, [animeTitle]);
+  }, [animeTitle, initialSource]);
 
   // 1. Cargar servidores / Identificar Anime en Gogo
   useEffect(() => {
@@ -138,6 +141,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           } else {
             throw new Error('No se encontró el anime en TioAnime.');
           }
+        } else if (sourceProvider === 'lacartoons') {
+           // We extract directly using episodeId: "bob-esponja-1?t=1"
+           const rawData = await lacartoonsService.getEpisodeSources(episodeId);
+           if (!active) return;
+           if (rawData && rawData.length > 0) {
+              const subServers = rawData.map((s: any, i: number) => ({ serverId: i, serverName: s.server }));
+              setServers({ sub: subServers, dub: [] });
+              setSelectedServer(subServers[0].serverName);
+              setSelectedCategory('sub');
+           } else {
+              throw new Error('No se encontraron videos disponibles para este episodio.');
+           }
         }
       } catch (err: any) {
         if (!active) return;
@@ -182,6 +197,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           if (rawData && rawData.sources) {
              const matchedSource = rawData.sources.find((s: any) => s.serverName === selectedServer) || rawData.sources[0];
              data = { sources: [matchedSource], subtitles: [] };
+          }
+        } else if (sourceProvider === 'lacartoons') {
+          const rawData = await lacartoonsService.getEpisodeSources(episodeId);
+          if (rawData) {
+             const matchedSource = rawData.find((s: any) => s.server === selectedServer) || rawData[0];
+             data = { sources: [{ url: matchedSource.url, isIframe: true }], subtitles: [] };
           }
         }
 
@@ -272,9 +293,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Mapeo inteligente de nombres de servidores
   const getIntelligentName = (provider: string) => {
     switch(provider) {
-      case 'hianime': return 'SERVER-ENGLISH';
-      case 'animeflv': return 'SERVIDOR-AZUL';
-      case 'tioanime': return 'SERVIDOR-NARANJA';
+      case 'hianime': return 'HiAnime';
+      case 'animeflv': return 'AnimeFLV';
+      case 'tioanime': return 'TioAnime';
+      case 'lacartoons': return 'LACartoons';
       default: return provider.toUpperCase();
     }
   };
@@ -293,7 +315,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)'
       }}>
-         {['hianime', 'animeflv', 'tioanime']
+         {['hianime', 'animeflv', 'tioanime', 'lacartoons']
            .filter(p => (availableProviders as any)[p])
            .map(p => (
            <div 
@@ -336,7 +358,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <div style={{ position: 'relative', width: '100%', height: '100%' }}>
             <iframe 
               title="Video Player" 
-              src={iframeUrl} 
+              src={sourceProvider === 'lacartoons' ? `https://manga-proxy.mchaustman.workers.dev/?embed=${encodeURIComponent(iframeUrl)}` : iframeUrl} 
               className="iframe-player"
               style={{ width: '100%', height: '100%', border: 'none' }} 
               allowFullScreen 

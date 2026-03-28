@@ -46,11 +46,22 @@ import UniversalEngagementBar from '../components/UniversalEngagementBar';
 import { useCrossMedia } from '../hooks/useCrossMedia';
 import { useLocation } from 'react-router-dom';
 import { hianimeService } from '../services/hianimeService';
+import { lacartoonsService } from '../services/lacartoonsService';
 
 const EPISODES_PER_PAGE = 30;
 
 const AnimeDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  let actualId = id;
+  let urlPrefixProvider = '';
+  if (id?.startsWith('lacartoons-')) {
+      actualId = id.replace('lacartoons-', '');
+      urlPrefixProvider = 'lacartoons';
+  } else if (id?.startsWith('hianime-')) {
+      actualId = id.replace('hianime-', '');
+      urlPrefixProvider = 'hianime';
+  }
+
   const router = useIonRouter();
   const location = useLocation();
   const epListRef = useRef<HTMLDivElement>(null);
@@ -62,7 +73,12 @@ const AnimeDetailsPage: React.FC = () => {
   const [episodePage, setEpisodePage] = useState(0);
   const [episodeOrder, setEpisodeOrder] = useState<'desc' | 'asc'>('desc');
   const [episodeSearch, setEpisodeSearch] = useState('');
-  const [sourceProvider, setSourceProvider] = useState<'hianime' | 'animeflv' | 'tioanime'>('animeflv');
+  
+  // Initialize with detected prefix provider to avoid ghost proxy fetches on mount
+  const initialProvider = urlPrefixProvider as any || 'animeflv';
+  const [sourceProvider, setSourceProvider] = useState<'hianime' | 'animeflv' | 'tioanime' | 'lacartoons'>(initialProvider);
+  
+  const [selectedSeason, setSelectedSeason] = useState<string>('all');
 
   const { crossMedia, loadingCrossMedia } = useCrossMedia(anime?.title, 'ANIME');
 
@@ -79,7 +95,7 @@ const AnimeDetailsPage: React.FC = () => {
     // Smart source detection
     const navSource = (navData?.source || navData?.preferredProvider) as string | undefined;
     const urlProvider = new URLSearchParams(window.location.search).get('provider');
-    const detected = urlProvider || (navSource === 'hianime' ? 'hianime' : 'animeflv');
+    const detected = urlPrefixProvider || urlProvider || (navSource === 'hianime' ? 'hianime' : (navSource === 'lacartoons' ? 'lacartoons' : 'animeflv'));
     setSourceProvider(detected as any);
     
     // Use navigation data as instant preview while fetching fresh data
@@ -106,12 +122,12 @@ const AnimeDetailsPage: React.FC = () => {
       if (!id) return;
       
       try {
-        const provider = sourceProvider === 'hianime' ? hianimeService : animeflvService;
+        const provider = sourceProvider === 'hianime' ? hianimeService : (sourceProvider === 'lacartoons' ? lacartoonsService : animeflvService);
         
         const currentTitle = anime?.title || anime?.name;
         
         const [data, anilistInfo] = await Promise.all([
-          provider.getAnimeInfo(id),
+          provider.getAnimeInfo(actualId),
           currentTitle ? anilistService.getAnimeDetailsByName(currentTitle) : Promise.resolve(null)
         ]);
         
@@ -141,6 +157,12 @@ const AnimeDetailsPage: React.FC = () => {
   // Sorted & filtered episodes
   const sortedEpisodes = useMemo(() => {
     let eps = [...(anime?.episodes || [])];
+    
+    // Season filter (only for cartoons)
+    if (sourceProvider === 'lacartoons' && selectedSeason !== 'all') {
+       eps = eps.filter(ep => ep.season?.toString() === selectedSeason);
+    }
+
     if (episodeOrder === 'desc') {
       eps.sort((a, b) => Number(b.number) - Number(a.number));
     } else {
@@ -155,7 +177,16 @@ const AnimeDetailsPage: React.FC = () => {
       );
     }
     return eps;
-  }, [anime?.episodes, episodeOrder, episodeSearch]);
+  }, [anime?.episodes, episodeOrder, episodeSearch, selectedSeason, sourceProvider]);
+
+  const availableSeasons = useMemo(() => {
+    if (!anime?.episodes || sourceProvider !== 'lacartoons') return [];
+    const seasons = new Set<string>();
+    anime.episodes.forEach((ep: any) => {
+        if (ep.season) seasons.add(ep.season.toString());
+    });
+    return Array.from(seasons).sort((a,b) => parseInt(a) - parseInt(b));
+  }, [anime, sourceProvider]);
 
   // Pagination logic
   const totalEpPages = Math.ceil(sortedEpisodes.length / EPISODES_PER_PAGE);
@@ -264,8 +295,31 @@ const AnimeDetailsPage: React.FC = () => {
                 {/* ── EPISODE SECTION ── */}
                 <div className="anime-ep-header" ref={epListRef}>
                   <h2 className="section-title">
-                    Episodios
+                    Episodios {availableSeasons.length > 0 && selectedSeason !== 'all' ? `- Temp ${selectedSeason}` : ''}
                   </h2>
+
+                  {/* CARTOONS SEASON SELECTOR */}
+                  {availableSeasons.length > 0 && (
+                     <div className="season-selector-container scroll-hide" style={{ display: 'flex', overflowX: 'auto', gap: '8px', paddingBottom: '12px', marginTop: '12px', width: '100vw', marginLeft: 'calc(-1 * var(--app-side-padding))', paddingLeft: 'var(--app-side-padding)', paddingRight: 'var(--app-side-padding)' }}>
+                        <IonChip 
+                           color={selectedSeason === 'all' ? 'primary' : 'medium'} 
+                           onClick={() => { setSelectedSeason('all'); setEpisodePage(0); }}
+                           style={{ flexShrink: 0, fontWeight: 700 }}
+                        >
+                           Todas
+                        </IonChip>
+                        {availableSeasons.map(s => (
+                           <IonChip 
+                             key={s} 
+                             color={selectedSeason === s ? 'primary' : 'medium'} 
+                             onClick={() => { setSelectedSeason(s); setEpisodePage(0); }}
+                             style={{ flexShrink: 0, fontWeight: 700 }}
+                           >
+                             Temp. {s}
+                           </IonChip>
+                        ))}
+                     </div>
+                  )}
 
                   {/* Controls Bar: Order Toggle + Search */}
                   <div className="anime-ep-controls">
@@ -334,7 +388,10 @@ const AnimeDetailsPage: React.FC = () => {
                         <div className="ep-card-info">
                           <div className="ep-card-main">
                             <span className="ep-card-title">{ep.title || `Episodio ${ep.number}`}</span>
-                            <span className="ep-card-sub">HD • Sub</span>
+                            <span className="ep-card-sub" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                {sourceProvider === 'lacartoons' ? '🇲🇽 Latino' : 'HD • Sub'}
+                                {ep.season && sourceProvider === 'lacartoons' && <span style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem' }}>T{ep.season}</span>}
+                            </span>
                           </div>
                           <IonIcon icon={playCircleOutline} className="ep-card-play-icon" />
                         </div>
