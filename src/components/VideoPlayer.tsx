@@ -4,7 +4,7 @@ import { IonButton, IonSpinner, IonText, IonIcon, IonBadge } from '@ionic/react'
 import { 
   videocamOutline, chevronBackOutline, chevronForwardOutline, 
   alertCircleOutline, playBackOutline, playForwardOutline, arrowBackOutline,
-  starOutline, informationCircleOutline, playCircleOutline
+  starOutline, informationCircleOutline, playCircleOutline, expandOutline
 } from 'ionicons/icons';
 import { animeflvService } from '../services/animeflvService';
 import { tioanimeService } from '../services/tioanimeService';
@@ -36,6 +36,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   
   const [sourceProvider, setSourceProvider] = useState<'hianime' | 'animeflv' | 'tioanime'>(initialSource || 'animeflv');
   const [flvId, setFlvId] = useState<string | null>(null);
@@ -246,6 +247,28 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     ? episodes[currentIdx + 1] 
     : episodes[currentIdx - 1];
 
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
+        if (containerRef.current?.requestFullscreen) {
+          await containerRef.current.requestFullscreen();
+        } else if ((containerRef.current as any)?.webkitRequestFullscreen) {
+          await ((containerRef.current as any).webkitRequestFullscreen());
+        }
+        try { if (screen.orientation && (screen.orientation as any).lock) await (screen.orientation as any).lock('landscape'); } catch(e){}
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await ((document as any).webkitExitFullscreen());
+        }
+        try { if (screen.orientation && (screen.orientation as any).unlock) (screen.orientation as any).unlock(); } catch(e){}
+      }
+    } catch (err) {
+      console.warn('Error toggling fullscreen:', err);
+    }
+  };
+
   // Mapeo inteligente de nombres de servidores
   const getIntelligentName = (provider: string) => {
     switch(provider) {
@@ -293,7 +316,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       </div>
 
       {/* 2. Cinematic Video area */}
-      <div style={{ 
+      <div 
+        ref={containerRef}
+        style={{ 
           width: '100%', maxWidth: '1000px', aspectRatio: '16 / 9', margin: '0 auto',
           background: '#000', position: 'relative'
       }}>
@@ -308,25 +333,39 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </div>
           </div>
         ) : iframeUrl ? (
-          <iframe 
-            title="Video Player" 
-            src={iframeUrl} 
-            className="iframe-player"
-            style={{ width: '100%', height: '100%', border: 'none' }} 
-            allowFullScreen 
-            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-          />
+          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+            <iframe 
+              title="Video Player" 
+              src={iframeUrl} 
+              className="iframe-player"
+              style={{ width: '100%', height: '100%', border: 'none' }} 
+              allowFullScreen 
+              allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+              {...{ webkitallowfullscreen: "true", mozallowfullscreen: "true" }}
+            />
+            {/* Escudo para bloquear el logo/redirección de AnimeFLV */}
+            <div 
+              style={{
+                position: 'absolute',
+                top: '10px',
+                right: '10px',
+                width: '180px', /* Lo suficientemente ancho para tapar el logo completo */
+                height: '70px',
+                background: 'rgba(0,0,0,0.01)', /* Casi invisible pero intercepta clicks */
+                zIndex: 50,
+                pointerEvents: 'auto', /* Absorbe los clicks para que no pasen al iframe */
+                cursor: 'default'
+              }}
+              title="Protección activa vs redirecciones"
+            />
+          </div>
         ) : (
           <video ref={videoRef} controls autoPlay style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
         )}
       </div>
 
       {/* 3. Controls & Actions (BELOW THE VIDEO) */}
-      <div style={{ 
-        maxWidth: '1000px', width: '100%', margin: '20px auto', padding: '25px',
-        background: 'rgba(255,255,255,0.03)', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)',
-        backdropFilter: 'blur(10px)', position: 'relative', overflow: 'hidden'
-      }}>
+      <div className="video-details-container">
         
         {/* Subtle Branding Watermark */}
         <div style={{ 
@@ -345,17 +384,22 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                  EPISODIO {episodeNumber} <span style={{ color: 'rgba(255,255,255,0.3)', margin: '0 8px' }}>|</span> <span style={{ color: '#888' }}>{getIntelligentName(sourceProvider)}</span>
               </div>
            </div>
-           <IonButton fill="clear" onClick={onClose} style={{'--color': '#fff', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', fontWeight: 800, height: '40px'}}>
-              <IonIcon icon={chevronBackOutline} slot="start" /> VOLVER
-           </IonButton>
+           <div style={{ display: 'flex', gap: '8px' }}>
+              <IonButton fill="clear" onClick={toggleFullscreen} style={{'--color': '#fff', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', fontWeight: 800, height: '40px', width: '45px'}} title="Pantalla Completa">
+                 <IonIcon icon={expandOutline} />
+              </IonButton>
+              <IonButton fill="clear" onClick={onClose} style={{'--color': '#fff', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', fontWeight: 800, height: '40px'}}>
+                 <IonIcon icon={chevronBackOutline} slot="start" /> VOLVER
+              </IonButton>
+           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px', position: 'relative', zIndex: 1 }}>
+        <div className="video-action-buttons">
            <div style={{ display: 'flex', gap: '12px' }}>
               <IonButton size="small" fill="solid" color="dark" disabled={!prevEp} onClick={() => onEpisodeChange(prevEp)} style={{'--border-radius': '12px', height: '45px', width: '50px', fontWeight: 800}}>
                  <IonIcon icon={chevronBackOutline} />
               </IonButton>
-              <IonButton size="small" fill="solid" color="primary" disabled={!nextEp} onClick={() => onEpisodeChange(nextEp)} style={{'--border-radius': '12px', height: '45px', paddingInline: '20px', fontWeight: 900, fontSize: '0.8rem', boxShadow: '0 8px 20px rgba(var(--ion-color-primary-rgb), 0.3)'}}>
+              <IonButton size="small" fill="solid" color="primary" disabled={!nextEp} onClick={() => onEpisodeChange(nextEp)} style={{'--border-radius': '12px', height: '45px', paddingInline: '20px', fontWeight: 900, fontSize: '0.8rem', '--box-shadow': '0 8px 20px rgba(var(--ion-color-primary-rgb), 0.3)'}}>
                  SIGUIENTE EPISODIO <IonIcon slot="end" icon={chevronForwardOutline} />
               </IonButton>
            </div>

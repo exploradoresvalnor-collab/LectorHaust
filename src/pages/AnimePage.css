@@ -413,7 +413,24 @@
     max-width: 200px;
 }
 
+.anime-ep-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 15px 0 20px;
+    width: 100%;
+}
 
+.ep-range-chips {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none; /* Hide scrollbar Firefox */
+}
+.ep-range-chips::-webkit-scrollbar {
+    display: none; /* Hide scrollbar Chrome/Safari */
+}
 
 .anime-ep-card {
     display: flex;
@@ -779,6 +796,48 @@
         height: 60vh;
         min-height: 380px;
     }
+    .video-details-container {
+        margin: 10px auto !important;
+        padding: 15px !important;
+        border-radius: 12px !important;
+    }
+    .video-action-buttons {
+        gap: 12px !important;
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+    .video-action-buttons > div {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+    .video-action-buttons ion-button {
+        flex: 1;
+    }
+}
+
+/* --- Video Player Details Container --- */
+.video-details-container {
+    max-width: 1000px;
+    width: 100%;
+    margin: 20px auto;
+    padding: 25px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.05);
+    backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+}
+
+.video-action-buttons {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+    position: relative;
+    z-index: 1;
 }
 /* --- Player Protection & Anti-Ad Layer --- */
 .anime-player-overlay iframe {
