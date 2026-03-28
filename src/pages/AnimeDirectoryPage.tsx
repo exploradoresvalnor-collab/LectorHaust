@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
   IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonGrid, IonRow, IonCol, 
-  IonSearchbar, IonButtons, IonButton, IonIcon, IonSkeletonText, useIonRouter,
+  IonSearchbar, IonButtons, IonButton, IonIcon, IonSkeletonText, useIonRouter, IonSpinner,
   IonSelect, IonSelectOption, IonInfiniteScroll, IonInfiniteScrollContent, IonBadge, IonBackButton,
   IonChip
 } from '@ionic/react';
-import { filterOutline, optionsOutline, searchOutline, arrowUpOutline, sparklesOutline, timeOutline, trendingUpOutline } from 'ionicons/icons';
+import { filterOutline, optionsOutline, searchOutline, arrowUpOutline, sparklesOutline, timeOutline, trendingUpOutline, languageOutline } from 'ionicons/icons';
 import { animeflvService } from '../services/animeflvService';
+import { hianimeService } from '../services/hianimeService';
 import AnimeCardItem from '../components/AnimeCardItem';
 import './AnimeCommon.css';
 import './AnimeDirectoryPage.css';
@@ -24,8 +25,9 @@ const AnimeDirectoryPage: React.FC = () => {
   const [type, setType] = useState('all');
   const [year, setYear] = useState('all');
   const [sort, setSort] = useState('default');
+  const [language, setLanguage] = useState<'sub-es' | 'sub-en' | 'latino' | 'castellano'>('sub-es');
   
-  const years = Array.from({ length: 26 }, (_, i) => (2025 - i).toString()); // 2000-2025
+  const years = Array.from({ length: 56 }, (_, i) => (2025 - i).toString()); // 1970-2025
 
   const [genres, setGenres] = useState<string[]>([
     "Acción", "Artes Marciales", "Aventuras", "Carreras", "Ciencia Ficción", 
@@ -37,32 +39,34 @@ const AnimeDirectoryPage: React.FC = () => {
   ]);
   const router = useIonRouter();
 
-  const fetchAnimes = async (reset: boolean = false, overridePage?: number) => {
+  const fetchAnimes = async (targetPage: number = 1) => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
-
-    const nextPage = overridePage !== undefined ? overridePage : (reset ? 1 : page);
-    if (reset) {
-        setLoading(true);
-        // No limpiamos results inmediatamente para evitar el parpadeo blanco
-        setPage(1);
-        setHasMore(true);
-    }
+    setLoading(true);
+    setPage(targetPage);
     
     try {
-      // AnimeFLV devuelve 24. Si el usuario quiere exactamente 20, cortamos los últimos 4.
-      const newItems = await animeflvService.search(query, [genre], nextPage, type, year, sort);
+      let newItems: any[] = [];
+      
+      if (language === 'sub-en') {
+          // English source (HiAnime)
+          const hiSort = sort === 'rating' ? 'top_rated' : (sort === 'updated' ? 'recently_updated' : 'recently_added');
+          newItems = await hianimeService.search(query, targetPage, year, genre, hiSort);
+      } else {
+          // All Spanish variants use AnimeFLV
+          newItems = await animeflvService.search(query, [genre], targetPage, type, year, sort);
+      }
 
       if (!newItems || newItems.length === 0) {
+        if (targetPage === 1) setResults([]);
         setHasMore(false);
-        setResults([]);
       } else {
-        const sliced = newItems.slice(0, 20);
-        setResults(sliced);
+        setResults(newItems.slice(0, 20));
         setHasMore(newItems.length >= 20);
       }
     } catch (err) {
       console.error("Directory fetch error", err);
+      if (targetPage === 1) setResults([]);
     } finally {
       setLoading(false);
       fetchingRef.current = false;
@@ -70,16 +74,14 @@ const AnimeDirectoryPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchAnimes(true);
-    // Scroll to top on filter change
+    fetchAnimes(1);
     const content = document.querySelector('.directory-content');
     if (content) (content as any).scrollToTop(300);
-  }, [genre, type, query, year, sort]);
+  }, [genre, type, query, year, sort, language]);
 
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || fetchingRef.current) return;
-    setPage(newPage);
-    fetchAnimes(false, newPage); 
+    fetchAnimes(newPage); 
     const content = document.querySelector('.directory-content');
     if (content) (content as any).scrollToTop(400);
   };
@@ -89,6 +91,8 @@ const AnimeDirectoryPage: React.FC = () => {
     setType('all');
     setQuery('');
     setSort('default');
+    setLanguage('sub-es');
+    setYear('all');
   };
 
   return (
@@ -102,7 +106,7 @@ const AnimeDirectoryPage: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center' }}>
               <img src="/logolh.webp" width="24" height="24" style={{ filter: 'drop-shadow(0 0 8px rgba(var(--ion-color-primary-rgb), 0.6))' }} />
               <div style={{ marginLeft: '10px', display: 'flex', flexDirection: 'column', lineHeight: '1.1' }}>
-                <span style={{ fontWeight: 900, fontSize: '0.9rem', color: '#fff', letterSpacing: '0.5px' }}>Haus<span style={{ color: 'var(--ion-color-primary)' }}>Anime</span></span>
+                <span style={{ fontWeight: 900, fontSize: '0.9rem', color: '#fff', letterSpacing: '0.5px' }}>Lector<span style={{ color: 'var(--ion-color-primary)' }}>Haus</span></span>
                 <span style={{ fontSize: '0.5rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '1px' }}>CATÁLOGO PREMIUM</span>
               </div>
             </div>
@@ -114,61 +118,73 @@ const AnimeDirectoryPage: React.FC = () => {
           </IonButtons>
         </IonToolbar>
         
-        {/* Filter Bar */}
-        <div className="directory-filters-container">
-           <div className="filter-row">
-             <IonSearchbar 
-                value={query}
-                onIonInput={e => setQuery(e.detail.value!)}
-                placeholder="Busca tu próximo anime..."
-                className="directory-search"
-                debounce={500}
-             />
-           </div>
-           
-           <div className="filter-chips-row dual-selectors">
-              <div className="filter-select-wrapper flex-1">
-                <IonIcon icon={sparklesOutline} className="select-icon" />
-                <IonSelect value={genre} placeholder="Género" interface="popover" onIonChange={e => setGenre(e.detail.value)} className="custom-select">
-                   <IonSelectOption value="all">Género</IonSelectOption>
-                   {genres.map(g => (
-                     <IonSelectOption key={g} value={g}>{g}</IonSelectOption>
-                   ))}
-                </IonSelect>
-              </div>
+            {/* Filter Bar */}
+            <div className="directory-filters-container">
+               <div className="filter-row">
+                 <IonSearchbar 
+                    value={query}
+                    onIonInput={e => setQuery(e.detail.value!)}
+                    placeholder="Busca tu próximo anime..."
+                    className="directory-search"
+                    debounce={500}
+                 />
+               </div>
+               
+               <div className="filter-chips-row dual-selectors">
+                  <div className="filter-select-wrapper flex-1">
+                    <IonIcon icon={languageOutline} className="select-icon" />
+                    <IonSelect value={language} placeholder="Idioma" interface="popover" onIonChange={e => setLanguage(e.detail.value)} className="custom-select">
+                       <IonSelectOption value="sub-es">Sub Español</IonSelectOption>
+                       <IonSelectOption value="sub-en">Sub Inglés</IonSelectOption>
+                       <IonSelectOption value="latino">Latino</IonSelectOption>
+                       <IonSelectOption value="castellano">Castellano</IonSelectOption>
+                    </IonSelect>
+                  </div>
 
-              <div className="filter-select-wrapper flex-1">
-                <IonIcon icon={optionsOutline} className="select-icon" />
-                <IonSelect value={type} placeholder="Tipo" interface="popover" onIonChange={e => setType(e.detail.value)} className="custom-select">
-                   <IonSelectOption value="all">Formato</IonSelectOption>
-                   <IonSelectOption value="TV">TV</IonSelectOption>
-                   <IonSelectOption value="Movie">Pelis</IonSelectOption>
-                   <IonSelectOption value="OVA">OVA</IonSelectOption>
-                   <IonSelectOption value="ONA">ONA</IonSelectOption>
-                   <IonSelectOption value="Special">Espec.</IonSelectOption>
-                </IonSelect>
-              </div>
-           </div>
+                  <div className="filter-select-wrapper flex-1">
+                    <IonIcon icon={optionsOutline} className="select-icon" />
+                    <IonSelect value={type} placeholder="Tipo" interface="popover" onIonChange={e => setType(e.detail.value)} className="custom-select">
+                       <IonSelectOption value="all">Formato</IonSelectOption>
+                       <IonSelectOption value="TV">TV</IonSelectOption>
+                       <IonSelectOption value="Movie">Pelis</IonSelectOption>
+                       <IonSelectOption value="OVA">OVA</IonSelectOption>
+                       <IonSelectOption value="ONA">ONA</IonSelectOption>
+                       <IonSelectOption value="Special">Espec.</IonSelectOption>
+                    </IonSelect>
+                  </div>
+               </div>
 
-           <div className="filter-chips-row dual-selectors" style={{ marginTop: '-4px' }}>
-              <div className="filter-select-wrapper flex-1">
-                <IonIcon icon={timeOutline} className="select-icon" />
-                <IonSelect value={year} placeholder="Año" interface="popover" onIonChange={e => setYear(e.detail.value)} className="custom-select">
-                   <IonSelectOption value="all">Año</IonSelectOption>
-                   {years.map(y => <IonSelectOption key={y} value={y}>{y}</IonSelectOption>)}
-                </IonSelect>
-              </div>
+               <div className="filter-chips-row dual-selectors" style={{ marginTop: '-4px' }}>
+                  <div className="filter-select-wrapper flex-1">
+                    <IonIcon icon={sparklesOutline} className="select-icon" />
+                    <IonSelect value={genre} placeholder="Género" interface="popover" onIonChange={e => setGenre(e.detail.value)} className="custom-select">
+                       <IonSelectOption value="all">Género</IonSelectOption>
+                       {genres.map(g => (
+                         <IonSelectOption key={g} value={g}>{g}</IonSelectOption>
+                       ))}
+                    </IonSelect>
+                  </div>
 
-              <div className="filter-select-wrapper flex-1">
-                <IonIcon icon={trendingUpOutline} className="select-icon" />
-                <IonSelect value={sort} placeholder="Orden" interface="popover" onIonChange={e => setSort(e.detail.value)} className="custom-select">
-                   <IonSelectOption value="default">Recientes</IonSelectOption>
-                   <IonSelectOption value="rating">Calificación</IonSelectOption>
-                   <IonSelectOption value="updated">Subidos</IonSelectOption>
-                </IonSelect>
-              </div>
-           </div>
-        </div>
+                  <div className="filter-select-wrapper flex-1">
+                    <IonIcon icon={trendingUpOutline} className="select-icon" />
+                    <IonSelect value={sort} placeholder="Orden" interface="popover" onIonChange={e => setSort(e.detail.value)} className="custom-select">
+                       <IonSelectOption value="default">Recientes</IonSelectOption>
+                       <IonSelectOption value="rating">Calificación</IonSelectOption>
+                       <IonSelectOption value="updated">Subidos</IonSelectOption>
+                    </IonSelect>
+                  </div>
+               </div>
+
+               <div className="filter-row" style={{ marginTop: '-4px' }}>
+                 <div className="filter-select-wrapper flex-1">
+                    <IonIcon icon={timeOutline} className="select-icon" />
+                    <IonSelect value={year} placeholder="Año" interface="popover" onIonChange={e => setYear(e.detail.value)} className="custom-select">
+                       <IonSelectOption value="all">Año (Todos)</IonSelectOption>
+                       {years.map(y => <IonSelectOption key={y} value={y}>{y}</IonSelectOption>)}
+                    </IonSelect>
+                  </div>
+               </div>
+            </div>
       </IonHeader>
 
       <IonContent fullscreen className="directory-content">
@@ -187,13 +203,23 @@ const AnimeDirectoryPage: React.FC = () => {
               </IonRow>
             </IonGrid>
           ) : results.length > 0 ? (
-            <IonGrid className="anime-grid-v">
+            <IonGrid className="anime-grid-v" style={{ position: 'relative' }}>
+               {loading && (
+                 <div style={{
+                   position: 'absolute', inset: 0, zIndex: 20,
+                   background: 'rgba(15, 16, 20, 0.7)', backdropFilter: 'blur(4px)',
+                   display: 'flex', alignItems: 'center', justifyContent: 'center',
+                   borderRadius: '12px'
+                 }}>
+                   <IonSpinner name="crescent" color="primary" style={{ transform: 'scale(1.5)' }} />
+                 </div>
+               )}
                <IonRow className="anime-row-v">
                   {results.map((anime, idx) => (
                     <IonCol size="6" sizeSm="4" sizeMd="3" className="anime-col-5 anime-col-v" key={`${anime.id}-${idx}`}>
                        <AnimeCardItem 
                           anime={anime} 
-                          onClick={() => router.push(`/anime/${anime.id}`)}
+                          onClick={() => router.push(`/anime/${anime.id}`, 'forward', 'push', { anime } as any)}
                           index={idx}
                        />
                     </IonCol>

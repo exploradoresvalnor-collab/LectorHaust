@@ -19,11 +19,11 @@ export const deduplicateChapters = (chaptersArray: any[]) => {
 // Zero-latency Memory Cache for Screen Transitions (Details <-> Reader)
 const detailsMemoryCache = new Map<string, any>();
 
-export function useMangaDetails(id?: string) {
-  const [manga, setManga] = useState<any>(null);
+export function useMangaDetails(id?: string, initialData?: any) {
+  const [manga, setManga] = useState<any>(initialData || null);
   const [aniData, setAniData] = useState<any>(null);
   const [chapters, setChapters] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialData);
   const [loadingChapters, setLoadingChapters] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalChapters, setTotalChapters] = useState(0);
@@ -68,54 +68,47 @@ export function useMangaDetails(id?: string) {
 
       // --- PROVIDER FETCH ---
       try {
-        const data = await mangaProvider.getMangaDetails(id, showNSFW);
+        // Essential: Fetch MangaDex details and First Page of Chapters in parallel
+        // If we have initialData, we only fetch chapters and extras.
+        const [mdDetails, firstChapters] = await Promise.all([
+          !initialData ? mangaProvider.getMangaDetails(id, showNSFW) : Promise.resolve({ data: initialData }),
+          mangaProvider.getMangaChapters(id, chapterLang, 20, 0, chapterOrder, showNSFW)
+        ]);
         
         if (!isMounted.current) return;
 
-        if (!data || !data.data) {
-          throw new Error('No pudimos encontrar este manga en la aventura.');
-        }
-
-        const mangaObj = data.data;
+        const mangaObj = mdDetails.data;
+        if (!mangaObj) throw new Error('Manga not found');
         setManga(mangaObj);
         
         const title = mangaObj.attributes?.title?.en || Object.values(mangaObj.attributes?.title || {})[0];
         
-        // Non-essential parallel fetches (Staggered to prioritize chapters)
-        setTimeout(() => {
-          if (!isMounted.current) return;
-          Promise.all([
-            mangaProvider.getMangaStatistics(id).then((stats: any) => {
-              if (isMounted.current) setMdStats(stats);
-            }).catch(() => {}),
+        // Non-essential parallel fetches (No more 300ms delay!)
+        Promise.all([
+          mangaProvider.getMangaStatistics(id).then((stats: any) => {
+            if (isMounted.current) setMdStats(stats);
+          }).catch(() => {}),
 
-            (async () => {
-              if (!title) return;
-              try {
-                const aniListResults = await anilistService.searchManga(title as string);
-                if (isMounted.current && aniListResults && aniListResults.length > 0) {
-                  const detail = await anilistService.getMangaDetails(aniListResults[0].id);
-                  if (isMounted.current) setAniData(detail);
-                }
-              } catch (err) { console.warn('AniList fetch failed', err); }
-            })(),
-
-            mangaProvider.getMangaChapters(id, null as any, 100).then((allChaptersData: any) => {
-              if (isMounted.current && allChaptersData.data) {
-                const langs = [...new Set(allChaptersData.data.map((c: any) => c.attributes?.translatedLanguage))] as string[];
-                setAvailableLangs((prev: string[]) => prev.length > 0 ? prev : langs.filter((l: string) => !!l));
+          (async () => {
+            if (!title) return;
+            try {
+              const aniListResults = await anilistService.searchManga(title as string);
+              if (isMounted.current && aniListResults && aniListResults.length > 0) {
+                const detail = await anilistService.getMangaDetails(aniListResults[0].id);
+                if (isMounted.current) setAniData(detail);
               }
-            }).catch(() => {})
-          ]);
-        }, 300); // 300ms delay to give chapters priority
+            } catch (err) { console.warn('AniList fetch failed', err); }
+          })(),
 
-        if (isMounted.current) {
-          setCurrentPage(1);
-          setHasMoreChapters(true);
-        }
-        
-        // Essential: First page of chapters from primary provider
-        let chaptersData = await mangaProvider.getMangaChapters(id, chapterLang, 20, 0, chapterOrder, showNSFW);
+          mangaProvider.getMangaChapters(id, null as any, 100).then((allChaptersData: any) => {
+            if (isMounted.current && allChaptersData.data) {
+              const langs = [...new Set(allChaptersData.data.map((c: any) => c.attributes?.translatedLanguage))] as string[];
+              setAvailableLangs((prev: string[]) => prev.length > 0 ? prev : langs.filter((l: string) => !!l));
+            }
+          }).catch(() => {})
+        ]);
+
+        let chaptersData = firstChapters;
         
         // ────────────────────────────────────────────────────────
         // 🔄 HAUS INTELLIGENT FALLBACK (v2): 

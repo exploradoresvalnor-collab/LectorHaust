@@ -41,13 +41,24 @@ export function useHomeData() {
   } = useQuery({
     queryKey: ['masterpieces', currentSource, latestLang, showNSFW],
     queryFn: async () => {
-      // Faster fetch: Only JP masterpieces first (highest weight/quality)
-      const jpMD = await mangaProvider.getFullyTranslatedMasterpieces('JP', latestLang, 8, 0, null, false, showNSFW);
-      const jpData = jpMD.data || [];
+      // Parallel Fetch: Fetch both JP (Manga) and KR (Manhwa) masterpieces simultaneously
+      // for 2x faster load and better discovery (solving the "no Manhwa" issue).
+      const [jpMD, krMD] = await Promise.all([
+        mangaProvider.getFullyTranslatedMasterpieces('JP', latestLang, 8, 0, null, false, showNSFW),
+        mangaProvider.getFullyTranslatedMasterpieces('KR', latestLang, 8, 0, null, false, showNSFW)
+      ]);
       
-      // We return JP immediately for Hero/Carousel. KR/CN can be fetched in a second pass or background if needed,
-      // but to solve the 6s delay, we minimize the first critical query.
-      return jpData;
+      const jpData = jpMD.data || [];
+      const krData = krMD.data || [];
+      
+      // Combine and filter duplicates
+      const combined = [...jpData, ...krData];
+      const seen = new Set();
+      return combined.filter((m: any) => {
+        if (seen.has(m.id)) return false;
+        seen.add(m.id);
+        return true;
+      });
     },
     staleTime: 1000 * 60 * 60 * 4, // 4 hours
   });
@@ -73,7 +84,9 @@ export function useHomeData() {
       return lastPage.data?.length >= 10 ? nextOffset : undefined;
     },
     staleTime: 1000 * 60 * 5, // 5 minutes fresh
-    enabled: !!masterpieces, // V.I.P Priority: Wait for masterpieces/hero assets before flooding the network with latest updates
+    // PROFESSIONAL OPTIMIZATION: Parallel loading enabled. 
+    // We no longer wait for masterpieces to avoid the "chained delay" effect.
+    enabled: true, 
   });
 
   const latest = useMemo(() => {

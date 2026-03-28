@@ -3,7 +3,51 @@
  */
 import { postGraphQL } from './apiHelpers';
 
-const BASE_URL = 'https://graphql.anilist.co';
+const BASE_URL = 'https://graphql.anilist.co/';
+
+/**
+ * Professional Rate Limiter & Cache for AniList
+ */
+const CACHE_TTL = 1000 * 60 * 60; // 1 hour
+let lastRequestTime = 0;
+
+async function rateLimitedFetch(query: string, variables: any): Promise<any> {
+    // 1. Check Cache
+    const raw = query + JSON.stringify(variables);
+    // Use a proper hash to avoid cache collisions from truncated base64
+    let hash = 0;
+    for (let i = 0; i < raw.length; i++) {
+      const ch = raw.charCodeAt(i);
+      hash = ((hash << 5) - hash) + ch;
+      hash |= 0; // Convert to 32-bit int
+    }
+    const cacheKey = `anilist_${hash}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        if (Date.now() - timestamp < CACHE_TTL) return data;
+    }
+
+    // 2. Throttling (100ms between calls)
+    const now = Date.now();
+    const elapsed = now - lastRequestTime;
+    if (elapsed < 100) {
+        await new Promise(r => setTimeout(r, 100 - elapsed));
+    }
+    
+    // 3. Network Fetch
+    try {
+        const response = await postGraphQL(BASE_URL, query, variables);
+        if (response?.data) {
+            localStorage.setItem(cacheKey, JSON.stringify({ data: response, timestamp: Date.now() }));
+        }
+        lastRequestTime = Date.now();
+        return response;
+    } catch (err) {
+        lastRequestTime = Date.now();
+        throw err;
+    }
+}
 
 const TRENDING_QUERY = `
 query ($origin: CountryCode) {
@@ -86,12 +130,12 @@ query ($id: Int) {
 
 export const anilistService = {
     async getTrendingManga(origin: string | null = null) {
-        const data = await postGraphQL(BASE_URL, TRENDING_QUERY, { origin });
+        const data = await rateLimitedFetch(TRENDING_QUERY, { origin });
         return data.data.Page.media;
     },
 
     async getMangaDetails(id: number) {
-        const data = await postGraphQL(BASE_URL, DETAILS_QUERY, { id });
+        const data = await rateLimitedFetch(DETAILS_QUERY, { id });
         return data.data.Media;
     },
 
@@ -112,7 +156,7 @@ export const anilistService = {
           }
         }
         `;
-        const data = await postGraphQL(BASE_URL, query, { search });
+        const data = await rateLimitedFetch(query, { search });
         return data.data.Page.media;
     },
 
@@ -125,14 +169,34 @@ export const anilistService = {
              bannerImage
              coverImage { extraLarge large }
              description
+             averageScore
           }
         }
         `;
         try {
-           const data = await postGraphQL(BASE_URL, query, { search });
+           const data = await rateLimitedFetch(query, { search });
            return data?.data?.Media || null;
         } catch {
            return null;
         }
+    },
+
+    async getTrendingAnime() {
+        const query = `
+        query {
+          Page (page: 1, perPage: 12) {
+            media (type: ANIME, sort: TRENDING_DESC) {
+              id
+              title { romaji english }
+              bannerImage
+              coverImage { extraLarge large }
+              description
+              averageScore
+            }
+          }
+        }
+        `;
+        const data = await rateLimitedFetch(query, {});
+        return data.data.Page.media;
     }
 };

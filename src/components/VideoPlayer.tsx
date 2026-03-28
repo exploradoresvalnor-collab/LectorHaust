@@ -8,11 +8,13 @@ import {
 } from 'ionicons/icons';
 import { animeflvService } from '../services/animeflvService';
 import { tioanimeService } from '../services/tioanimeService';
+import CommentSection from './CommentSection';
 
 interface VideoPlayerProps {
   episode: any;
   episodes: any[];
   animeTitle: string;
+  animeId: string;
   sourceProvider?: 'hianime' | 'animeflv' | 'tioanime';
   onEpisodeChange: (ep: any) => void;
   onClose: () => void;
@@ -27,6 +29,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   episode,
   episodes,
   animeTitle,
+  animeId,
   sourceProvider: initialSource,
   onEpisodeChange,
   onClose
@@ -34,7 +37,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   
-  const [sourceProvider, setSourceProvider] = useState<'hianime' | 'animeflv' | 'tioanime'>(initialSource || 'hianime');
+  const [sourceProvider, setSourceProvider] = useState<'hianime' | 'animeflv' | 'tioanime'>(initialSource || 'animeflv');
   const [flvId, setFlvId] = useState<string | null>(null);
   const [tioId, setTioId] = useState<string | null>(null);
   const [servers, setServers] = useState<{sub: Server[], dub: Server[]}>({sub: [], dub: []});
@@ -246,7 +249,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Mapeo inteligente de nombres de servidores
   const getIntelligentName = (provider: string) => {
     switch(provider) {
-      case 'hianime': return 'CINE-ULTRA';
+      case 'hianime': return 'SERVER-ENGLISH';
       case 'animeflv': return 'SERVIDOR-AZUL';
       case 'tioanime': return 'SERVIDOR-NARANJA';
       default: return provider.toUpperCase();
@@ -311,11 +314,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             className="iframe-player"
             style={{ width: '100%', height: '100%', border: 'none' }} 
             allowFullScreen 
-            /* sandbox restringido: permite scripts necesarios pero bloquea popups */
-            sandbox="allow-forms allow-scripts allow-same-origin allow-presentation" 
-            /* Oculta el origen de la petición para evitar bloqueos del servidor */
-            referrerPolicy="no-referrer"
-            /* Permite funciones esenciales del reproductor */
             allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
           />
         ) : (
@@ -335,7 +333,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           position: 'absolute', right: '-20px', bottom: '-15px', opacity: 0.04, 
           fontSize: '4.5rem', fontWeight: 900, pointerEvents: 'none', color: '#fff',
           transform: 'rotate(-5deg)', userSelect: 'none'
-        }}>HausAnime</div>
+        }}>Lector Haus</div>
 
         {/* Title & Close Logic (PREMIUM STYLE BELOW VIDEO) */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '25px', paddingBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
@@ -409,6 +407,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 {s.serverName.toUpperCase()}
              </div>
           ))}
+        </div>
+
+        {/* 6. Comentarios del Episodio */}
+        <div style={{ marginTop: '30px', paddingBottom: '60px' }}>
+            <CommentSection 
+                mangaId={animeId}
+                chapterId={episodeId}
+                title={`Muro del Episodio ${episodeNumber}`}
+            />
         </div>
 
       </div>

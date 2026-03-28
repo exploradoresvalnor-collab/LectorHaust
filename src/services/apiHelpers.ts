@@ -40,20 +40,34 @@ export async function fetchJSON<T = any>(url: string, options?: RequestInit & { 
 export async function postGraphQL<T = any>(
   url: string,
   query: string,
-  variables: Record<string, any> = {}
+  variables: Record<string, any> = {},
+  timeoutMs = 15000
 ): Promise<T> {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    },
-    body: JSON.stringify({ query, variables }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  if (!response.ok) {
-    throw new Error(`GraphQL HTTP ${response.status}: ${url}`);
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      signal: controller.signal,
+      body: JSON.stringify({ query, variables }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`GraphQL HTTP ${response.status}: ${url}`);
+    }
+
+    return response.json();
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      throw new Error(`GraphQL Timeout (${timeoutMs}ms): ${url}`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
-
-  return response.json();
 }

@@ -69,6 +69,7 @@ import { useParams } from 'react-router-dom';
 import { mangaProvider } from '../services/mangaProvider';
 import { useLibraryStore } from '../store/useLibraryStore';
 import ChapterItem from '../components/ChapterItem';
+import { useLocation } from 'react-router-dom';
 
 import LoadingScreen from '../components/LoadingScreen';
 import CommentSection from '../components/CommentSection';
@@ -88,22 +89,17 @@ import './MangaDetailsPage.css';
 const MangaDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const router = useIonRouter();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const [currentUser, setCurrentUser] = useState<any>(null);
+  
+  // Instant Initial Data from Navigation State
+  const initialData = (location.state as any)?.manga;
   
   useEffect(() => {
     const unsub = firebaseAuthService.subscribe(user => setCurrentUser(user));
     return () => unsub();
   }, []);
-
-  // Smart recommendations state
-  const [verifiedRecs, setVerifiedRecs] = useState<any[]>([]);
-  const [loadingRecs, setLoadingRecs] = useState(false);
-  // Offline downloads state
-  const [downloadedChapters, setDownloadedChapters] = useState<Set<string>>(new Set());
-  const [downloadingChapters, setDownloadingChapters] = useState<Record<string, number>>({});
-  const [showShareSheet, setShowShareSheet] = useState(false);
-  const [presentToast] = useIonToast();
 
   const { toggleFavorite, isFavorite, isRead, getProgress, toggleRead, showNSFW } = useLibraryStore();
   const progress = id ? getProgress(id) : null;
@@ -126,7 +122,16 @@ const MangaDetailsPage: React.FC = () => {
     setChapterOrder,
     handleLangChange,
     loadMoreChapters
-  } = useMangaDetails(id);
+  } = useMangaDetails(id, initialData);
+
+  // Smart recommendations state
+  const [verifiedRecs, setVerifiedRecs] = useState<any[]>([]);
+  const [loadingRecs, setLoadingRecs] = useState(false);
+  // Offline downloads state
+  const [downloadedChapters, setDownloadedChapters] = useState<Set<string>>(new Set());
+  const [downloadingChapters, setDownloadingChapters] = useState<Record<string, number>>({});
+  const [showShareSheet, setShowShareSheet] = useState(false);
+  const [presentToast] = useIonToast();
 
   const parsedTitle = manga ? mangaProvider.getLocalizedTitle(manga) : null;
   const { crossMedia, loadingCrossMedia } = useCrossMedia(parsedTitle as string, 'MANGA');

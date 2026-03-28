@@ -269,6 +269,13 @@ const AppContent: React.FC = () => {
     }
   }, [location.pathname]);
 
+  // FIX: aria-hidden focus collision during navigation
+  useEffect(() => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  }, [location.pathname]);
+
   return (
     <>
       <OfflineBanner />

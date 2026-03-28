@@ -44,12 +44,15 @@ import VideoPlayer from '../components/VideoPlayer';
 import CommentSection from '../components/CommentSection';
 import UniversalEngagementBar from '../components/UniversalEngagementBar';
 import { useCrossMedia } from '../hooks/useCrossMedia';
+import { useLocation } from 'react-router-dom';
+import { hianimeService } from '../services/hianimeService';
 
 const EPISODES_PER_PAGE = 30;
 
 const AnimeDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const router = useIonRouter();
+  const location = useLocation();
   const epListRef = useRef<HTMLDivElement>(null);
 
   const [anime, setAnime] = useState<any | null>(null);
@@ -57,13 +60,37 @@ const AnimeDetailsPage: React.FC = () => {
   const [selectedEpisode, setSelectedEpisode] = useState<any>(null);
   const [showPlayer, setShowPlayer] = useState(false);
   const [episodePage, setEpisodePage] = useState(0);
-  const [episodeOrder, setEpisodeOrder] = useState<'desc' | 'asc'>('desc'); // desc = Mayor a menor
+  const [episodeOrder, setEpisodeOrder] = useState<'desc' | 'asc'>('desc');
   const [episodeSearch, setEpisodeSearch] = useState('');
-  const [sourceProvider, setSourceProvider] = useState<'hianime' | 'animeflv' | 'tioanime'>(
-    (new URLSearchParams(window.location.search).get('provider') as any) || 'hianime'
-  );
+  const [sourceProvider, setSourceProvider] = useState<'hianime' | 'animeflv' | 'tioanime'>('animeflv');
 
   const { crossMedia, loadingCrossMedia } = useCrossMedia(anime?.title, 'ANIME');
+
+  // Reset state when id changes (new anime page)
+  useEffect(() => {
+    const navData = (location.state as any)?.anime || (location.state as any)?.manga;
+    
+    // Reset all episode state
+    setSelectedEpisode(null);
+    setShowPlayer(false);
+    setEpisodePage(0);
+    setEpisodeSearch('');
+    
+    // Smart source detection
+    const navSource = (navData?.source || navData?.preferredProvider) as string | undefined;
+    const urlProvider = new URLSearchParams(window.location.search).get('provider');
+    const detected = urlProvider || (navSource === 'hianime' ? 'hianime' : 'animeflv');
+    setSourceProvider(detected as any);
+    
+    // Use navigation data as instant preview while fetching fresh data
+    if (navData) {
+      setAnime(navData);
+      setLoading(false);
+    } else {
+      setAnime(null);
+      setLoading(true);
+    }
+  }, [id]);
 
   // Monitor player close to scroll back
   useEffect(() => {
@@ -77,26 +104,39 @@ const AnimeDetailsPage: React.FC = () => {
   useEffect(() => {
     const fetchAnime = async () => {
       if (!id) return;
-      setLoading(true);
+      
       try {
-        const data = await animeflvService.getAnimeInfo(id);
+        const provider = sourceProvider === 'hianime' ? hianimeService : animeflvService;
+        
+        const currentTitle = anime?.title || anime?.name;
+        
+        const [data, anilistInfo] = await Promise.all([
+          provider.getAnimeInfo(id),
+          currentTitle ? anilistService.getAnimeDetailsByName(currentTitle) : Promise.resolve(null)
+        ]);
+        
         if (data) {
-           const anilistInfo = await anilistService.getAnimeDetailsByName(data.title);
-           if (anilistInfo) {
-              data.image = anilistInfo.bannerImage || anilistInfo.coverImage?.extraLarge || data.image;
-              (data as any).coverImage = anilistInfo.coverImage?.extraLarge || data.image;
+           let finalAnilist = anilistInfo;
+           if (!finalAnilist && data.title) {
+              finalAnilist = await anilistService.getAnimeDetailsByName(data.title);
            }
+           
+           if (finalAnilist) {
+              data.image = finalAnilist.bannerImage || finalAnilist.coverImage?.extraLarge || data.image;
+              (data as any).coverImage = finalAnilist.coverImage?.extraLarge || data.image;
+              data.description = finalAnilist.description || data.description;
+              (data as any).rating = finalAnilist.averageScore ? `${finalAnilist.averageScore}%` : (data as any).rating;
+           }
+           setAnime(data);
         }
-        setAnime(data);
       } catch (err) {
         console.error("Failed to fetch anime info:", err);
-        // Optionally, handle error state, e.g., set anime to null or show an error message
       } finally {
         setLoading(false);
       }
     };
     fetchAnime();
-  }, [id]);
+  }, [id, sourceProvider]);
 
   // Sorted & filtered episodes
   const sortedEpisodes = useMemo(() => {
@@ -148,8 +188,8 @@ const AnimeDetailsPage: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center' }}>
               <img src="/logolh.webp" width="24" height="24" style={{ filter: 'drop-shadow(0 0 8px rgba(var(--ion-color-primary-rgb), 0.6))' }} />
               <div style={{ marginLeft: '10px', display: 'flex', flexDirection: 'column', lineHeight: '1.1' }}>
-                <span style={{ fontWeight: 900, fontSize: '1rem', color: '#fff', letterSpacing: '0.5px' }}>Haus<span style={{ color: 'var(--ion-color-primary)' }}>Anime</span></span>
-                <span style={{ fontSize: '0.55rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '1px' }}>PREMIUM</span>
+                <span style={{ fontWeight: 900, fontSize: '1rem', color: '#fff', letterSpacing: '0.5px' }}>Lector<span style={{ color: 'var(--ion-color-primary)' }}>Haus</span></span>
+                <span style={{ fontSize: '0.55rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '1px' }}>ANIME PREMIUM</span>
               </div>
             </div>
           </IonTitle>
@@ -177,9 +217,10 @@ const AnimeDetailsPage: React.FC = () => {
               episode={selectedEpisode}
               episodes={anime.episodes || []}
               animeTitle={anime.title || 'Anime'}
+              animeId={id || ''}
               onEpisodeChange={(ep) => setSelectedEpisode(ep)}
               onClose={() => setShowPlayer(false)}
-              sourceProvider="animeflv"
+              sourceProvider={sourceProvider}
             />
           </div>
         )}
@@ -188,7 +229,7 @@ const AnimeDetailsPage: React.FC = () => {
         {!showPlayer && (
           <>
             <div className="hero-spotlight animate-fade-in" style={{ height: '55vh', minHeight: '380px' }}>
-              <img src={anime.image} alt="Banner" className="hero-bg-img" />
+              <img src={anime.image || 'https://placehold.co/1200x600/111111/444444?text=Lector+Haus+Premium'} alt="Banner" className="hero-bg-img" />
               <div className="hero-gradient"></div>
             </div>
 
@@ -286,7 +327,7 @@ const AnimeDetailsPage: React.FC = () => {
                         onClick={() => handlePlayEpisode(ep)}
                       >
                         <div className="ep-card-thumb">
-                          <SmartImage src={anime.image || ''} alt={`Ep ${ep.number}`} />
+                          <SmartImage src={ep.image || (anime as any).coverImage || anime.image || ''} alt={`Ep ${ep.number}`} />
                           <div className="ep-card-number-badge">{ep.number}</div>
                           {ep.isFiller && <div className="ep-card-filler-tag">Filler</div>}
                         </div>
@@ -318,9 +359,9 @@ const AnimeDetailsPage: React.FC = () => {
 
                 {/* FOOTER PROFESIONAL (PHASE 12) */}
                 <footer className="page-footer">
-                  <div className="footer-divider"></div>
-                  <p>KamiReader • Animedex</p>
-                  <span>Hecho con ♡ para la comunidad Haus</span>
+                  <div className="footer-content" style={{ textAlign: 'center' }}>
+                    <p style={{ fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', fontSize: '0.8rem', opacity: 0.7 }}>LectorHaus 2026</p>
+                  </div>
                 </footer>
 
               </div>

@@ -13,15 +13,15 @@ const UPLOADS_URL = 'https://uploads.mangadex.org';
 const CLOUDINARY_CLOUD_NAME = 'djzak5yb2';
 
 /**
- * Simple rate limiter: ensures minimum 200ms between requests (≤5 req/s)
+ * Simple rate limiter: ensures minimum 100ms between requests (≤10 req/s)
+ * Updated to 100ms for more professional responsiveness while staying safe.
  */
 let lastRequestTime = 0;
-// 3. Añadimos soporte para opciones (RequestInit) para poder abortar peticiones colgadas
 async function rateLimitedFetch(url: string, options?: RequestInit): Promise<Response> {
     const now = Date.now();
     const elapsed = now - lastRequestTime;
-    if (elapsed < 200) {
-        await new Promise(r => setTimeout(r, 200 - elapsed));
+    if (elapsed < 100) {
+        await new Promise(r => setTimeout(r, 100 - elapsed));
     }
     lastRequestTime = Date.now();
     return fetch(url, options);
@@ -45,9 +45,9 @@ function getProxyUrl(endpoint: string) {
 async function apiFetch(endpoint: string, retries = 2, delay = 1000): Promise<any> {
     const proxiedUrl = getProxyUrl(endpoint);
     try {
-        // 4. EL "KILL SWITCH": Creamos un abortador automático de 10 segundos
+        // 4. EL "KILL SWITCH": Creamos un abortador automático de 30 segundos (aumentado para mayor tolerancia en proxies)
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
 
         // Pasamos el signal al fetch
         const response = await rateLimitedFetch(proxiedUrl, { signal: controller.signal });
@@ -65,7 +65,8 @@ async function apiFetch(endpoint: string, retries = 2, delay = 1000): Promise<an
     } catch (err: any) {
         // Si falló por timeout (AbortError) o por red, intentar de nuevo
         if (retries > 0) {
-            console.warn(`[MangaDex] Fetch Hang/Error. Retrying in ${delay}ms... (${retries} left)`, err.message);
+            const isTimeout = err.name === 'AbortError' || err.message?.includes('aborted');
+            console.warn(`[MangaDex] ${isTimeout ? 'Fetch Timeout' : 'Network Error'}. Retrying in ${delay}ms... (${retries} left)`);
             await new Promise(res => setTimeout(res, delay));
             return apiFetch(endpoint, retries - 1, delay * 2);
         }
@@ -396,7 +397,7 @@ export const mangadexService = {
             }
 
             const validMangas: any[] = [];
-            const chunkSize = 3; // Validate at most 3 at a time to prevent Vite proxy ETIMEDOUT crashes
+            const chunkSize = 10; // Increased to 10 for professional-grade loading speed
 
             for (let i = 0; i < response.data.length; i += chunkSize) {
                 // Short-circuit: If we already have enough valid mangas, STOP checking the rest
@@ -410,7 +411,9 @@ export const mangadexService = {
 
                         // If we don't have a last chapter but it's completed, we try to use the latest from aggregate
                         // instead of just discarding it immediately (lenient for KR/CN)
-                        if (!lastChapterStr && status !== 'completed') return null;
+                        if (!lastChapterStr && status !== 'completed') {
+                            // HAUS INTELLIGENCE: Even if not completed, check if it has a decent amount of chapters in Lang
+                        }
 
                         let aggUrl = `/manga/${manga.id}/aggregate?`;
                         if (!isWorldMode) {
@@ -423,8 +426,7 @@ export const mangadexService = {
                         if (!aggData || !aggData.volumes) return null;
 
                         const volumes = Object.values(aggData.volumes) as any[];
-                        let hasLastChapter = false;
-                        let totalChaptersCount = 0;
+                        let totalChaptersInLang = 0;
                         const uniqueChapters = new Set();
                         
                         for (const vol of volumes) {
@@ -432,37 +434,40 @@ export const mangadexService = {
                                 Object.keys(vol.chapters).forEach(k => uniqueChapters.add(k));
                             }
                         }
-                        totalChaptersCount = uniqueChapters.size;
+                        totalChaptersInLang = uniqueChapters.size;
 
-                        // RULES FOR A "JOYITA"
-                        // 1. Must have at least 5 chapters (avoids one-shots or empty placeholders)
-                        if (totalChaptersCount < 5) return null;
+                        // RULES FOR A "JOYITA" (Balanced for Manhwas)
+                        // 1. Must have at least 3 chapters in the target language (relaxed from 5 to catch fresh Manhwas)
+                        if (totalChaptersInLang < 3) return null;
 
-                        // 2. If lastChapter metadata exists, must have at least 80% coverage
+                        // 2. Coverage calculation
+                        let hasEnoughCoverage = false;
                         if (lastChapterStr) {
                             const lastChapterNum = parseFloat(lastChapterStr);
                             if (!isNaN(lastChapterNum) && lastChapterNum > 0) {
-                                const coverage = totalChaptersCount / lastChapterNum;
-                                // If coverage < 80%, it's likely heavily incomplete in this language
-                                if (coverage < 0.8) return null;
-                                hasLastChapter = true; // High enough coverage
+                                const coverage = totalChaptersInLang / lastChapterNum;
+                                // RELAXED: 70% coverage instead of 80% to account for fast Korean scanlation gaps
+                                if (coverage >= 0.7) hasEnoughCoverage = true;
                             }
                         } else {
-                            // 3. If no metadata but status is completed and we have many chapters, assume it's good
-                            if (status === 'completed' && totalChaptersCount >= 5) {
-                                hasLastChapter = true;
+                            // 3. Fallback: If status is completed and we have chapters, it's good
+                            if (status === 'completed' && totalChaptersInLang >= 3) {
+                                hasEnoughCoverage = true;
+                            } else if (totalChaptersInLang > 20) {
+                                // Ongoing with many chapters is usually safe
+                                hasEnoughCoverage = true;
                             }
                         }
 
-                        if (hasLastChapter) {
+                        if (hasEnoughCoverage) {
                             manga.attributes.mangaType = this.getMangaType(manga);
+                            manga.attributes.calculatedTotalChapters = totalChaptersInLang; // Source of truth for UI
                             const desc = manga.attributes.description || {};
                             manga.attributes.hasSpanishDesc = !!(desc.es || desc['es-la'] || desc['es-419']);
                             return manga;
                         }
                         return null;
                     } catch (err) {
-                        // Fail silently for individual validation
                         return null;
                     }
                 });

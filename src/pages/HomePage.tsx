@@ -21,7 +21,8 @@ import {
   IonBadge,
   IonChip,
   IonLabel,
-  IonToast
+  IonToast,
+  IonSearchbar
 } from '@ionic/react';
 import { personCircleOutline, notifications, refreshOutline, chevronDownOutline, libraryOutline, sparklesOutline, checkmarkCircle, chevronBackOutline, chevronForwardOutline, logInOutline, closeOutline, cloudUploadOutline, chatbubblesOutline, trophyOutline, logoGoogle, personOutline } from 'ionicons/icons';
 import MangaCard from '../components/MangaCard';
@@ -96,12 +97,12 @@ const HomePage: React.FC = () => {
 
    const handleMangaClick = async (manga: any) => {
     hapticsService.lightImpact();
-    router.push(`/manga/${manga.id}`);
+    (router as any).push(`/manga/${manga.id}`, 'forward', 'push', { manga });
   };
 
   const handleLatestClick = (manga: any) => {
     hapticsService.lightImpact();
-    router.push(`/manga/${manga.id}`);
+    (router as any).push(`/manga/${manga.id}`, 'forward', 'push', { manga });
   };
 
   const handleRefresh = async (event: any) => {
@@ -499,7 +500,7 @@ const HomePage: React.FC = () => {
                         const coverUrl = mangaProvider.getCoverUrl(manga);
                         const formatLabel = manga?.attributes?.mangaType || 'Manga';
                         
-                        const lastChapter = manga?.attributes?.latestChapterNumber || manga?.attributes?.lastChapter;
+                        const lastChapter = manga?.attributes?.latestChapterNumber || manga?.attributes?.calculatedTotalChapters || manga?.attributes?.lastChapter;
                         const readableAt = manga?.attributes?.latestChapterReadableAt || manga?.attributes?.updatedAt;
                         const timeAgo = readableAt ? getTimeAgo(readableAt) : '';
                         const tags = manga?.attributes?.tags

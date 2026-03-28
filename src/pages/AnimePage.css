@@ -97,20 +97,25 @@
     box-shadow: 0 0 10px var(--ion-color-primary);
 }
 
-.section-header h2 {
-    font-size: 1.3rem;
-    font-weight: 800;
+.section-header h2, .section-title {
+    font-size: 1.5rem;
+    font-weight: 900;
     margin: 0;
-    letter-spacing: -0.5px;
-    color: white;
+    letter-spacing: 0.5px;
+    color: #ffffff;
+    font-family: 'Inter', 'Montserrat', sans-serif;
+    line-height: 1;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 
 .header-custom-search {
     --background: rgba(255,255,255,0.08);
     --border-radius: 12px;
     --placeholder-color: rgba(255,255,255,0.4);
-    --color: #fff;
+    --color: #ffffff;
+    --placeholder-font-weight: 600;
     --box-shadow: none;
+    color: #ffffff;
     padding: 0 !important;
     height: 38px;
 }
