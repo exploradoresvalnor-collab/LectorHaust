@@ -371,7 +371,9 @@ export const mangaProvider = {
         return mangadexService.getRecommendations(tags, limit, allowNSFW);
     },
 
-    getCoverUrl(manga: any, quality: 'original' | '256' | '512' = '256') {
+    getCoverUrl(manga: any, quality: 'original' | '256' | '512' = '256', aniListCover?: string) {
+        if (aniListCover) return aniListCover;
+        
         if (!manga) return 'https://placehold.co/512x768/222222/cccccc?text=Sin+Portada';
         
         // ManhwaWeb has its own cover URL format

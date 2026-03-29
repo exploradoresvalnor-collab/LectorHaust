@@ -12,13 +12,23 @@ export default {
   }
 
   // Determine Referer and User-Agent based on target URL
-  let referer = 'https://mangapill.com/';
-  if (actualUrl.includes('manganato.com') || actualUrl.includes('chapmanganato.to') || actualUrl.includes('natocdn')) {
-   referer = 'https://manganato.com/';
-  } else if (actualUrl.includes('comick')) {
-   referer = 'https://comick.io/';
-  } else if (actualUrl.includes('animeflv') || actualUrl.includes('lacartoons')) {
-   referer = new URL(actualUrl).origin + '/';
+  let referer = ''; // Default to no referer for maximum compatibility
+  
+  const isMangaDex = actualUrl.includes('mangadex.org') || actualUrl.includes('mangadex.network');
+  const isMangaNato = actualUrl.includes('manganato.com') || actualUrl.includes('chapmanganato.to') || actualUrl.includes('natocdn');
+  const isComick = actualUrl.includes('comick.io') || actualUrl.includes('comick.app');
+  const isAnimeFlv = actualUrl.includes('animeflv') || actualUrl.includes('lacartoons');
+  
+  if (isMangaDex) {
+    referer = ''; // MangaDex images require NO referer or origin
+  } else if (isMangaNato) {
+    referer = 'https://manganato.com/';
+  } else if (isComick) {
+    referer = 'https://comick.io/';
+  } else if (isAnimeFlv) {
+    referer = new URL(actualUrl).origin + '/';
+  } else {
+    referer = 'https://mangapill.com/'; // Fallback referer
   }
 
   // === IMAGE CDN LOGIC (Cache First) ===
@@ -34,8 +44,15 @@ export default {
   }
 
   const newHeaders = new Headers();
-  newHeaders.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-  newHeaders.set('Referer', referer);
+  newHeaders.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+  
+  if (referer) {
+    newHeaders.set('Referer', referer);
+  } else if (isMangaDex) {
+    // Explicitly do NOT set referer or origin for MangaDex
+    newHeaders.delete('Referer');
+    newHeaders.delete('Origin');
+  }
 
   try {
    const response = await fetch(actualUrl, {

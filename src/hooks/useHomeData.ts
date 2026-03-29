@@ -9,6 +9,8 @@ import { getDefaultLanguage } from '../utils/translations';
 import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { animeflvService } from '../services/animeflvService';
 import { jkanimeService } from '../services/jkanimeService';
+import { translationService } from '../services/translationService';
+import { anilistService } from '../services/anilistService';
 
 export function useHomeData() {
   const queryClient = useQueryClient();
@@ -104,9 +106,11 @@ export function useHomeData() {
           topAnimes.map(async (a: any) => {
             try {
               const full = await animeflvService.getAnimeInfo(a.id);
+              const { text: desc, isTranslated } = await translationService.translateToSpanish(full?.description || 'Sin descripción disponible.');
               return {
                 ...a,
-                description: full?.description || 'Sin descripción disponible.',
+                description: desc,
+                isTranslated,
                 status: full?.status || 'Serie',
                 type: 'anime',
                 badge: 'ANIME',
@@ -120,16 +124,45 @@ export function useHomeData() {
 
       // 2. Add top mangas
       if (latest && latest.length > 0) {
-        const topMangas = latest.slice(0, 4).map((m: any) => ({
-          id: m.id,
-          title: mangaProvider.getLocalizedTitle(m),
-          description: mangaProvider.getLocalizedDescription(m),
-          image: mangaProvider.getCoverUrl(m, 'original'),
-          type: 'manga',
-          badge: 'MANGA',
-          status: m.attributes?.status === 'completed' ? 'Concluido' : 'Serie',
-          link: `/manga/${m.id}`,
-          raw: m
+        const topMangas = await Promise.all(latest.slice(0, 4).map(async (m: any) => {
+          const rawDesc = mangaProvider.getLocalizedDescription(m);
+          const { text: translatedDesc, isTranslated } = await translationService.translateToSpanish(rawDesc);
+          
+          // Enrichment with AniList Cover for Hero visibility
+          let aniCover = null;
+          try {
+            const fullTitle = mangaProvider.getLocalizedTitle(m);
+            const cleanedTitle = anilistService.cleanTitle(fullTitle);
+            
+            // Try 1: Cleaned but full title
+            let aniRes = await anilistService.searchManga(cleanedTitle);
+            
+            // Try 2: If failed, try only first 4 words
+            if (!aniRes || aniRes.length === 0) {
+              const shortTitle = cleanedTitle.split(' ').slice(0, 4).join(' ');
+              if (shortTitle.length > 3) {
+                aniRes = await anilistService.searchManga(shortTitle);
+              }
+            }
+
+            if (aniRes && aniRes.length > 0) {
+              const fullAni = await anilistService.getMangaDetails(aniRes[0].id);
+              aniCover = fullAni?.coverImage?.extraLarge || fullAni?.coverImage?.large;
+            }
+          } catch { /* Silent fail */ }
+
+          return {
+            id: m.id,
+            title: mangaProvider.getLocalizedTitle(m),
+            description: translatedDesc,
+            isTranslated,
+            image: mangaProvider.getCoverUrl(m, 'original', aniCover || undefined),
+            type: 'manga',
+            badge: 'MANGA',
+            status: m.attributes?.status === 'completed' ? 'Concluido' : 'Serie',
+            link: `/manga/${m.id}`,
+            raw: m
+          };
         }));
         items.push(...topMangas);
       }
@@ -139,7 +172,7 @@ export function useHomeData() {
       const hasJojo = items.some(it => it.title?.toLowerCase().includes('jojo'));
       if (!hasJojo) {
         // Fallback: This ID is for Stone Ocean in AnimeFLV as per search
-        const jojoId = 'jojos-bizarre-adventure-stone-ocean';
+        const jojoId = 'jojo-no-kimyou-na-bouken-the-animation-stone-ocean';
         try {
           const jojo = await animeflvService.getAnimeInfo(jojoId);
           if (jojo) {

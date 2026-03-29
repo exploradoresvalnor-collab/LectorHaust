@@ -251,6 +251,9 @@ const HomePage: React.FC = () => {
 
                     <h1 className="hero-title-v2">{heroItems[heroIndex]?.title || heroItems[heroIndex]?.name}</h1>
                     <p className="hero-desc-v2">
+                      {heroItems[heroIndex]?.isTranslated && (
+                        <span style={{ color: 'var(--ion-color-secondary)', fontWeight: 800, fontSize: '0.7rem', marginRight: '6px' }}>✨ IA</span>
+                      )}
                       {(heroItems[heroIndex]?.description || 'Sin descripción disponible.').substring(0, 160)}...
                     </p>
 

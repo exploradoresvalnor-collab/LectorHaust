@@ -40,21 +40,19 @@ function getProxyUrl(endpoint: string) {
 }
 
 /**
- * Helper to fetch from MangaDex using proxy with automatic retry for 500 errors
+ * Helper to fetch from MangaDex using proxy with automatic retry for 500 errors and ECONNRESET
  */
-async function apiFetch(endpoint: string, retries = 2, delay = 1000): Promise<any> {
+async function apiFetch(endpoint: string, retries = 3, delay = 1500): Promise<any> {
     const proxiedUrl = getProxyUrl(endpoint);
     try {
-        // 4. EL "KILL SWITCH": Creamos un abortador automático de 30 segundos (aumentado para mayor tolerancia en proxies)
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        const timeoutId = setTimeout(() => controller.abort(), 35000); // 35s timeout
 
-        // Pasamos el signal al fetch
         const response = await rateLimitedFetch(proxiedUrl, { signal: controller.signal });
-        clearTimeout(timeoutId); // Limpiamos el timeout si responde rápido
+        clearTimeout(timeoutId);
         
         if (!response.ok) {
-            if (response.status >= 500 && retries > 0) {
+            if ((response.status >= 500 || response.status === 429) && retries > 0) {
                 console.warn(`[MangaDex] API ${response.status} Error. Retrying in ${delay}ms... (${retries} left)`);
                 await new Promise(res => setTimeout(res, delay));
                 return apiFetch(endpoint, retries - 1, delay * 2);
@@ -63,14 +61,17 @@ async function apiFetch(endpoint: string, retries = 2, delay = 1000): Promise<an
         }
         return await response.json();
     } catch (err: any) {
-        // Si falló por timeout (AbortError) o por red, intentar de nuevo
+        // Handle ECONNRESET, Timeout and other Network errors
         if (retries > 0) {
-            const isTimeout = err.name === 'AbortError' || err.message?.includes('aborted');
-            console.warn(`[MangaDex] ${isTimeout ? 'Fetch Timeout' : 'Network Error'}. Retrying in ${delay}ms... (${retries} left)`);
+            const isAborted = err.name === 'AbortError' || err.message?.includes('aborted');
+            const isReset = err.message?.includes('reset') || err.message?.includes('ECONNRESET');
+            
+            console.warn(`[MangaDex] ${isAborted ? 'Timeout' : (isReset ? 'Connection Reset' : 'Network Error')}. Retrying in ${delay}ms... (${retries} left)`);
+            
             await new Promise(res => setTimeout(res, delay));
             return apiFetch(endpoint, retries - 1, delay * 2);
         }
-        throw err; // Si ya no hay reintentos, lanzamos el error para quitar el "Cargando..."
+        throw err;
     }
 }
 
@@ -882,18 +883,12 @@ export const mangadexService = {
         // Evitar doble prefijo si ya está optimizada
         if (url.includes('res.cloudinary.com') || url.includes('i0.wp.com')) return url;
 
-        // PRO QUALITY UPGRADE (v2):
-        // 1. Si la URL es ORIGINAL (no tiene sufijo .256 o .512) y es de MangaDex, 
-        // NO usar proxy para evitar compresión agresiva y pixelación detectada por el usuario.
-        const isOriginal = !url.includes('.256.jpg') && !url.includes('.512.jpg');
-        
-        if (isOriginal && (url.includes('mangadex.org') || url.includes('mangadex.network'))) {
-            return url; // Usamos el CDN directo para máxima nitidez
-        }
-
-        // 2. Para miniaturas (.256, .512) de MangaDex usamos Photon pero forzando calidad 100%
+        // MangaDex has blocked WordPress Photon (i0.wp.com). 
+        // We now bypass Photon and rely on our own Worker Proxy.
+        // We add ?v=haus to bust any previously cached placeholder images.
         if (url.includes('mangadex.org') || url.includes('mangadex.network')) {
-            return `https://i0.wp.com/${url.replace(/^https?:\/\//, '')}?quality=100&strip=all`;
+            const separator = url.includes('?') ? '&' : '?';
+            return `${url}${separator}v=haus`; 
         }
 
         if (!CLOUDINARY_CLOUD_NAME) {
@@ -924,8 +919,8 @@ export const mangadexService = {
     getLocalizedDescription(manga: any) {
         if (!manga?.attributes?.description) return 'No hay descripción disponible.';
         const desc = manga.attributes.description;
-        // Priority: ES (Spain) -> ES-LA (Legacy) -> ES-419 (Standard Latam) -> EN
-        const rawDesc = desc.es || desc['es-la'] || desc['es-419'] || desc.en || Object.values(desc)[0] || '';
+        // Priority: ES (Spain) -> ES-LA (Legacy) -> ES-419 (Standard Latam) -> PT-BR (Brazilian) -> PT (Portuguese) -> EN (English)
+        const rawDesc = desc.es || desc['es-la'] || desc['es-419'] || desc['pt-br'] || desc.pt || desc.en || Object.values(desc)[0] || '';
         return this.cleanDescription(rawDesc as string);
     },
 

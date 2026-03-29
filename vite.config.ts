@@ -21,9 +21,12 @@ export default defineConfig({
       '/api-md': {
         target: 'https://api.mangadex.org',
         changeOrigin: true,
+        secure: false, // Prevents bazı SSL handshake errors
+        timeout: 30000,
         rewrite: (path) => path.replace(/^\/api-md/, ''),
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Accept': 'application/json',
           'Referer': 'https://mangadex.org',
           'Origin': 'https://mangadex.org'
         }

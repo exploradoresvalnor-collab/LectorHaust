@@ -118,6 +118,7 @@ const MangaDetailsPage: React.FC = () => {
     mdStats,
     chapterOrder,
     isOptimized,
+    isTranslated,
     isFetchingMore,
     setChapterOrder,
     handleLangChange,
@@ -243,8 +244,9 @@ const MangaDetailsPage: React.FC = () => {
     );
   }
   const title = mangaProvider.getLocalizedTitle(manga);
-  const coverUrl = mangaProvider.getCoverUrl(manga);
-  const bestDescription = mangaProvider.getLocalizedDescription(manga);
+  const aniListCover = aniData?.coverImage?.extraLarge || aniData?.coverImage?.large;
+  const coverUrl = mangaProvider.getCoverUrl(manga, '512', aniListCover);
+  const bestDescription = manga?.attributes?.translatedDescription || mangaProvider.getLocalizedDescription(manga);
 
 
   const mangaFormat = manga?.attributes?.originalLanguage;
@@ -493,7 +495,14 @@ const MangaDetailsPage: React.FC = () => {
              ) : null}
           </div>
 
-          <h2 className="section-subtitle">Sinopsis</h2>
+          <h2 className="section-subtitle">
+            Sinopsis
+            {isTranslated && (
+              <IonBadge color="secondary" style={{ marginLeft: '10px', fontSize: '0.7rem', verticalAlign: 'middle', background: 'rgba(var(--ion-color-secondary-rgb), 0.15)', color: 'var(--ion-color-secondary)', border: '1px solid rgba(var(--ion-color-secondary-rgb), 0.3)' }}>
+                ✨ TRADUCIDO POR IA
+              </IonBadge>
+            )}
+          </h2>
           <p className="description-text">{bestDescription}</p>
 
           {!loadingCrossMedia && crossMedia && (

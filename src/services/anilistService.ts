@@ -139,6 +139,13 @@ export const anilistService = {
         return data.data.Media;
     },
 
+    cleanTitle(title: string) {
+        return title
+            .replace(/[^\w\s-]/gi, ' ') // Remove special chars but keep spaces and hyphens
+            .replace(/\s+/g, ' ')       // Normalize spaces
+            .trim();
+    },
+
     async searchManga(search: string) {
         const query = `
         query ($search: String) {

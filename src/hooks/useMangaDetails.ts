@@ -3,6 +3,7 @@ import { mangaProvider } from '../services/mangaProvider';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { mangapillService } from '../services/mangapillService';
 import { anilistService } from '../services/anilistService';
+import { translationService } from '../services/translationService';
 
 // Helper to deduplicate chapters by chapter number (keeps the first occurrence)
 export const deduplicateChapters = (chaptersArray: any[]) => {
@@ -36,6 +37,7 @@ export function useMangaDetails(id?: string, initialData?: any) {
   const [chapterOrder, setChapterOrder] = useState<'asc' | 'desc'>('desc');
   const { showNSFW } = useLibraryStore();
   const [isOptimized, setIsOptimized] = useState(false);
+  const [isTranslated, setIsTranslated] = useState(false);
   // Store the external ID if we had to fallback (for pagination)
   const externalFallbackId = useRef<string | null>(null);
   const isMounted = useRef(true);
@@ -79,7 +81,21 @@ export function useMangaDetails(id?: string, initialData?: any) {
 
         const mangaObj = mdDetails.data;
         if (!mangaObj) throw new Error('Manga not found');
-        setManga(mangaObj);
+        
+        // Translate description immediately
+        const rawDesc = mangaProvider.getLocalizedDescription(mangaObj);
+        const { text: translatedDesc, isTranslated: wasTr } = await translationService.translateToSpanish(rawDesc);
+        
+        if (isMounted.current) {
+          setIsTranslated(wasTr);
+          setManga({
+            ...mangaObj,
+            attributes: {
+              ...mangaObj.attributes,
+              translatedDescription: translatedDesc // Store specifically for UI
+            }
+          });
+        }
         
         const title = mangaObj.attributes?.title?.en || Object.values(mangaObj.attributes?.title || {})[0];
         
@@ -320,6 +336,7 @@ export function useMangaDetails(id?: string, initialData?: any) {
     mdStats,
     chapterOrder,
     isOptimized,
+    isTranslated,
     isFetchingMore,
     setChapterOrder,
     handleLangChange,
