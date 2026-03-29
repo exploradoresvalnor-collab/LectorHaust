@@ -49,9 +49,6 @@ const HomePage: React.FC = () => {
     loading,
     loadingMasterpieces,
     isDone,
-    newChaptersCount,
-    showNewBanner,
-    setShowNewBanner,
     currentUser,
     showLoginHint,
     setShowLoginHint,
@@ -84,11 +81,6 @@ const HomePage: React.FC = () => {
 
   const [showToast, setShowToast] = React.useState(false);
   const [toastMsg, setToastMsg] = React.useState('');
-
-  const handleRefreshFromBanner = () => {
-    setShowNewBanner(false);
-    fetchData(true);
-  };
 
   const scrollCarousel = (id: string, direction: 'left' | 'right') => {
     const container = document.getElementById(id);
@@ -196,22 +188,6 @@ const HomePage: React.FC = () => {
             refreshingText={getTranslation('home.refreshing', lang)}
           />
         </IonRefresher>
-
-        {/* New Chapters Notification Banner */}
-        {showNewBanner && (
-          <div className="notification-pill-container animate-slide-down">
-            <div className="notification-pill" onClick={handleRefreshFromBanner}>
-              <div className="pill-pulse-icon">
-                <IonIcon icon={notifications} />
-              </div>
-              <div className="pill-content">
-                <span className="pill-title">{newChaptersCount} {getTranslation('home.newChapters', lang)}</span>
-                <span className="pill-subtitle">{getTranslation('home.refreshToRead', lang)}</span>
-              </div>
-              <IonIcon icon={refreshOutline} className="pill-refresh" />
-            </div>
-          </div>
-        )}
 
         {/* --- CINEMATIC HERO SECTION (NEW v2) --- */}
         {heroItems && heroItems.length > 0 && (

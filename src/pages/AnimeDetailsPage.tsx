@@ -31,7 +31,9 @@ import {
   optionsOutline,
   sparklesOutline,
   playForwardOutline,
-  alertCircleOutline
+  alertCircleOutline,
+  heart,
+  heartOutline
 } from 'ionicons/icons';
 import { useParams } from 'react-router-dom';
 import { animeflvService } from '../services/animeflvService';
@@ -44,6 +46,8 @@ import VideoPlayer from '../components/VideoPlayer';
 import CommentSection from '../components/CommentSection';
 import UniversalEngagementBar from '../components/UniversalEngagementBar';
 import { useCrossMedia } from '../hooks/useCrossMedia';
+import { useLibraryStore } from '../store/useLibraryStore';
+import { hapticsService } from '../services/hapticsService';
 import { useLocation } from 'react-router-dom';
 import { hianimeService } from '../services/hianimeService';
 import { lacartoonsService } from '../services/lacartoonsService';
@@ -87,7 +91,7 @@ const AnimeDetailsPage: React.FC = () => {
   const [sourceProvider, setSourceProvider] = useState<'hianime' | 'animeflv' | 'tioanime' | 'lacartoons' | 'jkanime'>(initialProvider);
   
   const [selectedSeason, setSelectedSeason] = useState<string>('all');
-
+  const { toggleFavorite, isFavorite } = useLibraryStore();
   const { crossMedia, loadingCrossMedia } = useCrossMedia(anime?.title, 'ANIME');
 
   // Reset state when id changes (new anime page)
@@ -247,9 +251,17 @@ const AnimeDetailsPage: React.FC = () => {
                   onIonFocus={() => router.push('/browse-anime')}
                 />
              </div>
-             <IonButton fill="clear" onClick={() => router.push('/browse-anime')} style={{ '--color': 'var(--ion-color-primary)' }}>
-               <IonIcon icon={searchOutline} />
-             </IonButton>
+              <IonButton fill="clear" onClick={() => {
+                hapticsService.mediumImpact();
+                toggleFavorite({
+                  id: anime.id,
+                  title: anime.title || anime.name,
+                  cover: anime.image || (anime as any).coverImage || '',
+                  format: 'Anime'
+                } as any);
+              }} style={{ '--color': isFavorite(anime?.id) ? '#ff2d55' : 'rgba(255,255,255,0.4)' }}>
+                <IonIcon icon={isFavorite(anime?.id) ? heart : heartOutline} />
+              </IonButton>
           </IonButtons>
         </IonToolbar>
       </IonHeader>

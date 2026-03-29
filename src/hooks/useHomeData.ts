@@ -15,8 +15,6 @@ import { anilistService } from '../services/anilistService';
 export function useHomeData() {
   const queryClient = useQueryClient();
   const [heroIndex, setHeroIndex] = useState(0);
-  const [newChaptersCount, setNewChaptersCount] = useState(0);
-  const [showNewBanner, setShowNewBanner] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showLoginHint, setShowLoginHint] = useState(true);
   const [latestLang, setLatestLang] = useState(getDefaultLanguage());
@@ -247,32 +245,6 @@ export function useHomeData() {
     return () => { if (heroTimer.current) clearInterval(heroTimer.current); };
   }, [heroItems]);
 
-  // Polling for new chapters (Pro UX) — uses ref to avoid re-subscribing on data change
-  const latestRef = useRef(latest);
-  latestRef.current = latest;
-
-  useEffect(() => {
-    const timer = setInterval(async () => {
-      try {
-        const pollData = await mangaProvider.getLatestChapters(5, 0, latestLang, showNSFW);
-        const newOnes = pollData.data || [];
-        const currentLatest = latestRef.current;
-        
-        if (newOnes.length > 0 && currentLatest.length > 0) {
-          const latestServerTime = new Date(newOnes[0].attributes.readableAt).getTime();
-          const ourLastTime = new Date((currentLatest[0] as any).attributes.updatedAt).getTime();
-          
-          if (latestServerTime > ourLastTime) {
-            setNewChaptersCount(newOnes.length);
-            setShowNewBanner(true);
-          }
-        }
-      } catch (err) { }
-    }, 300000); 
-    pollTimer.current = timer;
-    return () => { if (pollTimer.current) clearInterval(pollTimer.current); };
-  }, [latestLang]);
-
   // --- 4. PRELOAD ASSETS (Webtoon speed) ---
   useEffect(() => {
     if (heroMangas.length > 0 && heroIndex >= 0 && heroMangas[heroIndex]) {
@@ -329,9 +301,7 @@ export function useHomeData() {
     loadingMasterpieces: false,
     setLoading: () => {}, // Compatibility
     isDone: !hasNextPage,
-    newChaptersCount,
-    showNewBanner,
-    setShowNewBanner,
+    unreadNotifications,
     currentUser,
     showLoginHint,
     setShowLoginHint,
@@ -344,7 +314,6 @@ export function useHomeData() {
     completedMasterpieces,
     popularManga: [] as any[], // Handled by masterpieces/latest filter logic in UI
     featuredMasterpiece,
-    unreadNotifications,
     fetchData,
     loadMoreLatest
   };

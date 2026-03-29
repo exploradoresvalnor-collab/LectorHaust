@@ -334,22 +334,19 @@ const AppContent: React.FC = () => {
       <IonToast
         isOpen={showToast}
         onDidDismiss={() => setShowToast(false)}
-        message={`¡Nuevo capítulo de ${updateInfo?.mangaTitle}! (Cap. ${updateInfo?.chapterTitle})`}
+        message={`¡Nuevo: ${updateInfo?.mangaId ? (updateInfo.mangaTitle.length > 20 ? updateInfo.mangaTitle.substring(0, 18) + '...' : updateInfo.mangaTitle) : 'Manga'}! Cap. ${updateInfo?.chapterTitle}`}
         duration={5000}
-        position="bottom"
-        color="primary"
-        cssClass="custom-toast"
+        position="top"
+        color="dark"
+        cssClass="localized-update-toast"
         buttons={[
           {
-            text: 'VER',
+            side: 'end',
+            text: 'LEER',
             role: 'info',
             handler: () => {
               if (updateInfo) router.push(`/manga/${updateInfo.mangaId}`);
             }
-          },
-          {
-            text: 'Cerrar',
-            role: 'cancel'
           }
         ]}
       />
