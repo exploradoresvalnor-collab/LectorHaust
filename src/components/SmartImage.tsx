@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { proxifyImage } from '../utils/imageUtils';
 import './SmartImage.css';
 
 interface SmartImageProps {
@@ -61,7 +62,8 @@ const SmartImage: React.FC<SmartImageProps> = ({
   const handleLoad = () => setStatus('loaded');
   const handleError = () => setStatus('error');
 
-  const finalSrc = (!src || src === '' || status === 'error') ? placeholder : src;
+  const proxiedSrc = proxifyImage(src);
+  const finalSrc = (!proxiedSrc || proxiedSrc === '' || status === 'error') ? placeholder : proxiedSrc;
   
   // Critical for LCP: If eager, bypass the smooth-image opacity transitions and expensive shimmer skeletons to paint ASAP.
   const isCritical = loading === 'eager';

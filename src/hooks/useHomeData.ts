@@ -7,6 +7,8 @@ import { mangaProvider, MangaSource } from '../services/mangaProvider';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { getDefaultLanguage } from '../utils/translations';
 import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { animeflvService } from '../services/animeflvService';
+import { jkanimeService } from '../services/jkanimeService';
 
 export function useHomeData() {
   const queryClient = useQueryClient();
@@ -33,35 +35,24 @@ export function useHomeData() {
     return () => window.removeEventListener('storage', syncLang);
   }, []);
 
-  // --- 2. MASTERPIECES (JP/Hero prioritized) ---
-  const { 
-    data: masterpieces, 
-    isLoading: loadingMasterpieces,
-    refetch: refetchMasterpieces
+  // --- 2. TRENDING ANIME (New for Pro Home) ---
+  const {
+    data: trendingAnime,
+    isLoading: loadingAnime
   } = useQuery({
-    queryKey: ['masterpieces', currentSource, latestLang, showNSFW],
+    queryKey: ['trendingAnime'],
     queryFn: async () => {
-      // Parallel Fetch: Fetch both JP (Manga) and KR (Manhwa) masterpieces simultaneously
-      // for 2x faster load and better discovery (solving the "no Manhwa" issue).
-      const [jpMD, krMD] = await Promise.all([
-        mangaProvider.getFullyTranslatedMasterpieces('JP', latestLang, 8, 0, null, false, showNSFW),
-        mangaProvider.getFullyTranslatedMasterpieces('KR', latestLang, 8, 0, null, false, showNSFW)
-      ]);
-      
-      const jpData = jpMD.data || [];
-      const krData = krMD.data || [];
-      
-      // Combine and filter duplicates
-      const combined = [...jpData, ...krData];
-      const seen = new Set();
-      return combined.filter((m: any) => {
-        if (seen.has(m.id)) return false;
-        seen.add(m.id);
-        return true;
-      });
+      let results = await animeflvService.getTrendingAnime();
+      if (!results || results.length === 0) {
+        console.log('[Home] S-P failed or empty, falling back to S-C trends.');
+        results = await jkanimeService.getTrendingAnime();
+      }
+      return results;
     },
-    staleTime: 1000 * 60 * 60 * 4, // 4 hours
+    staleTime: 1000 * 60 * 60 * 6, // 6 hours
   });
+
+
 
   // --- 3. LATEST UPDATES (Staggered) ---
   const {
@@ -99,25 +90,105 @@ export function useHomeData() {
     });
   }, [latestData]);
 
-  const heroMangas = useMemo(() => masterpieces?.slice(0, 5) || [], [masterpieces]);
-  const featuredMasterpiece = useMemo(() => masterpieces?.[0] || null, [masterpieces]);
-  const completedMasterpieces = useMemo(() => masterpieces || [], [masterpieces]);
+  // --- NEW: HERO MIXED DATA (Pro UX) ---
+  const [heroItems, setHeroItems] = useState<any[]>([]);
+
+  useEffect(() => {
+    const buildHero = async () => {
+      const items: any[] = [];
+      
+      // 1. Add top animes (fetch full info for descriptions)
+      if (trendingAnime && trendingAnime.length > 0) {
+        const topAnimes = trendingAnime.slice(0, 3);
+        const detailedAnimes = await Promise.all(
+          topAnimes.map(async (a: any) => {
+            try {
+              const full = await animeflvService.getAnimeInfo(a.id);
+              return {
+                ...a,
+                description: full?.description || 'Sin descripción disponible.',
+                status: full?.status || 'Serie',
+                type: 'anime',
+                badge: 'ANIME',
+                link: `/anime/${a.id}`
+              };
+            } catch { return { ...a, type: 'anime', badge: 'ANIME', link: `/anime/${a.id}` }; }
+          })
+        );
+        items.push(...detailedAnimes);
+      }
+
+      // 2. Add top mangas
+      if (latest && latest.length > 0) {
+        const topMangas = latest.slice(0, 4).map((m: any) => ({
+          id: m.id,
+          title: mangaProvider.getLocalizedTitle(m),
+          description: mangaProvider.getLocalizedDescription(m),
+          image: mangaProvider.getCoverUrl(m, 'original'),
+          type: 'manga',
+          badge: 'MANGA',
+          status: m.attributes?.status === 'completed' ? 'Concluido' : 'Serie',
+          link: `/manga/${m.id}`,
+          raw: m
+        }));
+        items.push(...topMangas);
+      }
+
+      // 3. SPECIAL INJECTION: JoJo's Bizarre Adventure (User Request)
+      // If none of the Jojos are in the hero list, let's try to add one specifically
+      const hasJojo = items.some(it => it.title?.toLowerCase().includes('jojo'));
+      if (!hasJojo) {
+        // Fallback: This ID is for Stone Ocean in AnimeFLV as per search
+        const jojoId = 'jojos-bizarre-adventure-stone-ocean';
+        try {
+          const jojo = await animeflvService.getAnimeInfo(jojoId);
+          if (jojo) {
+              items.unshift({
+                ...jojo,
+                type: 'anime',
+                badge: 'LEGENDARIO',
+                status: 'Finalizado',
+                link: `/anime/${jojoId}`
+              });
+          }
+        } catch { /* Fail silently */ }
+      }
+
+      // Shuffle or interleave? Let's interleave
+      const finalItems = [];
+      const animes = items.filter(it => it.type === 'anime');
+      const mangas = items.filter(it => it.type === 'manga');
+      const maxLength = Math.max(animes.length, mangas.length);
+      
+      for (let i = 0; i < maxLength; i++) {
+        if (animes[i]) finalItems.push(animes[i]);
+        if (mangas[i]) finalItems.push(mangas[i]);
+      }
+
+      setHeroItems(finalItems.slice(0, 8)); // Show 8 items for more variety
+    };
+
+    buildHero();
+  }, [latest, trendingAnime]);
+
+  const heroMangas = heroItems; // Alias for compatibility
+  const featuredMasterpiece = null;
+  const completedMasterpieces = [] as any[];
 
   // Helpers
   const fetchData = useCallback(async (force = false) => {
     if (force) {
       await Promise.all([
         refetchLatest(),
-        refetchMasterpieces()
+        queryClient.invalidateQueries({ queryKey: ['trendingAnime'] }),
       ]);
     }
-  }, [refetchLatest, refetchMasterpieces]);
+  }, [refetchLatest, queryClient]);
 
   const changeSource = useCallback((source: MangaSource) => {
     mangaProvider.setSource(source);
     setCurrentSource(source);
     queryClient.invalidateQueries({ queryKey: ['latest'] });
-    queryClient.invalidateQueries({ queryKey: ['masterpieces'] });
   }, [queryClient]);
 
   const loadMoreLatest = useCallback(async (e: any) => {
@@ -127,21 +198,21 @@ export function useHomeData() {
     e.target.complete();
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-  // Hero stable rotation (Every 4 hours)
+  // Hero stable rotation
   useEffect(() => {
     const calculateIndex = () => {
-      if (heroMangas.length === 0) return 0;
-      const fourHoursMs = 4 * 60 * 60 * 1000;
-      return Math.floor(Date.now() / fourHoursMs) % Math.min(heroMangas.length, 5);
+      if (heroItems.length === 0) return 0;
+      const rotationInterval = 60 * 1000; // 1 minute per item
+      return Math.floor(Date.now() / rotationInterval) % heroItems.length;
     };
 
     setHeroIndex(calculateIndex());
     if (heroTimer.current) clearInterval(heroTimer.current);
     heroTimer.current = setInterval(() => {
       setHeroIndex(calculateIndex());
-    }, 60000); // Check every minute if the 4 hours have passed
+    }, 60000); 
     return () => { if (heroTimer.current) clearInterval(heroTimer.current); };
-  }, [heroMangas]);
+  }, [heroItems]);
 
   // Polling for new chapters (Pro UX) — uses ref to avoid re-subscribing on data change
   const latestRef = useRef(latest);
@@ -172,13 +243,17 @@ export function useHomeData() {
   // --- 4. PRELOAD ASSETS (Webtoon speed) ---
   useEffect(() => {
     if (heroMangas.length > 0 && heroIndex >= 0 && heroMangas[heroIndex]) {
-      // Only preload the single stable hero
-      const currentUrl = mangaProvider.getCoverUrl(heroMangas[heroIndex], '512');
-      const img = new Image();
-      img.src = currentUrl;
-      console.log('[Performance] Preloading stable hero asset:', { currentUrl });
+      // PRO PRELOADER: Use the exact high-res URL that the UI will use
+      const currentItem = heroMangas[heroIndex];
+      const currentUrl = currentItem.image; // This is already 'original' for manga and high-res for anime
+
+      if (currentUrl) {
+        const img = new Image();
+        img.src = currentUrl;
+        console.log('[Performance] Preloading high-res hero asset:', { currentUrl, type: currentItem.type });
+      }
     }
-  }, [heroMangas]); // HeroIndex removed to avoid redundant preloading cycles
+  }, [heroMangas, heroIndex]);
 
   // Firebase auth & notifications
   useEffect(() => {
@@ -211,11 +286,14 @@ export function useHomeData() {
 
   return {
     heroMangas,
+    heroItems,
     heroIndex,
     setHeroIndex,
+    trendingAnime: trendingAnime || [],
+    loadingAnime,
     latest,
     loading: loadingLatest,
-    loadingMasterpieces,
+    loadingMasterpieces: false,
     setLoading: () => {}, // Compatibility
     isDone: !hasNextPage,
     newChaptersCount,

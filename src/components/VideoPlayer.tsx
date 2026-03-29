@@ -9,6 +9,7 @@ import {
 import { animeflvService } from '../services/animeflvService';
 import { tioanimeService } from '../services/tioanimeService';
 import { lacartoonsService } from '../services/lacartoonsService';
+import { jkanimeService } from '../services/jkanimeService';
 import CommentSection from './CommentSection';
 
 interface VideoPlayerProps {
@@ -16,7 +17,7 @@ interface VideoPlayerProps {
   episodes: any[];
   animeTitle: string;
   animeId: string;
-  sourceProvider?: 'hianime' | 'animeflv' | 'tioanime' | 'lacartoons';
+  sourceProvider?: 'hianime' | 'animeflv' | 'tioanime' | 'lacartoons' | 'jkanime';
   onEpisodeChange: (ep: any) => void;
   onClose: () => void;
 }
@@ -39,9 +40,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
-  const [sourceProvider, setSourceProvider] = useState<'hianime' | 'animeflv' | 'tioanime' | 'lacartoons'>(initialSource || 'animeflv');
+  const [sourceProvider, setSourceProvider] = useState<'hianime' | 'animeflv' | 'tioanime' | 'lacartoons' | 'jkanime'>(initialSource || 'animeflv');
   const [flvId, setFlvId] = useState<string | null>(null);
   const [tioId, setTioId] = useState<string | null>(null);
+  const [jkId, setJkId] = useState<string | null>(null);
   const [servers, setServers] = useState<{sub: Server[], dub: Server[]}>({sub: [], dub: []});
   const [selectedServer, setSelectedServer] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<'sub' | 'dub'>('sub');
@@ -49,10 +51,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [subtitles, setSubtitles] = useState<any[]>([]);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
-  const [availableProviders, setAvailableProviders] = useState<{hianime: boolean, animeflv: boolean, tioanime: boolean, lacartoons: boolean}>({
+  const [availableProviders, setAvailableProviders] = useState<{hianime: boolean, animeflv: boolean, tioanime: boolean, jkanime: boolean, lacartoons: boolean}>({
     hianime: true, // Siempre asumimos HiAnime como base
     animeflv: false,
     tioanime: false,
+    jkanime: false,
     lacartoons: initialSource === 'lacartoons'
   });
 
@@ -67,15 +70,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       
       const checks = [
         animeflvService.search(animeTitle).then(res => res && res.length > 0).catch(() => false),
-        tioanimeService.search(animeTitle).then(res => res && res.length > 0).catch(() => false)
+        tioanimeService.search(animeTitle).then(res => res && res.length > 0).catch(() => false),
+        jkanimeService.search(animeTitle).then(res => res && res.length > 0).catch(() => false)
       ];
       
-      const [hasFlv, hasTio] = await Promise.all(checks);
+      const [hasFlv, hasTio, hasJk] = await Promise.all(checks);
       
       setAvailableProviders(prev => ({
         ...prev,
         animeflv: !!hasFlv,
-        tioanime: !!hasTio
+        tioanime: !!hasTio,
+        jkanime: !!hasJk
       }));
 
       // Si el proveedor inicial no está disponible, cambiar al primero que sí lo esté
@@ -97,7 +102,22 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         setLoading(true);
         setError(null);
         
-        if (sourceProvider === 'hianime') {
+        if (sourceProvider === 'jkanime') {
+            const results = await jkanimeService.search(animeTitle);
+            const found = results.find((a: any) => a.title.toLowerCase() === animeTitle.toLowerCase() || a.name.toLowerCase() === animeTitle.toLowerCase());
+            if (found && active) {
+                setJkId(found.id);
+                const data = await jkanimeService.getEpisodeSources(`${found.id}/${episodeNumber}`);
+                if (data && data.sources && active) {
+                    const mappedServers = data.sources.map((s, idx) => ({ serverId: idx, serverName: s.serverName, url: s.url }));
+                    setServers({ sub: mappedServers, dub: [] });
+                    if (mappedServers.length > 0) {
+                        setSelectedServer(mappedServers[0].serverName);
+                        setIframeUrl(mappedServers[0].url);
+                    }
+                }
+            }
+        } else if (sourceProvider === 'hianime') {
           // HiAnime doesn't need pre-fetching servers for the embed, but we set a dummy one for UI consistency
           // Note: HiAnime can have DUB too.
           setServers({ sub: [{ serverId: 1, serverName: 'Servidor 1' }], dub: [{ serverId: 2, serverName: 'Server Dub' }] });
@@ -117,10 +137,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 setSelectedServer(subServers[0].serverName);
                 setSelectedCategory('sub');
              } else {
-                throw new Error('No se encontraron servidores en AnimeFLV.');
+                throw new Error('No se encontraron servidores en S-Principal.');
              }
           } else {
-             throw new Error('No se encontró el anime en AnimeFLV.');
+             throw new Error('No se encontró el anime en S-Principal.');
           }
         } else if (sourceProvider === 'tioanime') {
           const results = await tioanimeService.search(animeTitle);
@@ -136,10 +156,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               setSelectedServer(subServers[0].serverName);
               setSelectedCategory('sub');
             } else {
-               throw new Error('No se encontraron servidores en TioAnime.');
+               throw new Error('No se encontraron servidores en S-Express.');
             }
           } else {
-            throw new Error('No se encontró el anime en TioAnime.');
+            throw new Error('No se encontró el anime en S-Express.');
           }
         } else if (sourceProvider === 'lacartoons') {
            // We extract directly using episodeId: "bob-esponja-1?t=1"
@@ -293,10 +313,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Mapeo inteligente de nombres de servidores
   const getIntelligentName = (provider: string) => {
     switch(provider) {
-      case 'hianime': return 'HiAnime';
-      case 'animeflv': return 'AnimeFLV';
-      case 'tioanime': return 'TioAnime';
-      case 'lacartoons': return 'LACartoons';
+      case 'hianime': return 'S-Global';
+      case 'animeflv': return 'S-Principal';
+      case 'tioanime': return 'S-Express';
+      case 'lacartoons': return 'S-Series';
       default: return provider.toUpperCase();
     }
   };
@@ -365,7 +385,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
               {...{ webkitallowfullscreen: "true", mozallowfullscreen: "true" }}
             />
-            {/* Escudo para bloquear el logo/redirección de AnimeFLV */}
+            {/* Escudo para bloquear el logo/redirección del servidor externo */}
             <div 
               style={{
                 position: 'absolute',

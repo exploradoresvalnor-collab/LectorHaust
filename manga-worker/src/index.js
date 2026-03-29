@@ -3,18 +3,34 @@ export default {
   const url = new URL(request.url);
   const targetUrl = url.searchParams.get('url');
   const embedUrl = url.searchParams.get('embed');
-  const actualUrl = targetUrl || embedUrl;
+  const imageUrl = url.searchParams.get('image');
+  
+  const actualUrl = targetUrl || embedUrl || imageUrl;
   
   if (!actualUrl) {
-   return new Response('Missing target or embed url', { status: 400 });
+   return new Response('Missing target, embed, or image url', { status: 400 });
   }
 
   // Determine Referer and User-Agent based on target URL
   let referer = 'https://mangapill.com/';
-  if (actualUrl.includes('manganato.com') || actualUrl.includes('chapmanganato.to')) {
+  if (actualUrl.includes('manganato.com') || actualUrl.includes('chapmanganato.to') || actualUrl.includes('natocdn')) {
    referer = 'https://manganato.com/';
   } else if (actualUrl.includes('comick')) {
    referer = 'https://comick.io/';
+  } else if (actualUrl.includes('animeflv') || actualUrl.includes('lacartoons')) {
+   referer = new URL(actualUrl).origin + '/';
+  }
+
+  // === IMAGE CDN LOGIC (Cache First) ===
+  const cache = caches.default;
+  let cacheKey;
+  if (imageUrl) {
+     cacheKey = new Request(url.toString(), request);
+     let cachedResponse = await cache.match(cacheKey);
+     if (cachedResponse) {
+         // Return HIT securely
+         return new Response(cachedResponse.body, cachedResponse);
+     }
   }
 
   const newHeaders = new Headers();
@@ -27,6 +43,24 @@ export default {
     headers: newHeaders,
     redirect: 'follow'
    });
+
+   // === IMAGE CDN LOGIC (Cache Store & Dispatch) ===
+   if (imageUrl) {
+      const modifiedResponse = new Response(response.body, response);
+      // Neutralize security restrictions so Lector Haus can read it freely
+      modifiedResponse.headers.set('Access-Control-Allow-Origin', '*');
+      modifiedResponse.headers.set('Access-Control-Allow-Headers', '*');
+      // Freeze the image at the Edge and in the user's mobile proxy for 1 year
+      modifiedResponse.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+      // Optional: keep original content-type
+      const contentType = response.headers.get('content-type');
+      if (contentType) modifiedResponse.headers.set('Content-Type', contentType);
+
+      // Save to Cloudflare Edge Cache without blocking the response
+      ctx.waitUntil(cache.put(cacheKey, modifiedResponse.clone()));
+      
+      return modifiedResponse;
+   }
 
    if (embedUrl) {
       // Option B: Deep Proxy HTML Manipulation Extractor

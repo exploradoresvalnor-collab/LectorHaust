@@ -16,34 +16,63 @@ async function fetchHtml(url: string) {
     // ALWAYS use the proxy to bypass CORS, Referer restrictions and ISP blocks
     // This is critical for APK production where carriers might block specific domains.
     const proxyUrl = `${PROXY_URL}${encodeURIComponent(url)}`;
-    const resp = await fetch(proxyUrl);
-    if (!resp.ok) {
-        // Fallback for native if the proxy is down
-        if (Capacitor.isNativePlatform()) {
-            const directResp = await fetch(url);
-            if (directResp.ok) return directResp.text();
-        }
-        throw new Error(`Proxy Error: ${resp.status}`);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+    
+    try {
+      const resp = await fetch(proxyUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
+      if (!resp.ok) {
+          // Fallback for native if the proxy is down
+          if (Capacitor.isNativePlatform()) {
+              const directResp = await fetch(url);
+              if (directResp.ok) return directResp.text();
+          }
+          throw new Error(`Proxy Error: ${resp.status}`);
+      }
+      return resp.text(); 
+    } catch (e) {
+      clearTimeout(timeoutId);
+      throw e;
     }
-    return resp.text(); 
 }
 
 export const animeflvService = {
   
   async getTrendingAnime() {
     try {
-      const html = await fetchHtml(`${BASE_URL}/`);
+      // Usamos el directorio ordenado por popularidad para obtener las tendencias reales con imágenes
+      const url = `${BASE_URL}/browse?order=popularity`;
+      const html = await fetchHtml(url);
+      
       const results: any[] = [];
-      const regex = /<article class="Anime alt B">[\s\S]*?<a href="\/anime\/([^"]+)">[\s\S]*?<img src="([^"]+)"[\s\S]*?<h3 class="Title">([^<]+)<\/h3>/gi;
+      const regex = /<article[^>]*class="[^"]*Anime[^"]*"[^>]*>[\s\S]*?<a href="\/anime\/([^"]+)">[\s\S]*?<img src="([^"]+)"[\s\S]*?<h3[^>]*>([^<]+)<\/h3>/gi;
+      
       let match;
       while ((match = regex.exec(html)) !== null && results.length < 15) {
-        let imgUrl = match[2];
-        if (imgUrl.startsWith('/')) imgUrl = `${BASE_URL}${imgUrl}`;
-        const proxiedImg = `https://i0.wp.com/${imgUrl.replace(/^https?:\/\//, '')}`;
-        results.push({ id: match[1], name: match[3], image: proxiedImg, title: match[3] });
+          let imgUrl = match[2];
+          // Pro quality improvement: Use /cover/ instead of /thumb/
+          if (imgUrl.includes('/thumb/')) {
+              imgUrl = imgUrl.replace('/thumb/', '/cover/');
+          }
+          if (imgUrl.startsWith('/')) imgUrl = `${BASE_URL}${imgUrl}`;
+          // Proxy de imagen para evitar bloqueos
+          const proxiedImg = `https://i0.wp.com/${imgUrl.replace(/^https?:\/\//, '')}`;
+          results.push({ 
+            id: match[1], 
+            title: match[3], 
+            name: match[3], 
+            image: proxiedImg,
+            source: 'animeflv'
+          });
       }
       return results;
-    } catch (e) { console.error(e); return []; }
+    } catch (err) {
+      console.error("[S-P] Error fetching trending:", err);
+      return [];
+    }
   },
 
   async getRecentEpisodes() {
@@ -59,7 +88,7 @@ export const animeflvService = {
         }
         if (imgUrl.startsWith('/')) imgUrl = `${BASE_URL}${imgUrl}`;
         const proxiedImg = `https://i0.wp.com/${imgUrl.replace(/^https?:\/\//, '')}`;
-        // En AnimeFLV, el ID del anime se puede inferir quitando el -number del link del episodio
+        // En S-P, el ID del anime se puede inferir quitando el -number del link del episodio
         const epId = match[1];
         const epNum = match[3];
         let animeId = epId.substring(0, epId.lastIndexOf('-'));
@@ -143,7 +172,7 @@ export const animeflvService = {
       const html = await fetchHtml(url);
       
       const results: any[] = [];
-      const regex = /<article class="Anime alt B">[\s\S]*?<a href="\/anime\/([^"]+)">[\s\S]*?<img src="([^"]+)"[\s\S]*?<h3 class="Title">([^<]+)<\/h3>/gi;
+      const regex = /<article[^>]*class="[^"]*Anime[^"]*"[^>]*>[\s\S]*?<a href="\/anime\/([^"]+)">[\s\S]*?<img src="([^"]+)"[\s\S]*?<h3[^>]*>([^<]+)<\/h3>/gi;
       let match;
       while ((match = regex.exec(html)) !== null) {
           let imgUrl = match[2];
@@ -162,12 +191,12 @@ export const animeflvService = {
           if (p > maxPage) maxPage = p;
       }
       
-      // AnimeFLV suele retornar 24 items por página (o la cantidad en la última)
+      // S-P suele retornar 24 items por página (o la cantidad en la última)
       (results as any).totalCount = maxPage > 1 ? maxPage * 24 : results.length;
       
       return results;
     } catch (error) {
-       console.error('[AnimeFLV] Search error:', error);
+       console.error('[S-P] Search error:', error);
        return [];
     }
   },
@@ -185,6 +214,10 @@ export const animeflvService = {
       const imgMatch = html.match(/<div class="AnimeCover">[\s\S]*?<img src="([^"]+)"/);
       if (imgMatch) {
          image = imgMatch[1];
+         // Pro quality improvement: Use /cover/ instead of /thumb/
+         if (image.includes('/thumb/')) {
+            image = image.replace('/thumb/', '/cover/');
+         }
          if (image.startsWith('/')) image = `${BASE_URL}${image}`;
          image = `https://i0.wp.com/${image.replace(/^https?:\/\//, '')}`;
       }
@@ -228,7 +261,7 @@ export const animeflvService = {
       const html = await fetchHtml(`${BASE_URL}/ver/${episodeId}`);
       
       
-      // AnimeFLV guarda los servidores en una variable JSON en el JS de la página
+      // S-P guarda los servidores en una variable JSON en el JS de la página
       const match = html.match(/var videos = (\{[^;]+\});/);
       
       if (!match) {
@@ -267,7 +300,7 @@ export const animeflvService = {
 
       return { sources };
     } catch (error) {
-      console.error('[AnimeFLV] Sources error:', error);
+      console.error('[S-P] Sources error:', error);
       return null;
     }
   }

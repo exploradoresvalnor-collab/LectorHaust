@@ -47,6 +47,8 @@ import { useCrossMedia } from '../hooks/useCrossMedia';
 import { useLocation } from 'react-router-dom';
 import { hianimeService } from '../services/hianimeService';
 import { lacartoonsService } from '../services/lacartoonsService';
+import { tioanimeService } from '../services/tioanimeService';
+import { jkanimeService } from '../services/jkanimeService';
 
 const EPISODES_PER_PAGE = 30;
 
@@ -57,6 +59,12 @@ const AnimeDetailsPage: React.FC = () => {
   if (id?.startsWith('lacartoons-')) {
       actualId = id.replace('lacartoons-', '');
       urlPrefixProvider = 'lacartoons';
+  } else if (id?.startsWith('jkanime-')) {
+      actualId = id.replace('jkanime-', '');
+      urlPrefixProvider = 'jkanime';
+  } else if (id?.startsWith('tioanime-')) {
+      actualId = id.replace('tioanime-', '');
+      urlPrefixProvider = 'tioanime';
   } else if (id?.startsWith('hianime-')) {
       actualId = id.replace('hianime-', '');
       urlPrefixProvider = 'hianime';
@@ -76,7 +84,7 @@ const AnimeDetailsPage: React.FC = () => {
   
   // Initialize with detected prefix provider to avoid ghost proxy fetches on mount
   const initialProvider = urlPrefixProvider as any || 'animeflv';
-  const [sourceProvider, setSourceProvider] = useState<'hianime' | 'animeflv' | 'tioanime' | 'lacartoons'>(initialProvider);
+  const [sourceProvider, setSourceProvider] = useState<'hianime' | 'animeflv' | 'tioanime' | 'lacartoons' | 'jkanime'>(initialProvider);
   
   const [selectedSeason, setSelectedSeason] = useState<string>('all');
 
@@ -95,7 +103,7 @@ const AnimeDetailsPage: React.FC = () => {
     // Smart source detection
     const navSource = (navData?.source || navData?.preferredProvider) as string | undefined;
     const urlProvider = new URLSearchParams(window.location.search).get('provider');
-    const detected = urlPrefixProvider || urlProvider || (navSource === 'hianime' ? 'hianime' : (navSource === 'lacartoons' ? 'lacartoons' : 'animeflv'));
+    const detected = urlPrefixProvider || urlProvider || (navSource === 'hianime' ? 'hianime' : (navSource === 'lacartoons' ? 'lacartoons' : (navSource === 'jkanime' ? 'jkanime' : (navSource === 'tioanime' ? 'tioanime' : 'animeflv'))));
     setSourceProvider(detected as any);
     
     // Use navigation data as instant preview while fetching fresh data
@@ -122,7 +130,14 @@ const AnimeDetailsPage: React.FC = () => {
       if (!id) return;
       
       try {
-        const provider = sourceProvider === 'hianime' ? hianimeService : (sourceProvider === 'lacartoons' ? lacartoonsService : animeflvService);
+        const providerMap: any = {
+          'hianime': hianimeService,
+          'lacartoons': lacartoonsService,
+          'tioanime': tioanimeService,
+          'jkanime': jkanimeService,
+          'animeflv': animeflvService
+        };
+        const provider = providerMap[sourceProvider] || animeflvService;
         
         const currentTitle = anime?.title || anime?.name;
         

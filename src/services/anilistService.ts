@@ -156,8 +156,12 @@ export const anilistService = {
           }
         }
         `;
-        const data = await rateLimitedFetch(query, { search });
-        return data.data.Page.media;
+        try {
+            const data = await rateLimitedFetch(query, { search });
+            return data?.data?.Page?.media || [];
+        } catch {
+            return [];
+        }
     },
 
     async getAnimeDetailsByName(search: string) {

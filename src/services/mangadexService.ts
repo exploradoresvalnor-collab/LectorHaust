@@ -882,17 +882,25 @@ export const mangadexService = {
         // Evitar doble prefijo si ya está optimizada
         if (url.includes('res.cloudinary.com') || url.includes('i0.wp.com')) return url;
 
-        // Para TODOS los assets de MangaDex (uploads, api, network):
-        // Usamos WordPress Photon (i0.wp.com) que funciona perfecto en localhost y producción
+        // PRO QUALITY UPGRADE (v2):
+        // 1. Si la URL es ORIGINAL (no tiene sufijo .256 o .512) y es de MangaDex, 
+        // NO usar proxy para evitar compresión agresiva y pixelación detectada por el usuario.
+        const isOriginal = !url.includes('.256.jpg') && !url.includes('.512.jpg');
+        
+        if (isOriginal && (url.includes('mangadex.org') || url.includes('mangadex.network'))) {
+            return url; // Usamos el CDN directo para máxima nitidez
+        }
+
+        // 2. Para miniaturas (.256, .512) de MangaDex usamos Photon pero forzando calidad 100%
         if (url.includes('mangadex.org') || url.includes('mangadex.network')) {
-            return `https://i0.wp.com/${url.replace(/^https?:\/\//, '')}`;
+            return `https://i0.wp.com/${url.replace(/^https?:\/\//, '')}?quality=100&strip=all`;
         }
 
         if (!CLOUDINARY_CLOUD_NAME) {
-            return `https://i0.wp.com/${url.replace(/^https?:\/\//, '')}`;
+            return `https://i0.wp.com/${url.replace(/^https?:\/\//, '')}?quality=100&strip=all`;
         }
 
-        // Para otros dominios, usamos Cloudinary como fallback
+        // 3. Para otros dominios, usamos Cloudinary como fallback
         return `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/fetch/${params}/${encodeURIComponent(url)}`;
     },
 

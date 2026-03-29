@@ -29,7 +29,7 @@ export const tioanimeService = {
       const html = await fetchHtml(`${BASE_URL}/`);
       const results: any[] = [];
       
-      // Updated regex based on actual TioAnime structure
+      // Updated regex based on actual S-T structure
       const regex = /<article class="episode">[\s\S]*?<a href="\/ver\/([^"]+)">[\s\S]*?<img src="([^"]+)" alt="([^"]+)">[\s\S]*?<h3 class="title">([^<]+)<\/h3>/gi;
       
       let match;
@@ -60,7 +60,7 @@ export const tioanimeService = {
       }
       return results;
     } catch (e) {
-      console.error('[TioAnime] Latest episodes error:', e);
+      console.error('[S-T] Latest episodes error:', e);
       return [];
     }
   },
@@ -89,7 +89,7 @@ export const tioanimeService = {
       }
       return results;
     } catch (e) {
-      console.error('[TioAnime] Latest animes error:', e);
+      console.error('[S-T] Latest animes error:', e);
       return [];
     }
   },
@@ -119,7 +119,7 @@ export const tioanimeService = {
       }
       return results;
     } catch (e) {
-      console.error('[TioAnime] Search error:', e);
+      console.error('[S-T] Search error:', e);
       return [];
     }
   },
@@ -171,7 +171,7 @@ export const tioanimeService = {
       };
       
     } catch (e) {
-      console.error('[TioAnime] Info error:', e);
+      console.error('[S-T] Info error:', e);
       return null;
     }
   },
@@ -206,7 +206,7 @@ export const tioanimeService = {
 
       return { sources };
     } catch (e) {
-      console.error('[TioAnime] Sources error:', e);
+      console.error('[S-T] Sources error:', e);
       return null;
     }
   }
