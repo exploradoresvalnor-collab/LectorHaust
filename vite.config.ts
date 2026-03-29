@@ -40,6 +40,16 @@ export default defineConfig({
           'Referer': 'https://mangadex.org'
         }
       },
+      '/api-anilist': {
+        target: 'https://graphql.anilist.co',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api-anilist/, ''),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Accept': 'application/json',
+          'Referer': 'https://anilist.co'
+        }
+      },
       '/proxy-wp': {
         target: 'https://i0.wp.com',
         changeOrigin: true,

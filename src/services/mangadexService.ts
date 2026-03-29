@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { proxifyImage } from '../utils/imageUtils';
 
 /**
  * MangaDex API Service
@@ -887,8 +888,7 @@ export const mangadexService = {
         // We now bypass Photon and rely on our own Worker Proxy.
         // We add ?v=haus to bust any previously cached placeholder images.
         if (url.includes('mangadex.org') || url.includes('mangadex.network')) {
-            const separator = url.includes('?') ? '&' : '?';
-            return `${url}${separator}v=haus`; 
+            return proxifyImage(url); 
         }
 
         if (!CLOUDINARY_CLOUD_NAME) {

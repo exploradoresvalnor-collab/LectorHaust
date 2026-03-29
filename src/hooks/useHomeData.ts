@@ -42,10 +42,10 @@ export function useHomeData() {
   } = useQuery({
     queryKey: ['trendingAnime'],
     queryFn: async () => {
-      let results = await animeflvService.getTrendingAnime();
+      let results = await jkanimeService.getTrendingAnime();
       if (!results || results.length === 0) {
-        console.log('[Home] S-P failed or empty, falling back to S-C trends.');
-        results = await jkanimeService.getTrendingAnime();
+        console.log('[Home] JKAnime failed or empty, falling back to AnimeFLV trends.');
+        results = await animeflvService.getTrendingAnime();
       }
       return results;
     },
@@ -103,7 +103,7 @@ export function useHomeData() {
         const detailedAnimes = await Promise.all(
           topAnimes.map(async (a: any) => {
             try {
-              const full = await animeflvService.getAnimeInfo(a.id);
+              const full = await jkanimeService.getAnimeInfo(a.id);
               const { text: desc, isTranslated } = await translationService.translateToSpanish(full?.description || 'Sin descripción disponible.');
               return {
                 ...a,
@@ -170,7 +170,7 @@ export function useHomeData() {
       const hasJojo = items.some(it => it.title?.toLowerCase().includes('jojo'));
       if (!hasJojo) {
         // Fallback: This ID is for Stone Ocean in AnimeFLV as per search
-        const jojoId = 'jojo-no-kimyou-na-bouken-the-animation-stone-ocean';
+        const jojoId = 'jojo-no-kimyou-na-bouken-part-6-stone-ocean';
         try {
           const jojo = await animeflvService.getAnimeInfo(jojoId);
           if (jojo) {
@@ -255,7 +255,6 @@ export function useHomeData() {
       if (currentUrl) {
         const img = new Image();
         img.src = currentUrl;
-        console.log('[Performance] Preloading high-res hero asset:', { currentUrl, type: currentItem.type });
       }
     }
   }, [heroMangas, heroIndex]);

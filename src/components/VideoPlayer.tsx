@@ -11,6 +11,8 @@ import { tioanimeService } from '../services/tioanimeService';
 import { lacartoonsService } from '../services/lacartoonsService';
 import { jkanimeService } from '../services/jkanimeService';
 import CommentSection from './CommentSection';
+import { Capacitor } from '@capacitor/core';
+import { ScreenOrientation } from '@capacitor/screen-orientation';
 
 interface VideoPlayerProps {
   episode: any;
@@ -40,7 +42,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
-  const [sourceProvider, setSourceProvider] = useState<'hianime' | 'animeflv' | 'tioanime' | 'lacartoons' | 'jkanime'>(initialSource || 'animeflv');
+  const [sourceProvider, setSourceProvider] = useState<'hianime' | 'animeflv' | 'tioanime' | 'lacartoons' | 'jkanime'>(initialSource || 'jkanime');
   const [flvId, setFlvId] = useState<string | null>(null);
   const [tioId, setTioId] = useState<string | null>(null);
   const [jkId, setJkId] = useState<string | null>(null);
@@ -52,8 +54,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [subtitles, setSubtitles] = useState<any[]>([]);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
   const [availableProviders, setAvailableProviders] = useState<{hianime: boolean, animeflv: boolean, tioanime: boolean, jkanime: boolean, lacartoons: boolean}>({
-    hianime: true, // Siempre asumimos HiAnime como base
-    animeflv: false,
+    hianime: false, // Default deshabilitado por el usuario
+    animeflv: true, // Siempre asumimos S-Principal como base
     tioanime: false,
     jkanime: false,
     lacartoons: initialSource === 'lacartoons'
@@ -84,8 +86,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }));
 
       // Si el proveedor inicial no está disponible, cambiar al primero que sí lo esté
-      if (sourceProvider === 'animeflv' && !hasFlv) setSourceProvider('hianime');
-      if (sourceProvider === 'tioanime' && !hasTio) setSourceProvider(hasFlv ? 'animeflv' : 'hianime');
+      if (sourceProvider === 'jkanime' && !hasJk) setSourceProvider(hasFlv ? 'animeflv' : (hasTio ? 'tioanime' : 'animeflv'));
+      if (sourceProvider === 'animeflv' && !hasFlv) setSourceProvider(hasJk ? 'jkanime' : (hasTio ? 'tioanime' : 'animeflv'));
+      if (sourceProvider === 'tioanime' && !hasTio) setSourceProvider(hasJk ? 'jkanime' : (hasFlv ? 'animeflv' : 'tioanime'));
     };
     
     checkProviders();
@@ -104,7 +107,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         
         if (sourceProvider === 'jkanime') {
             const results = await jkanimeService.search(animeTitle);
-            const found = results.find((a: any) => a.title.toLowerCase() === animeTitle.toLowerCase() || a.name.toLowerCase() === animeTitle.toLowerCase());
+            // Fuzzy match: normalize strings and use includes for better cross-service compatibility
+            const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const normalizedTitle = normalize(animeTitle);
+            const found = results.find((a: any) => {
+                const nt = normalize(a.title || '');
+                const nn = normalize(a.name || '');
+                return nt === normalizedTitle || nn === normalizedTitle || 
+                       nt.includes(normalizedTitle) || normalizedTitle.includes(nt) ||
+                       nn.includes(normalizedTitle) || normalizedTitle.includes(nn);
+            }) || (results.length > 0 ? results[0] : null); // Fallback to first result
             if (found && active) {
                 setJkId(found.id);
                 const data = await jkanimeService.getEpisodeSources(`${found.id}/${episodeNumber}`);
@@ -224,6 +236,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
              const matchedSource = rawData.find((s: any) => s.server === selectedServer) || rawData[0];
              data = { sources: [{ url: matchedSource.url, isIframe: true }], subtitles: [] };
           }
+        } else if (sourceProvider === 'jkanime' && jkId) {
+          const jkEpId = `${jkId}/${episodeNumber}`;
+          const rawData = await jkanimeService.getEpisodeSources(jkEpId);
+          if (rawData && rawData.sources) {
+             const matchedSource = rawData.sources.find((s: any) => s.serverName === selectedServer) || rawData.sources[0];
+             data = { sources: [matchedSource], subtitles: [] };
+          }
         }
 
         if (!active) return;
@@ -296,14 +315,24 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         } else if ((containerRef.current as any)?.webkitRequestFullscreen) {
           await ((containerRef.current as any).webkitRequestFullscreen());
         }
-        try { if (screen.orientation && (screen.orientation as any).lock) await (screen.orientation as any).lock('landscape'); } catch(e){}
+        
+        if (Capacitor.isNativePlatform()) {
+           try { await ScreenOrientation.lock({ orientation: 'landscape' }); } catch(err){}
+        } else {
+           try { if (screen.orientation && (screen.orientation as any).lock) await (screen.orientation as any).lock('landscape'); } catch(e){}
+        }
       } else {
         if (document.exitFullscreen) {
           await document.exitFullscreen();
         } else if ((document as any).webkitExitFullscreen) {
           await ((document as any).webkitExitFullscreen());
         }
-        try { if (screen.orientation && (screen.orientation as any).unlock) (screen.orientation as any).unlock(); } catch(e){}
+        
+        if (Capacitor.isNativePlatform()) {
+           try { await ScreenOrientation.unlock(); } catch(err){}
+        } else {
+           try { if (screen.orientation && (screen.orientation as any).unlock) (screen.orientation as any).unlock(); } catch(e){}
+        }
       }
     } catch (err) {
       console.warn('Error toggling fullscreen:', err);
@@ -314,6 +343,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const getIntelligentName = (provider: string) => {
     switch(provider) {
       case 'hianime': return 'S-Global';
+      case 'jkanime': return 'S-Ultra';
       case 'animeflv': return 'S-Principal';
       case 'tioanime': return 'S-Express';
       case 'lacartoons': return 'S-Series';
@@ -335,7 +365,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)'
       }}>
-         {['hianime', 'animeflv', 'tioanime', 'lacartoons']
+         {['hianime', 'jkanime', 'animeflv', 'tioanime', 'lacartoons']
            .filter(p => (availableProviders as any)[p])
            .map(p => (
            <div 

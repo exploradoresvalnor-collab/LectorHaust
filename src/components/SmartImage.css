@@ -2,9 +2,9 @@
   width: 100%;
   height: 100%;
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  overflow: hidden;
+  display: block;
+  border-radius: inherit;
 }
 
 .smart-img {
@@ -12,4 +12,36 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: opacity 0.35s ease;
+}
+
+.img-hidden {
+  opacity: 0;
+}
+
+.img-visible {
+  opacity: 1;
+}
+
+/* Premium Shimmer Skeleton — replaces the black blinking void */
+@keyframes shimmer-wave {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.image-skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #1a1a2e 0%,
+    #2a2a3e 40%,
+    #3a3a50 50%,
+    #2a2a3e 60%,
+    #1a1a2e 100%
+  );
+  background-size: 800px 100%;
+  animation: shimmer-wave 1.6s infinite linear;
+}
+
+.image-skeleton-shimmer .smart-img {
+  opacity: 0;
 }

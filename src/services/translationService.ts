@@ -31,7 +31,8 @@ export const translationService = {
     try {
       // 3. Call Public Google Translate API (gtx client)
       const url = `${GOOGLE_TRANSLATE_API}${encodeURIComponent(text)}`;
-      const response = await fetch(url);
+      const PROXY_URL = 'https://manga-proxy.mchaustman.workers.dev/?url=';
+      const response = await fetch(`${PROXY_URL}${encodeURIComponent(url)}`);
       
       if (!response.ok) throw new Error('Translation failed');
       

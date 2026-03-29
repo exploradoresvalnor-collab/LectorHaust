@@ -47,7 +47,12 @@ export async function postGraphQL<T = any>(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(url, {
+    // DEV MODE: Bypass CORS via Vite proxy
+    const finalUrl = (import.meta.env.DEV && url.includes('anilist.co')) 
+      ? '/api-anilist' 
+      : url;
+
+    const response = await fetch(finalUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

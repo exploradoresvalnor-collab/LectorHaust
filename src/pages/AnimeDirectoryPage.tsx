@@ -34,7 +34,7 @@ const AnimeDirectoryPage: React.FC = () => {
   const [sort, setSort] = useState('default');
   const [language, setLanguage] = useState<'sub-es' | 'sub-en' | 'latino'>('sub-es');
   const [universe, setUniverse] = useState<'anime' | 'cartoons'>('anime');
-  const [provider, setProvider] = useState<'default' | 'tioanime' | 'jkanime'>('default');
+  const [provider, setProvider] = useState<'default' | 'tioanime' | 'jkanime' | 'animeflv'>('default');
   
   const years = Array.from({ length: 56 }, (_, i) => (2025 - i).toString());
 
@@ -69,13 +69,14 @@ const AnimeDirectoryPage: React.FC = () => {
       } else if (language === 'sub-en') {
           const hiSort = sort === 'rating' ? 'top_rated' : (sort === 'updated' ? 'recently_updated' : 'recently_added');
           newItems = await hianimeService.search(query, targetPage, year, genre, hiSort, type);
-      } else if (language === 'latino') {
-          // Default to JKAnime for Latino as it's cleaner than FLV
-          newItems = await jkanimeService.search(query || 'latino');
+      } else if (provider === 'animeflv') {
+          newItems = await animeflvService.search(query, [genre], targetPage, type, year, sort);
       } else if (provider === 'tioanime') {
           newItems = await tioanimeService.search(query);
       } else {
-          newItems = await animeflvService.search(query, [genre], targetPage, type, year, sort);
+          // 'default' provider is now JKAnime (S-Ultra)
+          const targetLang = language === 'latino' ? 'latino' : 'sub-es';
+          newItems = await jkanimeService.search(query, targetPage, genre, type, year, sort, targetLang, 'all');
       }
 
       if (!newItems || newItems.length === 0) {
@@ -208,7 +209,6 @@ const AnimeDirectoryPage: React.FC = () => {
                       <span className="filter-label">Idioma:</span>
                       <IonSelect value={language} interface="popover" onIonChange={e => { setLanguage(e.detail.value); setProvider('default'); }} className="custom-select-inline">
                          <IonSelectOption value="sub-es">Sub Español</IonSelectOption>
-                         <IonSelectOption value="sub-en">Sub Inglés</IonSelectOption>
                          <IonSelectOption value="latino">Latino</IonSelectOption>
                       </IonSelect>
                     </div>
@@ -217,9 +217,13 @@ const AnimeDirectoryPage: React.FC = () => {
                        <div className="filter-select-inline">
                          <span className="filter-label">Servidor:</span>
                          <IonSelect value={provider} interface="popover" onIonChange={e => setProvider(e.detail.value)} className="custom-select-inline">
-                            <IonSelectOption value="default">Principal ({language === 'latino' ? 'S-Clásico' : 'S-Global'})</IonSelectOption>
-                            {language === 'sub-es' && <IonSelectOption value="tioanime">S-Rápido</IonSelectOption>}
-                            {language === 'latino' && <IonSelectOption value="default">S-Animación</IonSelectOption>}
+                            <IonSelectOption value="default">S-Ultra (Principal)</IonSelectOption>
+                            {language === 'sub-es' && (
+                                <>
+                                  <IonSelectOption value="animeflv">S-Clásico</IonSelectOption>
+                                  <IonSelectOption value="tioanime">S-Rápido</IonSelectOption>
+                                </>
+                            )}
                          </IonSelect>
                        </div>
                     )}

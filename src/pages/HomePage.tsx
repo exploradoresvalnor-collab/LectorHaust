@@ -389,15 +389,7 @@ const HomePage: React.FC = () => {
                                           const name = t.attributes?.name?.en?.toLowerCase() || '';
                                           return name === 'ecchi' || name === 'smut' || name === 'hentai' || name === 'sexual violence';
                                         });
-
-                        if (manga?.attributes?.contentRating !== 'safe') {
-                          console.log('RATING CHECK:', {
-                            title: mangaTitle,
-                            rating: manga?.attributes?.contentRating,
-                            isAdultResult: isAdult
-                          });
-                        }
-                        
+                         
                         return (
                           <div 
                             key={manga.id} 

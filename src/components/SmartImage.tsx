@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { proxifyImage } from '../utils/imageUtils';
 import './SmartImage.css';
 
@@ -17,20 +17,14 @@ interface SmartImageProps {
   fetchPriority?: 'high' | 'low' | 'auto';
 }
 
-/**
- * SmartImage Component (Enterprise/Webtoon Grade)
- * - Detects browser cache via imgRef.complete (Instant load)
- * - Optimized for LCP: Skips fade-in for 'eager' images
- * - Handles auto-timeout and error placeholders
- */
 const SmartImage: React.FC<SmartImageProps> = ({ 
   src, 
   alt, 
   className = '', 
   wrapperClassName = '',
   onClick,
-  timeout = 8000,
-  placeholder = 'https://placehold.co/512x768/222222/cccccc?text=Tiempo+Agotado',
+  timeout = 10000,
+  placeholder = 'https://placehold.co/512x768/222222/cccccc?text=Error',
   children,
   width,
   height,
@@ -41,48 +35,35 @@ const SmartImage: React.FC<SmartImageProps> = ({
   const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
-    // 1. CACHE SALVATION: If image is already in browser cache, it marks as 'complete' immediately.
-    if (imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0) {
+    setStatus('loading');
+    if (imgRef.current?.complete && imgRef.current?.naturalWidth > 0) {
       setStatus('loaded');
       return;
     }
-
-    // 2. Start loading ONLY if not already in cache.
-    // This prevents the flickering skeleton for preloaded images.
-    setStatus('loading');
-
-    // 3. 8s Kill Switch to prevent infinite skeleton
     const timer = setTimeout(() => {
-      setStatus((prev) => prev === 'loading' ? 'error' : prev);
+      setStatus(prev => prev === 'loading' ? 'error' : prev);
     }, timeout);
-
     return () => clearTimeout(timer);
   }, [src, timeout]);
 
-  const handleLoad = () => setStatus('loaded');
-  const handleError = () => setStatus('error');
-
   const proxiedSrc = proxifyImage(src);
-  const finalSrc = (!proxiedSrc || proxiedSrc === '' || status === 'error') ? placeholder : proxiedSrc;
-  
-  // Critical for LCP: If eager, bypass the smooth-image opacity transitions and expensive shimmer skeletons to paint ASAP.
+  const finalSrc = (!proxiedSrc || status === 'error') ? placeholder : proxiedSrc;
   const isCritical = loading === 'eager';
 
   return (
     <div 
-      className={`smart-image-wrapper ${status === 'loading' && !isCritical ? 'image-skeleton-wrapper' : ''} ${wrapperClassName}`} 
+      className={`smart-image-wrapper ${status === 'loading' && !isCritical ? 'image-skeleton-shimmer' : ''} ${wrapperClassName}`}
       onClick={onClick}
-      style={{ backgroundColor: isCritical && status === 'loading' ? '#121212' : 'transparent' }}
     >
       <img
         ref={imgRef}
         src={finalSrc}
         alt={alt}
-        className={`smart-img ${isCritical ? '' : 'smooth-image'} ${className} ${status !== 'loading' || isCritical ? 'img-loaded' : ''}`}
+        className={`smart-img ${status === 'loaded' || isCritical ? 'img-visible' : 'img-hidden'} ${className}`}
         loading={loading}
-        decoding={isCritical ? "sync" : "async"}
-        onLoad={handleLoad}
-        onError={handleError}
+        decoding={isCritical ? 'sync' : 'async'}
+        onLoad={() => setStatus('loaded')}
+        onError={() => setStatus('error')}
         width={width}
         height={height}
         // @ts-ignore

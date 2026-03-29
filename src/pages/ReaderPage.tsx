@@ -21,6 +21,8 @@ import {
 } from 'ionicons/icons';
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { useParams } from 'react-router-dom';
+import { LazyLoadImage } from 'react-lazy-load-image-component';
+import 'react-lazy-load-image-component/src/effects/blur.css';
 import { mangaProvider } from '../services/mangaProvider';
 import CommentSection from '../components/CommentSection';
 import UniversalEngagementBar from '../components/UniversalEngagementBar';
@@ -203,12 +205,14 @@ const ReaderPage: React.FC = () => {
               <div className="pages-container manhwa-container" onClick={toggleUi}>
                 {pages.map((page, index) => (
                   <div key={index} className="page-wrapper" data-index={index} style={{ contentVisibility: 'auto' }}>
-                    <img 
+                    <LazyLoadImage
                       src={page.includes('mangadex') ? mangaProvider.getOptimizedUrl(page) : page} 
                       className="manga-page loaded" 
                       alt={`Página ${index + 1}`}
-                      loading={index < 3 ? "eager" : "lazy"}
-                      decoding="async"
+                      visibleByDefault={index < 3}
+                      effect="blur"
+                      wrapperClassName="lazy-react-wrapper"
+                      threshold={800} // Carga la página 800 pixeles antes (aprox 1.5 pantallas del celu)
                     />
                   </div>
                 ))}
@@ -240,12 +244,14 @@ const ReaderPage: React.FC = () => {
                           contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         >
                           <div className={`image-centering-container ${fitMode}`}>
-                            <img 
+                            <LazyLoadImage
                               key={`img-${currentMangaPage}`} 
                               src={pages[currentMangaPage].includes('mangadex') ? mangaProvider.getOptimizedUrl(pages[currentMangaPage]) : pages[currentMangaPage]} 
                               className={`manga-page-single loaded page-flip-anim ${fitMode}`} 
                               alt={`Página ${currentMangaPage + 1}`}
-                              decoding="async"
+                              effect="blur"
+                              wrapperClassName="lazy-react-wrapper"
+                              threshold={400}
                               style={{ pointerEvents: 'none' }} 
                             />
                           </div>

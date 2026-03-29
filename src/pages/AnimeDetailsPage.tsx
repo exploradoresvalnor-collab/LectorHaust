@@ -53,6 +53,7 @@ import { hianimeService } from '../services/hianimeService';
 import { lacartoonsService } from '../services/lacartoonsService';
 import { tioanimeService } from '../services/tioanimeService';
 import { jkanimeService } from '../services/jkanimeService';
+import { translationService } from '../services/translationService';
 
 const EPISODES_PER_PAGE = 30;
 
@@ -85,9 +86,10 @@ const AnimeDetailsPage: React.FC = () => {
   const [episodePage, setEpisodePage] = useState(0);
   const [episodeOrder, setEpisodeOrder] = useState<'desc' | 'asc'>('desc');
   const [episodeSearch, setEpisodeSearch] = useState('');
+  const [isTranslated, setIsTranslated] = useState(false);
   
   // Initialize with detected prefix provider to avoid ghost proxy fetches on mount
-  const initialProvider = urlPrefixProvider as any || 'animeflv';
+  const initialProvider = urlPrefixProvider as any || 'jkanime';
   const [sourceProvider, setSourceProvider] = useState<'hianime' | 'animeflv' | 'tioanime' | 'lacartoons' | 'jkanime'>(initialProvider);
   
   const [selectedSeason, setSelectedSeason] = useState<string>('all');
@@ -107,7 +109,7 @@ const AnimeDetailsPage: React.FC = () => {
     // Smart source detection
     const navSource = (navData?.source || navData?.preferredProvider) as string | undefined;
     const urlProvider = new URLSearchParams(window.location.search).get('provider');
-    const detected = urlPrefixProvider || urlProvider || (navSource === 'hianime' ? 'hianime' : (navSource === 'lacartoons' ? 'lacartoons' : (navSource === 'jkanime' ? 'jkanime' : (navSource === 'tioanime' ? 'tioanime' : 'animeflv'))));
+    const detected = urlPrefixProvider || urlProvider || (navSource === 'hianime' ? 'hianime' : (navSource === 'lacartoons' ? 'lacartoons' : (navSource === 'jkanime' ? 'jkanime' : (navSource === 'tioanime' ? 'tioanime' : 'jkanime'))));
     setSourceProvider(detected as any);
     
     // Use navigation data as instant preview while fetching fresh data
@@ -145,24 +147,48 @@ const AnimeDetailsPage: React.FC = () => {
         
         const currentTitle = anime?.title || anime?.name;
         
-        const [data, anilistInfo] = await Promise.all([
-          provider.getAnimeInfo(actualId),
-          currentTitle ? anilistService.getAnimeDetailsByName(currentTitle) : Promise.resolve(null)
-        ]);
-        
-        if (data) {
-           let finalAnilist = anilistInfo;
-           if (!finalAnilist && data.title) {
-              finalAnilist = await anilistService.getAnimeDetailsByName(data.title);
-           }
-           
-           if (finalAnilist) {
-              data.image = finalAnilist.bannerImage || finalAnilist.coverImage?.extraLarge || data.image;
-              (data as any).coverImage = finalAnilist.coverImage?.extraLarge || data.image;
-              data.description = finalAnilist.description || data.description;
-              (data as any).rating = finalAnilist.averageScore ? `${finalAnilist.averageScore}%` : (data as any).rating;
-           }
-           setAnime(data);
+         let [data, anilistInfo] = await Promise.all([
+           provider.getAnimeInfo(actualId),
+           currentTitle ? anilistService.getAnimeDetailsByName(currentTitle) : Promise.resolve(null)
+         ]);
+
+         // AUTO-FALLBACK: If primary provider yielded 0 episodes, try AnimeFLV
+         if ((!data || (data.episodes && data.episodes.length === 0)) && sourceProvider !== 'animeflv') {
+             console.warn(`[Fallback] ${sourceProvider} returned no episodes, trying animeflv...`);
+             const fallbackData = await animeflvService.search(currentTitle || actualId);
+             if (fallbackData && fallbackData.length > 0) {
+                 const fallbackInfo = await animeflvService.getAnimeInfo(fallbackData[0].id);
+                 if (fallbackInfo && fallbackInfo.episodes && fallbackInfo.episodes.length > 0) {
+                     data = fallbackInfo;
+                 }
+             }
+         }
+         
+         if (data) {
+            let finalAnilist = anilistInfo;
+            if (!finalAnilist && data.title) {
+               finalAnilist = await anilistService.getAnimeDetailsByName(data.title);
+            }
+            
+            if (finalAnilist) {
+               data.image = finalAnilist.bannerImage || finalAnilist.coverImage?.extraLarge || data.image;
+               (data as any).coverImage = finalAnilist.coverImage?.extraLarge || data.image;
+               data.description = finalAnilist.description || data.description;
+               (data as any).rating = finalAnilist.averageScore ? `${finalAnilist.averageScore}%` : (data as any).rating;
+            }
+
+            // AI Translation to Spanish
+            if (data.description && data.description !== 'Sin descripción') {
+               try {
+                  const { text: translated, isTranslated: wasTranslated } = await translationService.translateToSpanish(data.description);
+                  data.description = translated;
+                  setIsTranslated(wasTranslated);
+               } catch (err) {
+                  console.error("Translation error:", err);
+               }
+            }
+
+            setAnime(data);
         }
       } catch (err) {
         console.error("Failed to fetch anime info:", err);
@@ -302,6 +328,11 @@ const AnimeDetailsPage: React.FC = () => {
                       )}
                     </div>
                     <h1 className="hero-title">{anime.title}</h1>
+                    {isTranslated && (
+                      <IonBadge color="secondary" style={{ marginBottom: '10px', fontSize: '0.7rem', background: 'rgba(var(--ion-color-secondary-rgb), 0.15)', color: 'var(--ion-color-secondary)', border: '1px solid rgba(var(--ion-color-secondary-rgb), 0.3)' }}>
+                        ✨ TRADUCIDO POR IA
+                      </IonBadge>
+                    )}
                     <p className="hero-description">
                       {anime.description}
                     </p>

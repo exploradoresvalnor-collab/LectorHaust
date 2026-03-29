@@ -10,16 +10,16 @@ const BASE_URL = 'https://graphql.anilist.co/';
  */
 const CACHE_TTL = 1000 * 60 * 60; // 1 hour
 let lastRequestTime = 0;
+let requestQueue = Promise.resolve();
 
 async function rateLimitedFetch(query: string, variables: any): Promise<any> {
     // 1. Check Cache
     const raw = query + JSON.stringify(variables);
-    // Use a proper hash to avoid cache collisions from truncated base64
     let hash = 0;
     for (let i = 0; i < raw.length; i++) {
       const ch = raw.charCodeAt(i);
       hash = ((hash << 5) - hash) + ch;
-      hash |= 0; // Convert to 32-bit int
+      hash |= 0;
     }
     const cacheKey = `anilist_${hash}`;
     const cached = localStorage.getItem(cacheKey);
@@ -28,25 +28,30 @@ async function rateLimitedFetch(query: string, variables: any): Promise<any> {
         if (Date.now() - timestamp < CACHE_TTL) return data;
     }
 
-    // 2. Throttling (100ms between calls)
-    const now = Date.now();
-    const elapsed = now - lastRequestTime;
-    if (elapsed < 100) {
-        await new Promise(r => setTimeout(r, 100 - elapsed));
-    }
-    
-    // 3. Network Fetch
-    try {
-        const response = await postGraphQL(BASE_URL, query, variables);
-        if (response?.data) {
-            localStorage.setItem(cacheKey, JSON.stringify({ data: response, timestamp: Date.now() }));
+    // 2. Queue & Throttle (Strict 800ms spacing to avoid 429)
+    const fetchPromise = requestQueue.then(async () => {
+        const elapsed = Date.now() - lastRequestTime;
+        if (elapsed < 800) {
+            await new Promise(r => setTimeout(r, 800 - elapsed));
         }
-        lastRequestTime = Date.now();
-        return response;
-    } catch (err) {
-        lastRequestTime = Date.now();
-        throw err;
-    }
+        
+        // Update time BEFORE fetch, preventing concurrent queues from skipping the wait if they somehow leak
+        lastRequestTime = Date.now(); 
+        
+        try {
+            const response = await postGraphQL(BASE_URL, query, variables);
+            if (response?.data) {
+                localStorage.setItem(cacheKey, JSON.stringify({ data: response, timestamp: Date.now() }));
+            }
+            return response;
+        } catch (err) {
+            console.error("AniList Fetch Error:", err);
+            throw err;
+        }
+    });
+
+    requestQueue = fetchPromise.catch(() => {});
+    return fetchPromise;
 }
 
 const TRENDING_QUERY = `

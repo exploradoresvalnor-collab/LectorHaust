@@ -9,12 +9,12 @@ export interface JKSource {
 const BASE_URL = 'https://jkanime.net';
 const PROXY_URL = 'https://manga-proxy.mchaustman.workers.dev/?url=';
 
-async function fetchHtml(url: string) {
+async function fetchHtml(url: string, options: RequestInit = {}) {
     const proxyUrl = `${PROXY_URL}${encodeURIComponent(url)}`;
-    const resp = await fetch(proxyUrl);
+    const resp = await fetch(proxyUrl, options);
     if (!resp.ok) {
         if (Capacitor.isNativePlatform()) {
-            const directResp = await fetch(url);
+            const directResp = await fetch(url, options);
             if (directResp.ok) return directResp.text();
         }
         throw new Error(`Proxy Error: ${resp.status}`);
@@ -24,53 +24,109 @@ async function fetchHtml(url: string) {
 
 export const jkanimeService = {
   
-  async search(query: string = '') {
+  async search(query: string = '', page: number = 1, genre: string = 'all', type: string = 'all', year: string = 'all', sort: string = 'default', language: string = 'sub-es', status: string = 'all') {
     try {
-      // S-C uses a /buscar/term/ structure for full results
-      const url = `${BASE_URL}/buscar/${encodeURIComponent(query)}/1/`;
-      const html = await fetchHtml(url);
-      
       const results: any[] = [];
-      // Pattern based on S-C search results
-      const regex = /<div class="anime__item">[\s\S]*?<a href="https:\/\/jkanime\.net\/([^/]+)\/">[\s\S]*?<div class="anime__item__pic set-bg" data-setbg="([^"]+)">[\s\S]*?<h5><a[^>]*>([^<]+)<\/a><\/h5>/gi;
-      
-      let match;
-      while ((match = regex.exec(html)) !== null) {
-        let imgUrl = match[2];
-        results.push({
-          id: match[1],
-          title: match[3].trim(),
-          name: match[3].trim(),
-          image: imgUrl,
-          source: 'jkanime'
-        });
+      let totalCount = 0;
+
+      // If there is an explicit text query, JKAnime forces us to use the /buscar/ URL with HTML page processing
+      if (query && query !== 'latino') {
+          const url = `${BASE_URL}/buscar/${encodeURIComponent(query)}/${page}/`;
+          const html = await fetchHtml(url);
+          
+          const regex = /<div class="[^"]*anime__item">[\s\S]*?<a\s+href="https:\/\/jkanime\.net\/([^/]+)\/">[\s\S]*?<div class="[^"]*anime__item__pic[^"]*" data-setbg="([^"]+)"[^>]*>[\s\S]*?<h5><a[^>]*>([^<]+)<\/a><\/h5>/gi;
+          let match;
+          while ((match = regex.exec(html)) !== null) {
+            results.push({
+              id: match[1],
+              title: match[3].trim(),
+              name: match[3].trim(),
+              image: match[2],
+              source: 'jkanime',
+              status: 'Serie',
+              type: 'Anime'
+            });
+          }
+          // Note: HTML search doesn't return exact total bounds easily, so we just return results
+      } else {
+          // DIRECTORY FILTERS (JSON INJECTION) - BLAZING FAST
+          let dirUrl = `${BASE_URL}/directorio?p=${page}`;
+          
+          if (genre !== 'all') {
+              const genreMap: Record<string, string> = {
+                  'Acción': 'accion', 'Aventura': 'aventura', 'Comedia': 'comedia', 'Demonios': 'demonios', 'Misterio': 'misterio', 'Drama': 'drama', 'Ecchi': 'ecchi', 'Fantasía': 'fantasia', 'Militar': 'militar', 'Romance': 'romance', 'Magia': 'magia', 'Deportes': 'deportes', 'Suspenso': 'thriller', 'Sobrenatural': 'sobrenatural', 'Ciencia Ficción': 'sci-fi'
+              };
+              if (genreMap[genre]) dirUrl += `&genero=${genreMap[genre]}`;
+          }
+          
+          if (year !== 'all') dirUrl += `&fecha=${year}`;
+          if (type !== 'all') {
+             const typeMap: Record<string, string> = { 'tv': 'animes', 'movie': 'peliculas', 'special': 'especiales', 'ova': 'ovas', 'ona': 'onas' };
+             if (typeMap[type]) dirUrl += `&tipo=${typeMap[type]}`;
+          }
+          
+          if (sort === 'rating') dirUrl += `&filtro=popularidad&orden=`;
+          else if (sort === 'title') dirUrl += `&filtro=nombre&orden=asc`;
+          else dirUrl += `&filtro=&orden=`; // latest by default
+          
+          if (language === 'latino' || query === 'latino') dirUrl += `&categoria=latino`;
+          if (status !== 'all') dirUrl += `&estado=${status}`; // emision, finalizados, estrenos
+
+          const html = await fetchHtml(dirUrl);
+          const jsonMatch = html.match(/var\s+animes\s*=\s*(\{.*?\});/);
+          
+          if (jsonMatch && jsonMatch[1]) {
+            const parsed = JSON.parse(jsonMatch[1]);
+            totalCount = parsed.total || 0;
+            if (parsed.data && Array.isArray(parsed.data)) {
+              for (const item of parsed.data) {
+                results.push({
+                  id: item.slug,
+                  title: item.title,
+                  name: item.title,
+                  image: item.image,
+                  source: 'jkanime',
+                  status: item.estado,
+                  type: item.tipo
+                });
+              }
+            }
+          }
       }
+
+      // Attach totalCount metric directly to array (just like animeflv) so AnimeDirectoryPage can consume it
+      (results as any).totalCount = totalCount > 0 ? totalCount : results.length;
       return results;
     } catch (e) {
-      console.error('[S-C] Search error:', e);
+      console.error('[S-C] Advanced Directory Search error:', e);
       return [];
     }
   },
 
   async getTrendingAnime() {
     try {
-      // Scrape recent anime from S-C directory or homepage
       const url = `${BASE_URL}/directorio/`;
       const html = await fetchHtml(url);
       
       const results: any[] = [];
-      const regex = /<div class="anime__item">[\s\S]*?<a href="https:\/\/jkanime\.net\/([^/]+)\/">[\s\S]*?<div class="anime__item__pic set-bg" data-setbg="([^"]+)">[\s\S]*?<h5><a[^>]*>([^<]+)<\/a><\/h5>/gi;
+      const jsonMatch = html.match(/var\s+animes\s*=\s*(\{.*?\});/);
       
-      let match;
-      // limited to 15 for carousel performance
-      while ((match = regex.exec(html)) !== null && results.length < 15) {
-        results.push({
-          id: match[1],
-          title: match[3].trim(),
-          name: match[3].trim(),
-          image: match[2],
-          source: 'jkanime'
-        });
+      if (jsonMatch && jsonMatch[1]) {
+        const dataStr = jsonMatch[1];
+        const parsed = JSON.parse(dataStr);
+        if (parsed && parsed.data && Array.isArray(parsed.data)) {
+          for (const item of parsed.data.slice(0, 15)) {
+            results.push({
+              id: item.slug,
+              title: item.title,
+              name: item.title,
+              image: item.image,
+              source: 'jkanime',
+              status: item.estado,
+              type: item.tipo
+            });
+          }
+        }
       }
       return results;
     } catch (e) {
@@ -83,38 +139,74 @@ export const jkanimeService = {
     try {
       const html = await fetchHtml(`${BASE_URL}/${id}/`);
       
-      // Extract Metadata
+      // Extract Metadata (Updated for JKAnime's new HTML structure 2026)
       let title = id;
-      const titleMatch = html.match(/<div class="anime__details__title">[\s\S]*?<h3>([^<]+)<\/h3>/);
+      // New: Title is inside <div class="anime_info"> <h3>Title</h3>
+      const titleMatch = html.match(/<div class="[^"]*anime_info[^"]*"[\s\S]*?<h3[^>]*>([^<]+)<\/h3>/);
       if (titleMatch) title = titleMatch[1].trim();
 
       let image = '';
-      const imgMatch = html.match(/<div class="anime__details__pic set-bg" data-setbg="([^"]+)"/);
+      // New: Image is a standard <img> inside <div class="anime_pic">
+      const imgMatch = html.match(/<div class="[^"]*anime_pic[^"]*"[\s\S]*?<img[^>]+src="([^"]+)"/);
       if (imgMatch) image = imgMatch[1];
+      // Fallback: Try data-setbg pattern (legacy)
+      if (!image) {
+        const imgMatch2 = html.match(/data-setbg="([^"]+)"/);
+        if (imgMatch2) image = imgMatch2[1];
+      }
 
       let description = 'Sin descripción';
-      const descMatch = html.match(/<p>([\s\S]*?)<\/p>/);
-      if (descMatch) description = descMatch[1].replace(/<[^>]+>/g, '').trim();
+      // Try to find the synopsis/description paragraph
+      const descMatch = html.match(/<p class="[^"]*">([^<]{20,})<\/p>/);
+      if (descMatch) {
+        description = descMatch[1].replace(/<[^>]+>/g, '').trim();
+      } else {
+        // Fallback: first long paragraph
+        const descMatch2 = html.match(/<p>([^<]{30,})<\/p>/);
+        if (descMatch2) description = descMatch2[1].replace(/<[^>]+>/g, '').trim();
+      }
 
-      // Extract Anime ID and current page for episodes
-      // S-C often uses a script like: var id_anime = "123";
-      const idMatch = html.match(/var id_anime = "(\d+)";/);
-      const animeId = idMatch ? idMatch[1] : null;
+      // Extract episode count (Multiple strategies)
+      let lastCap = 0;
+      
+      // 1. New: Extract from "Episodios: N" in info list
+      const epCountMatch = html.match(/Episodios:\s*<\/span>\s*(\d+)/i) || html.match(/Episodios:<\/span>\s*(\d+)/i);
+      if (epCountMatch) lastCap = parseInt(epCountMatch[1]);
+
+      // 2. Fallback: Check for var last_cap (legacy)
+      if (lastCap === 0) {
+        const lastCapVarMatch = html.match(/var\s+last_cap\s*=\s*["']?(\d+)["']?/);
+        if (lastCapVarMatch) lastCap = parseInt(lastCapVarMatch[1]);
+      }
+      
+      // 3. Fallback: Look for episode count in AJAX pagination scripts
+      if (lastCap === 0) {
+        const paginationMatch = html.match(/paginar\((\d+)\)/);
+        if (paginationMatch) lastCap = parseInt(paginationMatch[1]);
+      }
+
+      // 4. Fallback: Search for "Último episodio" text
+      if (lastCap === 0) {
+          const lastCapTextMatch = html.match(/Último episodio[\s\S]*?(\d+)(?:\/| |"|<)/i);
+          if (lastCapTextMatch) lastCap = parseInt(lastCapTextMatch[1]);
+      }
+
+      // 5. Fallback: Count episode links/items in the page
+      if (lastCap === 0) {
+          const epLinks = html.match(new RegExp(`${id}/(\\d+)/`, 'g'));
+          if (epLinks && epLinks.length > 0) {
+              const nums = epLinks.map(l => parseInt(l.match(/(\d+)\/$/)?.[1] || '0'));
+              lastCap = Math.max(...nums);
+          }
+      }
 
       let episodes: any[] = [];
-      if (animeId) {
-          // Fetch first 100 episodes via their AJAX endpoint
-          const ajaxUrl = `${BASE_URL}/ajax/pagination_episodes/${animeId}/1/`;
-          const ajaxHtml = await fetchHtml(ajaxUrl);
-          
-          // Match episodes: <a href="https://jkanime.net/slug/num/"> ... <span>num</span>
-          const epRegex = /<a href="https:\/\/jkanime\.net\/[^/]+\/(\d+)\/">[\s\S]*?<span>(\d+)<\/span>/gi;
-          let epMatch;
-          while ((epMatch = epRegex.exec(ajaxHtml)) !== null) {
+      if (lastCap > 0) {
+          for (let i = 1; i <= lastCap; i++) {
               episodes.push({
-                  id: `${id}-${epMatch[1]}`,
-                  number: epMatch[1],
-                  title: `Episodio ${epMatch[1]}`
+                  id: `${id}-${i}`,
+                  number: i.toString(),
+                  title: `Episodio ${i}`
               });
           }
       }
@@ -125,8 +217,8 @@ export const jkanimeService = {
         name: title,
         image,
         description,
-        totalEpisodes: episodes.length,
-        status: html.includes('Finalizado') ? 'Finished' : 'Airing',
+        totalEpisodes: lastCap,
+        status: html.includes('Concluido') || html.includes('Finalizado') ? 'Finished' : 'Airing',
         episodes: episodes.sort((a, b) => parseInt(b.number) - parseInt(a.number))
       };
       
