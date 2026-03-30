@@ -50,7 +50,9 @@ export async function postGraphQL<T = any>(
   try {
     // DEV MODE: Bypass CORS via Vite proxy
     // NATIVE: Direct always.
-    const finalUrl = (Capacitor.isNativePlatform())
+    const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
+
+    const finalUrl = isNative
       ? url
       : (import.meta.env.DEV && url.includes('anilist.co')) 
         ? '/api-anilist' 
