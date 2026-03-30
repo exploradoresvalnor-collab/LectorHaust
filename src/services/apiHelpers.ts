@@ -2,6 +2,7 @@
  * Shared HTTP helpers for secondary APIs (AniList, Jikan, Kitsu, Consumet).
  * MangaDex uses its own apiFetch with rate-limiting and retries — DO NOT replace it.
  */
+import { Capacitor } from '@capacitor/core';
 
 /**
  * GET request with JSON parsing, error handling, and configurable timeout.
@@ -48,9 +49,12 @@ export async function postGraphQL<T = any>(
 
   try {
     // DEV MODE: Bypass CORS via Vite proxy
-    const finalUrl = (import.meta.env.DEV && url.includes('anilist.co')) 
-      ? '/api-anilist' 
-      : url;
+    // NATIVE: Direct always.
+    const finalUrl = (Capacitor.isNativePlatform())
+      ? url
+      : (import.meta.env.DEV && url.includes('anilist.co')) 
+        ? '/api-anilist' 
+        : url;
 
     const response = await fetch(finalUrl, {
       method: 'POST',

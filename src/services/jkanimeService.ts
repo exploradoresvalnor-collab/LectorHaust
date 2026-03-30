@@ -10,16 +10,34 @@ const BASE_URL = 'https://jkanime.net';
 const PROXY_URL = 'https://manga-proxy.mchaustman.workers.dev/?url=';
 
 async function fetchHtml(url: string, options: RequestInit = {}) {
-    const proxyUrl = `${PROXY_URL}${encodeURIComponent(url)}`;
-    const resp = await fetch(proxyUrl, options);
-    if (!resp.ok) {
-        if (Capacitor.isNativePlatform()) {
+    // Si es nativo (Android/iOS), NO hay problemas de CORS, vamos DIRECTO por velocidad y fiabilidad.
+    if (Capacitor.isNativePlatform()) {
+        try {
             const directResp = await fetch(url, options);
             if (directResp.ok) return directResp.text();
+        } catch (e) {
+            console.warn(`[JKAnime] Direct fetch failed on native, trying proxy...`);
         }
-        throw new Error(`Proxy Error: ${resp.status}`);
     }
-    return resp.text(); 
+
+    // ALWAYS use the proxy to bypass CORS on Web and as fallback on Native
+    const proxyUrl = `${PROXY_URL}${encodeURIComponent(url)}`;
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+    
+    try {
+      const resp = await fetch(proxyUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
+      if (!resp.ok) {
+          throw new Error(`Proxy Error: ${resp.status}`);
+      }
+      return resp.text(); 
+    } catch (e) {
+      clearTimeout(timeoutId);
+      throw e;
+    }
 }
 
 export const jkanimeService = {

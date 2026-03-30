@@ -13,8 +13,17 @@ const BASE_URL = 'https://www4.animeflv.net';
 const PROXY_URL = 'https://manga-proxy.mchaustman.workers.dev/?url=';
 
 async function fetchHtml(url: string) {
-    // ALWAYS use the proxy to bypass CORS, Referer restrictions and ISP blocks
-    // This is critical for APK production where carriers might block specific domains.
+    // Si es nativo (Android/iOS), NO hay problemas de CORS, vamos DIRECTO por velocidad y fiabilidad.
+    if (Capacitor.isNativePlatform()) {
+        try {
+            const directResp = await fetch(url);
+            if (directResp.ok) return directResp.text();
+        } catch (e) {
+            console.warn(`[AnimeFLV] Direct fetch failed on native, trying proxy...`);
+        }
+    }
+
+    // ALWAYS use the proxy to bypass CORS on Web and as fallback on Native
     const proxyUrl = `${PROXY_URL}${encodeURIComponent(url)}`;
     
     const controller = new AbortController();
@@ -25,11 +34,6 @@ async function fetchHtml(url: string) {
       clearTimeout(timeoutId);
       
       if (!resp.ok) {
-          // Fallback for native if the proxy is down
-          if (Capacitor.isNativePlatform()) {
-              const directResp = await fetch(url);
-              if (directResp.ok) return directResp.text();
-          }
           throw new Error(`Proxy Error: ${resp.status}`);
       }
       return resp.text(); 

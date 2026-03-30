@@ -32,12 +32,20 @@ async function rateLimitedFetch(url: string, options?: RequestInit): Promise<Res
  * Helper to construct proxied URLs for MangaDex
  */
 function getProxyUrl(endpoint: string) {
+    // 1. Si estamos en una app móvil nativa (Capacitor), NO hay problemas de CORS.
+    // Hacemos la petición directa a la API de MangaDex.
+    if (isNative) {
+        return `https://api.mangadex.org${endpoint}`;
+    }
+    
+    // 2. Si estamos en desarrollo en el navegador (Localhost) usamos el proxy de Vite
     if (isLocalhost) {
         return `/api-md${endpoint}`;
     }
-    // En producción / Vercel
-    const fullUrl = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
-    return fullUrl;
+    
+    // 3. Producción Web: 
+    // Usamos la URL de la API directamente (aunque en web podría requerir un CORS proxy público).
+    return `https://api.mangadex.org${endpoint}`; 
 }
 
 /**
