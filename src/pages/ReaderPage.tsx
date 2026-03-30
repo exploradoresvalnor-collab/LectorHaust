@@ -236,7 +236,7 @@ const ReaderPage: React.FC = () => {
                       centerOnInit={true}
                       wheel={{ step: 0.1 }}
                       doubleClick={{ step: 0.5 }}
-                      panning={{ excluded: ['input', 'button', '.zoom-controls-overlay'] }}
+                      panning={{ excluded: ['input', 'button'] }}
                     >
                       {({ zoomIn, zoomOut, resetTransform }: any) => (
                         <TransformComponent

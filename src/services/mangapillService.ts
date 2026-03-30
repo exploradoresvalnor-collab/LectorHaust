@@ -8,12 +8,12 @@
 import { Capacitor } from '@capacitor/core';
 
 const BASE_URL = 'https://mangapill.com';
-const PROXY_URL = 'https://manga-proxy.mchaustman.workers.dev/?url=';
+const PROXY_BASE = 'https://manga-proxy.mchaustman.workers.dev/';
 
 async function fetchHtml(url: string) {
     // ALWAYS use the proxy to bypass CORS, Referer restrictions and ISP blocks
     // This is critical for APK production where carriers might block specific domains.
-    const proxyUrl = `${PROXY_URL}${encodeURIComponent(url)}`;
+    const proxyUrl = `${PROXY_BASE}?url=${encodeURIComponent(url)}`;
     const resp = await fetch(proxyUrl);
     if (!resp.ok) {
         // Fallback for native if the proxy is down (emergency only)
@@ -69,7 +69,7 @@ export const mangapillService = {
                 },
                 relationships: coverUrl ? [{
                     type: 'cover_art',
-                    attributes: { fileName: `${PROXY_URL}${encodeURIComponent(coverUrl)}` }
+                    attributes: { fileName: `${PROXY_BASE}?image=${encodeURIComponent(coverUrl)}` }
                 }] : [],
                 source: 'mangapill' as const
             };
@@ -127,7 +127,7 @@ export const mangapillService = {
                 },
                 relationships: coverUrl ? [{
                     type: 'cover_art',
-                    attributes: { fileName: `${PROXY_URL}${encodeURIComponent(coverUrl)}` }
+                    attributes: { fileName: `${PROXY_BASE}?image=${encodeURIComponent(coverUrl)}` }
                 }] : []
             }
         };
@@ -214,7 +214,7 @@ export const mangapillService = {
             .filter(url => url.includes('/mangap/') || url.includes('chapter'))
             .map(url => {
                 // Use PROXY_URL as i0.wp.com is failing with 403 for MangaPill
-                return `${PROXY_URL}${encodeURIComponent(url)}`;
+                return `${PROXY_BASE}?image=${encodeURIComponent(url)}`;
             });
 
         return {

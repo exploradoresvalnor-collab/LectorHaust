@@ -14,7 +14,7 @@
  */
 
 const API_BASE = 'https://manhwawebbackend-production.up.railway.app';
-const PROXY_URL = 'https://manga-proxy.mchaustman.workers.dev/?url=';
+const PROXY_URL = 'https://manga-proxy.mchaustman.workers.dev/?image=';
 
 async function apiFetch(endpoint: string): Promise<any> {
   const url = `${API_BASE}${endpoint}`;
