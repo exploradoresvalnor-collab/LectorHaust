@@ -31,83 +31,50 @@ export function useCrossMedia(title: string | null | undefined, currentType: 'MA
       try {
         const targetType = currentType === 'MANGA' ? 'ANIME' : 'MANGA';
         
-        // 1. Buscamos en AniList el "Cross Media"
-        const query = `
-          query ($search: String, $type: MediaType) {
-            Media(search: $search, type: $type, sort: SEARCH_MATCH) {
-              id
-              title {
-                romaji
-                english
-                native
-              }
-              coverImage {
-                large
-                extraLarge
-              }
-              type
-              format
+        // 1. Buscamos en AniList el "Cross Media" utilizando nuestro Proxy unificado
+        try {
+          // Reutilizamos la función getAnimeDetailsByName o hacemos una query limpia a través de anilistService
+          const res = await anilistService.getAnimeDetailsByName(title);
+          
+          if (!res || !active) {
+            setLoading(false);
+            return;
+          }
+          
+          const foundTitle = res.title?.english || res.title?.romaji || res.title?.native || title;
+
+          // 2. Resolver el ID dentro de nuestro ecosistema 
+          let resolvedId: string | null = null;
+          let routePrefix = '';
+
+          if (targetType === 'ANIME') {
+            let searchRes = await animeflvService.search(foundTitle);
+            if (searchRes && searchRes.length > 0) {
+              resolvedId = searchRes[0].id;
+              routePrefix = '/anime';
+            }
+          } else {
+            const verifiedManga = await mangaProvider.fetchVerifiedRecommendation(foundTitle, false);
+            if (verifiedManga) {
+              resolvedId = verifiedManga.id;
+              routePrefix = '/manga';
             }
           }
-        `;
-        
-        const variables = {
-          search: title,
-          type: targetType
-        };
 
-        const response = await fetch('https://graphql.anilist.co', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify({ query, variables })
-        }).catch(() => null);
-
-        if (!response || !response.ok) {
-           if (active) setLoading(false);
-           return;
-        }
-
-        const data = await response.json();
-        const media = data?.data?.Media;
-        
-        if (!media || !active) {
-          setLoading(false);
-          return;
-        }
-
-        const foundTitle = media.title.english || media.title.romaji || media.title.native;
-
-        // 2. Resolver el ID dentro de nuestro ecosistema 
-        let resolvedId: string | null = null;
-        let routePrefix = '';
-
-        if (targetType === 'ANIME') {
-          // Verify on AnimeFLV
-          const searchRes = await animeflvService.search(foundTitle);
-          if (searchRes && searchRes.length > 0) {
-            resolvedId = searchRes[0].id;
-            routePrefix = '/anime';
+          if (active && resolvedId) {
+            setCrossMedia({
+              id: resolvedId,
+              title: foundTitle,
+              coverImage: {
+                large: res.coverImage?.large,
+                extraLarge: res.coverImage?.extraLarge || res.coverImage?.large
+              },
+              type: targetType,
+              destinationUrl: `${routePrefix}/${resolvedId}`
+            });
           }
-        } else {
-          // Verify on MangaDex
-          const verifiedManga = await mangaProvider.fetchVerifiedRecommendation(foundTitle, false);
-          if (verifiedManga) {
-            resolvedId = verifiedManga.id;
-            routePrefix = '/manga';
-          }
-        }
-
-        if (active && resolvedId) {
-          setCrossMedia({
-            id: resolvedId,
-            title: foundTitle,
-            coverImage: {
-              large: media.coverImage.large,
-              extraLarge: media.coverImage.extraLarge || media.coverImage.large
-            },
-            type: targetType,
-            destinationUrl: `${routePrefix}/${resolvedId}`
-          });
+        } catch (err) {
+          // Fallo silencioso en caso de rate limit
         }
       } catch (err) {
         console.warn('Cross media finding error:', err);

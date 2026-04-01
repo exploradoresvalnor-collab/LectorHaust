@@ -32,7 +32,19 @@ export const translationService = {
       // 3. Call Public Google Translate API (gtx client)
       const url = `${GOOGLE_TRANSLATE_API}${encodeURIComponent(text)}`;
       const PROXY_URL = 'https://manga-proxy.mchaustman.workers.dev/?url=';
-      const response = await fetch(`${PROXY_URL}${encodeURIComponent(url)}`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s timeout max
+      
+      const response = await fetch(`${PROXY_URL}${encodeURIComponent(url)}`, {
+          signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      
+      if (response.status === 429) {
+         console.warn('[Translation] Rate limited by proxy. Skipping translation.');
+         return { text, isTranslated: false };
+      }
       
       if (!response.ok) throw new Error('Translation failed');
       

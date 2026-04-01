@@ -22,23 +22,15 @@ import {
   IonLabel
 } from '@ionic/react';
 import { 
-  playCircleOutline, 
-  tvOutline, 
-  trendingUpOutline, 
-  timeOutline, 
   sparklesOutline,
   starOutline,
   informationCircleOutline,
   optionsOutline
 } from 'ionicons/icons';
-import { useLocation } from 'react-router-dom';
 import { animeflvService } from '../services/animeflvService';
 import { tioanimeService } from '../services/tioanimeService';
-import { hianimeService } from '../services/hianimeService';
 import { anilistService } from '../services/anilistService';
 import { hapticsService } from '../services/hapticsService';
-import { useCrossMedia } from '../hooks/useCrossMedia';
-import SmartImage from '../components/SmartImage';
 import AnimeCardItem from '../components/AnimeCardItem';
 import './AnimeCommon.css';
 import './AnimePage.css'; 
@@ -51,14 +43,9 @@ const AnimePage: React.FC = () => {
   const [loadingPrimary, setLoadingPrimary] = useState(true);    // Hero + Tendencias
   const [loadingSecondary, setLoadingSecondary] = useState(true); // Nuevos Episodios
   const [loadingTertiary, setLoadingTertiary] = useState(true);   // Latino + Populares
-  const [sourceProvider, setSourceProvider] = useState<'hianime' | 'animeflv' | 'tioanime'>(
-    (new URLSearchParams(window.location.search).get('provider') as any) || 'animeflv'
-  );
-  const [activeFilter, setActiveFilter] = useState<'all' | 'latino' | 'english'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'latino'>('all');
   const [searchLoading, setSearchLoading] = useState(false);
   const [query, setQuery] = useState('');
-  const [selectedType, setSelectedType] = useState('all');
-  const [selectedGenre, setSelectedGenre] = useState('all');
   const router = useIonRouter();
 
   const HERO_CACHE_KEY = 'haus_anime_hero_cache';
@@ -83,13 +70,13 @@ const AnimePage: React.FC = () => {
     } catch { /* cache read error - ignore */ }
 
     try {
-      const [flvTrending, flvRecent] = await Promise.all([
+      let [flvTrending, flvRecent] = await Promise.all([
           animeflvService.getTrendingAnime(),
           animeflvService.getRecentEpisodes()
       ]);
       
       const topTrending = (flvTrending || []).slice(0, 5);
-      const enhancedTrending = await Promise.all(topTrending.map(async (anime) => {
+      const enhancedTrending = await Promise.all(topTrending.map(async (anime: any) => {
          const anilistInfo = await anilistService.getAnimeDetailsByName(anime.title);
          if (anilistInfo) {
              const data = { ...anime };
@@ -122,12 +109,6 @@ const AnimePage: React.FC = () => {
         if (activeFilter === 'latino') {
           const latino = await tioanimeService.getLatestAnimes();
           setLatinoAnimes(latino.slice(0, 20).map(a => ({ ...a, preferredProvider: 'tioanime' })));
-        } else if (activeFilter === 'english') {
-          const english = await hianimeService.search('latest'); 
-          setLatinoAnimes(english.slice(0, 20).map(a => ({ ...a, preferredProvider: 'hianime' })));
-        } else {
-          const latino = await tioanimeService.getLatestAnimes();
-          setLatinoAnimes(latino.slice(0, 20).map(a => ({ ...a, preferredProvider: 'tioanime' })));
         }
       } catch { /* Latino es opcional */ }
       setLoadingTertiary(false);
@@ -152,14 +133,8 @@ const AnimePage: React.FC = () => {
     setQuery(val);
     if (val.length > 2) {
       setLoadingPrimary(true);
-      if (activeFilter !== 'english') {
-        const trending = await anilistService.getTrendingAnime();
-        setSpotlightAnimes(trending.slice(0, 5));
-      } else {
-        // Spotlight for English (HiAnime)
-        const engTrending = await hianimeService.search('action'); // Fallback search for trending
-        setSpotlightAnimes(engTrending.slice(0, 5));
-      }
+      const trending = await anilistService.getTrendingAnime();
+      setSpotlightAnimes(trending.slice(0, 5));
       setLoadingPrimary(false);
       setSearchLoading(true);
       const results = await animeflvService.search(val);
@@ -301,15 +276,6 @@ const AnimePage: React.FC = () => {
                   >
                     <IonLabel>🇲🇽 Latino</IonLabel>
                   </IonChip>
-                  <IonChip 
-                    className={`filter-chip-v2 ${activeFilter === 'english' ? 'active' : ''}`}
-                    onClick={() => {
-                        setActiveFilter('english');
-                        setSourceProvider('hianime');
-                    }}
-                  >
-                    <IonLabel>🇺🇸 English</IonLabel>
-                  </IonChip>
                 </div>
 
                 {/* === GRID DE NOVEDADES (PARRILLA DE CUADROS) === */}
@@ -335,8 +301,8 @@ const AnimePage: React.FC = () => {
                   ) : (
                     <IonGrid className="anime-grid-v">
                       <IonRow className="anime-row-v">
-                        {latestEpisodes.map((ep, idx) => (
-                          <IonCol size="6" sizeSm="4" sizeMd="3" className="anime-col-5 anime-col-v" key={'ep-'+(ep.id || ep.animeId)+idx}>
+                        {(activeFilter === 'all' ? latestEpisodes : latinoAnimes).map((ep, idx) => (
+                          <IonCol size="6" sizeSm="4" sizeMd="3" className="anime-col-5 anime-col-v" key={'ep-'+(ep.id || ep.animeId)+idx+'-'+activeFilter}>
                             <AnimeCardItem 
                               anime={{ ...ep, id: ep.animeId || ep.id, title: ep.animeName || ep.title, image: ep.animePoster || ep.image, hasSub: true }} 
                               onClick={() => router.push(`/anime/${ep.animeId || ep.id}`, 'forward', 'push', { anime: ep } as any)}

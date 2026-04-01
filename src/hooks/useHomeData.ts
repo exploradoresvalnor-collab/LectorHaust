@@ -8,7 +8,6 @@ import { useLibraryStore } from '../store/useLibraryStore';
 import { getDefaultLanguage } from '../utils/translations';
 import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { animeflvService } from '../services/animeflvService';
-import { jkanimeService } from '../services/jkanimeService';
 import { translationService } from '../services/translationService';
 import { anilistService } from '../services/anilistService';
 
@@ -42,11 +41,7 @@ export function useHomeData() {
   } = useQuery({
     queryKey: ['trendingAnime'],
     queryFn: async () => {
-      let results = await jkanimeService.getTrendingAnime();
-      if (!results || results.length === 0) {
-        console.log('[Home] JKAnime failed or empty, falling back to AnimeFLV trends.');
-        results = await animeflvService.getTrendingAnime();
-      }
+      let results = await animeflvService.getTrendingAnime();
       return results;
     },
     staleTime: 1000 * 60 * 60 * 6, // 6 hours
@@ -94,112 +89,125 @@ export function useHomeData() {
   const [heroItems, setHeroItems] = useState<any[]>([]);
 
   useEffect(() => {
+    let mounted = true;
+
     const buildHero = async () => {
-      const items: any[] = [];
-      
-      // 1. Add top animes (fetch full info for descriptions)
+      let finalItems: any[] = [];
+      const animes: any[] = [];
+      const mangas: any[] = [];
+
+      // 1. Añadir Animes Base (Instantáneo)
       if (trendingAnime && trendingAnime.length > 0) {
-        const topAnimes = trendingAnime.slice(0, 3);
-        const detailedAnimes = await Promise.all(
-          topAnimes.map(async (a: any) => {
-            try {
-              const full = await jkanimeService.getAnimeInfo(a.id);
-              const { text: desc, isTranslated } = await translationService.translateToSpanish(full?.description || 'Sin descripción disponible.');
-              return {
-                ...a,
-                description: desc,
-                isTranslated,
-                status: full?.status || 'Serie',
-                type: 'anime',
-                badge: 'ANIME',
-                link: `/anime/${a.id}`
-              };
-            } catch { return { ...a, type: 'anime', badge: 'ANIME', link: `/anime/${a.id}` }; }
-          })
-        );
-        items.push(...detailedAnimes);
+        trendingAnime.slice(0, 3).forEach((a: any) => {
+          animes.push({
+            ...a,
+            description: a.description || 'Cargando sinopsis...',
+            isTranslated: false,
+            status: a.status || 'Serie',
+            type: 'anime',
+            badge: 'ANIME',
+            link: `/anime/${a.id}`
+          });
+        });
       }
 
-      // 2. Add top mangas
+      // 2. Añadir Mangas Base (Instantáneo)
       if (latest && latest.length > 0) {
-        const topMangas = await Promise.all(latest.slice(0, 4).map(async (m: any) => {
-          const rawDesc = mangaProvider.getLocalizedDescription(m);
-          const { text: translatedDesc, isTranslated } = await translationService.translateToSpanish(rawDesc);
-          
-          // Enrichment with AniList Cover for Hero visibility
-          let aniCover = null;
-          try {
-            const fullTitle = mangaProvider.getLocalizedTitle(m);
-            const cleanedTitle = anilistService.cleanTitle(fullTitle);
-            
-            // Try 1: Cleaned but full title
-            let aniRes = await anilistService.searchManga(cleanedTitle);
-            
-            // Try 2: If failed, try only first 4 words
-            if (!aniRes || aniRes.length === 0) {
-              const shortTitle = cleanedTitle.split(' ').slice(0, 4).join(' ');
-              if (shortTitle.length > 3) {
-                aniRes = await anilistService.searchManga(shortTitle);
-              }
-            }
-
-            if (aniRes && aniRes.length > 0) {
-              const fullAni = await anilistService.getMangaDetails(aniRes[0].id);
-              aniCover = fullAni?.coverImage?.extraLarge || fullAni?.coverImage?.large;
-            }
-          } catch { /* Silent fail */ }
-
-          return {
+        latest.slice(0, 4).forEach((m: any) => {
+          mangas.push({
             id: m.id,
             title: mangaProvider.getLocalizedTitle(m),
-            description: translatedDesc,
-            isTranslated,
-            image: mangaProvider.getCoverUrl(m, 'original', aniCover || undefined),
+            description: mangaProvider.getLocalizedDescription(m) || 'Cargando detalles...',
+            isTranslated: false,
+            image: mangaProvider.getCoverUrl(m, 'original'),
             type: 'manga',
             badge: 'MANGA',
             status: m.attributes?.status === 'completed' ? 'Concluido' : 'Serie',
             link: `/manga/${m.id}`,
             raw: m
-          };
-        }));
-        items.push(...topMangas);
+          });
+        });
       }
 
-      // 3. SPECIAL INJECTION: JoJo's Bizarre Adventure (User Request)
-      // If none of the Jojos are in the hero list, let's try to add one specifically
-      const hasJojo = items.some(it => it.title?.toLowerCase().includes('jojo'));
-      if (!hasJojo) {
-        // Fallback: This ID is for Stone Ocean in AnimeFLV as per search
-        const jojoId = 'jojo-no-kimyou-na-bouken-part-6-stone-ocean';
-        try {
-          const jojo = await animeflvService.getAnimeInfo(jojoId);
-          if (jojo) {
-              items.unshift({
-                ...jojo,
-                type: 'anime',
-                badge: 'LEGENDARIO',
-                status: 'Finalizado',
-                link: `/anime/${jojoId}`
-              });
-          }
-        } catch { /* Fail silently */ }
-      }
+      // Hero items are now 100% data-driven from AnimeFLV trending + MangaDex latest.
+      // No hardcoded injections — only real content appears in the hero carousel.
 
-      // Shuffle or interleave? Let's interleave
-      const finalItems = [];
-      const animes = items.filter(it => it.type === 'anime');
-      const mangas = items.filter(it => it.type === 'manga');
+      // Interlear elementos
       const maxLength = Math.max(animes.length, mangas.length);
-      
       for (let i = 0; i < maxLength; i++) {
         if (animes[i]) finalItems.push(animes[i]);
         if (mangas[i]) finalItems.push(mangas[i]);
       }
+      
+      finalItems = finalItems.slice(0, 8); // Mostrar 8 elementos
 
-      setHeroItems(finalItems.slice(0, 8)); // Show 8 items for more variety
+      if (mounted) {
+        setHeroItems([...finalItems]);
+      }
+
+      // --- ENRIQUECIMIENTO ASÍNCRONO (NON-BLOCKING) ---
+      // Realizamos 1 a 1 para evitar congelar el UI general
+      for (const item of finalItems) {
+        if (!mounted) break;
+        
+        try {
+          let updatedItem = { ...item };
+          
+          if (item.type === 'anime') {
+             if (item.id === 'jojo-no-kimyou-na-bouken-part-6-stone-ocean' && item.title === "JoJo's Bizarre Adventure") {
+                 const jojo = await animeflvService.getAnimeInfo(item.id);
+                 if (jojo) {
+                     updatedItem = { ...updatedItem, ...jojo, title: jojo.title || updatedItem.title, image: jojo.image || updatedItem.image, description: jojo.description || updatedItem.description };
+                 }
+             } else {
+                 const full = await animeflvService.getAnimeInfo(item.id);
+                 if (full) {
+                     updatedItem.description = full.description || updatedItem.description;
+                     updatedItem.status = full.status || updatedItem.status;
+                     updatedItem.image = full.image || updatedItem.image;
+                 }
+             }
+             
+             const { text: desc, isTranslated } = await translationService.translateToSpanish(updatedItem.description);
+             updatedItem.description = desc;
+             updatedItem.isTranslated = isTranslated;
+             
+          } else if (item.type === 'manga') {
+             const { text: desc, isTranslated } = await translationService.translateToSpanish(updatedItem.description);
+             updatedItem.description = desc;
+             updatedItem.isTranslated = isTranslated;
+             
+             try {
+                const cleanedTitle = anilistService.cleanTitle(updatedItem.title);
+                let aniRes = await anilistService.searchManga(cleanedTitle);
+                if (!aniRes || aniRes.length === 0) {
+                  const shortTitle = cleanedTitle.split(' ').slice(0, 4).join(' ');
+                  if (shortTitle.length > 3) aniRes = await anilistService.searchManga(shortTitle);
+                }
+                if (aniRes && aniRes.length > 0) {
+                  const fullAni = await anilistService.getMangaDetails(aniRes[0].id);
+                  const aniCover = fullAni?.coverImage?.extraLarge || fullAni?.coverImage?.large;
+                  if (aniCover) updatedItem.image = mangaProvider.getCoverUrl(item.raw, 'original', aniCover);
+                }
+             } catch (e) { /* ignore anilist error */ }
+          }
+
+          if (mounted) {
+             setHeroItems(prev => {
+                const newItems = [...prev];
+                const replaceIdx = newItems.findIndex(x => x.id === updatedItem.id);
+                if (replaceIdx !== -1) newItems[replaceIdx] = updatedItem;
+                return newItems;
+             });
+          }
+        } catch (e) {
+            console.warn(`[Hero] Error enriqueciendo fondo para ${item.id}`, e);
+        }
+      }
     };
 
     buildHero();
+    return () => { mounted = false; };
   }, [latest, trendingAnime]);
 
   const heroMangas = heroItems; // Alias for compatibility

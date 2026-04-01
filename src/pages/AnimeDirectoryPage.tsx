@@ -3,20 +3,16 @@ import {
   IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonGrid, IonRow, IonCol, 
   IonSearchbar, IonButtons, IonButton, IonIcon, IonSkeletonText, useIonRouter, IonSpinner,
   IonSelect, IonSelectOption, IonBadge, IonBackButton,
-  IonChip
+  IonChip, IonLabel
 } from '@ionic/react';
-import { filterOutline, optionsOutline, searchOutline, sparklesOutline, timeOutline, trendingUpOutline, languageOutline, chevronBackOutline, chevronForwardOutline } from 'ionicons/icons';
+import { filterOutline, searchOutline, chevronBackOutline, chevronForwardOutline } from 'ionicons/icons';
 import { animeflvService } from '../services/animeflvService';
-import { hianimeService } from '../services/hianimeService';
-import { lacartoonsService } from '../services/lacartoonsService';
 import { tioanimeService } from '../services/tioanimeService';
-import { jkanimeService } from '../services/jkanimeService';
 import AnimeCardItem from '../components/AnimeCardItem';
 import './AnimeCommon.css';
 import './AnimeDirectoryPage.css';
 
 const ITEMS_PER_PAGE_FLV = 24;
-const ITEMS_PER_PAGE_HI = 36;
 
 const AnimeDirectoryPage: React.FC = () => {
   const [results, setResults] = useState<any[]>([]);
@@ -32,9 +28,8 @@ const AnimeDirectoryPage: React.FC = () => {
   const [type, setType] = useState('all');
   const [year, setYear] = useState('all');
   const [sort, setSort] = useState('default');
-  const [language, setLanguage] = useState<'sub-es' | 'sub-en' | 'latino'>('sub-es');
-  const [universe, setUniverse] = useState<'anime' | 'cartoons'>('anime');
-  const [provider, setProvider] = useState<'default' | 'tioanime' | 'jkanime' | 'animeflv'>('default');
+  const [language, setLanguage] = useState<'sub-es' | 'latino'>('sub-es');
+  const [provider, setProvider] = useState<'default' | 'tioanime' | 'animeflv'>('default');
   
   const years = Array.from({ length: 56 }, (_, i) => (2025 - i).toString());
 
@@ -53,30 +48,19 @@ const AnimeDirectoryPage: React.FC = () => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
     
-    // UI Feedback: Clear results and show skeleton immediately
     setResults([]);
     setLoading(true);
     setPage(targetPage);
     
-    // Scroll to top immediately to show skeletons from top
     window.scrollTo({ top: 0, behavior: 'smooth' });
     
     try {
       let newItems: any[] = [];
       
-      if (universe === 'cartoons') {
-          newItems = await lacartoonsService.search(query, targetPage, genre);
-      } else if (language === 'sub-en') {
-          const hiSort = sort === 'rating' ? 'top_rated' : (sort === 'updated' ? 'recently_updated' : 'recently_added');
-          newItems = await hianimeService.search(query, targetPage, year, genre, hiSort, type);
-      } else if (provider === 'animeflv') {
-          newItems = await animeflvService.search(query, [genre], targetPage, type, year, sort);
-      } else if (provider === 'tioanime') {
+      if (provider === 'tioanime') {
           newItems = await tioanimeService.search(query);
       } else {
-          // 'default' provider is now JKAnime (S-Ultra)
-          const targetLang = language === 'latino' ? 'latino' : 'sub-es';
-          newItems = await jkanimeService.search(query, targetPage, genre, type, year, sort, targetLang, 'all');
+          newItems = await animeflvService.search(query, [genre], targetPage, type, year, sort);
       }
 
       if (!newItems || newItems.length === 0) {
@@ -86,18 +70,13 @@ const AnimeDirectoryPage: React.FC = () => {
             setTotalPages(1);
         }
       } else {
-        // REPLACE results entirely (proper pagination, not infinite scroll)
         setResults(newItems);
-
-        // Read totalCount from the service (attached to the array)
         if (targetPage === 1) {
             const serverTotal = (newItems as any).totalCount;
             if (serverTotal && serverTotal > 0) {
                 setTotalCount(serverTotal);
-                const ipp = universe === 'cartoons' ? 24 : (language === 'sub-en' ? ITEMS_PER_PAGE_HI : ITEMS_PER_PAGE_FLV);
-                setTotalPages(Math.ceil(serverTotal / ipp));
+                setTotalPages(Math.ceil(serverTotal / ITEMS_PER_PAGE_FLV));
             } else {
-                // Fallback: if the service didn't provide it
                 setTotalCount(newItems.length);
                 setTotalPages(1);
             }
@@ -106,10 +85,6 @@ const AnimeDirectoryPage: React.FC = () => {
     } catch (err) {
       console.error("Directory fetch error", err);
       setResults([]);
-      if (targetPage === 1) {
-          setTotalCount(0);
-          setTotalPages(1);
-      }
     } finally {
       setLoading(false);
       fetchingRef.current = false;
@@ -118,14 +93,11 @@ const AnimeDirectoryPage: React.FC = () => {
 
   useEffect(() => {
     fetchAnimes(1);
-  }, [genre, type, query, year, sort, language, universe]);
+  }, [genre, type, query, year, sort, language]);
 
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages || fetchingRef.current) return;
     fetchAnimes(newPage);
-    // Scroll to top when changing page
-    const content = document.querySelector('.directory-content');
-    if (content) (content as any).scrollToTop?.(300);
   };
 
   const resetFilters = () => {
@@ -137,16 +109,9 @@ const AnimeDirectoryPage: React.FC = () => {
     setYear('all');
   };
 
-  // Build active filter label for tracker
   const getActiveFilterLabel = () => {
-    if (universe === 'cartoons') {
-       const parts = ['📺 Caricaturas Clásicas'];
-       if (query) parts.push(`"${query}"`);
-       return parts.join(' · ');
-    }
     const parts: string[] = [];
-    if (language === 'sub-en') parts.push('🇺🇸 Inglés');
-    else if (language === 'latino') parts.push('🇲🇽 Latino');
+    if (language === 'latino') parts.push('🇲🇽 Latino');
     else parts.push('Sub Español');
     if (genre !== 'all') parts.push(genre);
     if (type !== 'all') parts.push(type);
@@ -155,7 +120,7 @@ const AnimeDirectoryPage: React.FC = () => {
     return parts.join(' · ');
   };
 
-  const hasActiveFilter = universe === 'cartoons' ? query !== '' : genre !== 'all' || type !== 'all' || year !== 'all' || query !== '' || language !== 'sub-es';
+  const hasActiveFilter = genre !== 'all' || type !== 'all' || year !== 'all' || query !== '' || language !== 'sub-es';
 
   return (
     <IonPage>
@@ -180,151 +145,98 @@ const AnimeDirectoryPage: React.FC = () => {
           </IonButtons>
         </IonToolbar>
         
-            {/* Filter Bar */}
-            <div className="directory-filters-container">
-               <div className="universe-toggle-container">
-                  <div className={`uni-segment ${universe === 'anime' ? 'uni-active' : ''}`} onClick={() => setUniverse('anime')}>
-                     <span className="uni-icon">✨</span>
-                     <span className="uni-label">Anime</span>
-                  </div>
-                  <div className={`uni-segment ${universe === 'cartoons' ? 'uni-active' : ''}`} onClick={() => setUniverse('cartoons')}>
-                     <span className="uni-icon">📺</span>
-                     <span className="uni-label">Caricaturas</span>
-                  </div>
-               </div>
+        <div className="directory-filters-container">
+          <div className="filter-row">
+            <IonSearchbar 
+              value={query}
+              onIonInput={e => setQuery(e.detail.value!)}
+              placeholder="Busca tu próximo anime..."
+              className="directory-search"
+              debounce={500}
+            />
+          </div>
 
-               <div className="filter-row">
-                 <IonSearchbar 
-                    value={query}
-                    onIonInput={e => setQuery(e.detail.value!)}
-                    placeholder={universe === 'anime' ? "Busca tu próximo anime..." : "Busca tu caricatura..."}
-                    className="directory-search"
-                    debounce={500}
-                 />
-               </div>
-               
-               {universe === 'anime' && (
-                 <div className="horizontal-filters-scroll">
-                    <div className="filter-select-inline">
-                      <span className="filter-label">Idioma:</span>
-                      <IonSelect value={language} interface="popover" onIonChange={e => { setLanguage(e.detail.value); setProvider('default'); }} className="custom-select-inline">
-                         <IonSelectOption value="sub-es">Sub Español</IonSelectOption>
-                         <IonSelectOption value="latino">Latino</IonSelectOption>
-                      </IonSelect>
-                    </div>
-
-                    {universe === 'anime' && (
-                       <div className="filter-select-inline">
-                         <span className="filter-label">Servidor:</span>
-                         <IonSelect value={provider} interface="popover" onIonChange={e => setProvider(e.detail.value)} className="custom-select-inline">
-                            <IonSelectOption value="default">S-Ultra (Principal)</IonSelectOption>
-                            {language === 'sub-es' && (
-                                <>
-                                  <IonSelectOption value="animeflv">S-Clásico</IonSelectOption>
-                                  <IonSelectOption value="tioanime">S-Rápido</IonSelectOption>
-                                </>
-                            )}
-                         </IonSelect>
-                       </div>
-                    )}
-
-                    <div className="filter-select-inline">
-                      <span className="filter-label">Formato:</span>
-                      <IonSelect value={type} interface="popover" onIonChange={e => setType(e.detail.value)} className="custom-select-inline">
-                         <IonSelectOption value="all">Todos</IonSelectOption>
-                         <IonSelectOption value="TV">TV</IonSelectOption>
-                         <IonSelectOption value="Movie">Película</IonSelectOption>
-                         <IonSelectOption value="OVA">OVA</IonSelectOption>
-                         <IonSelectOption value="ONA">ONA</IonSelectOption>
-                         <IonSelectOption value="Special">Especial</IonSelectOption>
-                      </IonSelect>
-                    </div>
-
-                    <div className="filter-select-inline">
-                      <span className="filter-label">Género:</span>
-                      <IonSelect value={genre} interface="popover" onIonChange={e => setGenre(e.detail.value)} className="custom-select-inline">
-                         <IonSelectOption value="all">Todos</IonSelectOption>
-                         {genres.map(g => (
-                           <IonSelectOption key={g} value={g}>{g}</IonSelectOption>
-                         ))}
-                      </IonSelect>
-                    </div>
-
-                    <div className="filter-select-inline">
-                      <span className="filter-label">Orden:</span>
-                      <IonSelect value={sort} interface="popover" onIonChange={e => setSort(e.detail.value)} className="custom-select-inline">
-                         <IonSelectOption value="default">Recientes</IonSelectOption>
-                         <IonSelectOption value="rating">Calificación</IonSelectOption>
-                         <IonSelectOption value="updated">Subidos</IonSelectOption>
-                      </IonSelect>
-                    </div>
-
-                     <div className="filter-select-inline">
-                      <span className="filter-label">Año:</span>
-                      <IonSelect value={year} interface="popover" onIonChange={e => setYear(e.detail.value)} className="custom-select-inline">
-                         <IonSelectOption value="all">Todos</IonSelectOption>
-                         {years.map(y => <IonSelectOption key={y} value={y}>{y}</IonSelectOption>)}
-                      </IonSelect>
-                    </div>
-                 </div>
-               )}
-
-               {universe === 'cartoons' && (
-                 <div className="horizontal-filters-scroll">
-                    <div className="filter-select-inline">
-                      <span className="filter-label">Idioma:</span>
-                      <IonSelect value="latino" interface="popover" className="custom-select-inline" disabled>
-                         <IonSelectOption value="latino">Latino (Doblado)</IonSelectOption>
-                      </IonSelect>
-                    </div>
-
-                    <div className="filter-select-inline">
-                      <span className="filter-label">Formato:</span>
-                      <IonSelect value="TV" interface="popover" className="custom-select-inline" disabled>
-                         <IonSelectOption value="TV">Serie TV</IonSelectOption>
-                      </IonSelect>
-                    </div>
-
-                    <div className="filter-select-inline">
-                      <span className="filter-label">Canal / Productora:</span>
-                      <IonSelect value={genre} interface="popover" onIonChange={e => setGenre(e.detail.value)} className="custom-select-inline">
-                         <IonSelectOption value="all">Todos</IonSelectOption>
-                         <IonSelectOption value="1">Nickelodeon</IonSelectOption>
-                         <IonSelectOption value="2">Cartoon Network</IonSelectOption>
-                         <IonSelectOption value="3">Fox Kids / Jetix</IonSelectOption>
-                         <IonSelectOption value="4">Hanna Barbera</IonSelectOption>
-                         <IonSelectOption value="5">Disney</IonSelectOption>
-                         <IonSelectOption value="6">Warner Channel</IonSelectOption>
-                         <IonSelectOption value="7">Marvel</IonSelectOption>
-                         <IonSelectOption value="8">Otros</IonSelectOption>
-                      </IonSelect>
-                    </div>
-                 </div>
-               )}
-
-               {/* TRACKER GLOBAL OPTIMIZADO */}
-               <div className="catalog-tracker">
-                  <div className="tracker-left">
-                    <span className={`tracker-dot ${loading ? 'pulse' : ''}`} />
-                    <span className="tracker-label">
-                      {hasActiveFilter ? getActiveFilterLabel() : 'Catálogo General'}
-                    </span>
-                  </div>
-                   <div className="tracker-right">
-                    {loading ? (
-                      <IonSpinner name="dots" style={{ width: '20px', height: '20px' }} color="primary" />
-                    ) : (
-                      <span className="tracker-count">
-                        {totalCount > 0 ? (
-                          <>Se encontraron <strong>{totalCount.toLocaleString()}</strong> {hasActiveFilter ? 'títulos filtrados' : 'animes en total'}</>
-                        ) : (
-                          <span>Sin resultados</span>
-                        )}
-                      </span>
-                    )}
-                  </div>
-               </div>
+          <div className="horizontal-filters-scroll">
+            <div className="filter-select-inline">
+              <span className="filter-label">Idioma:</span>
+              <IonSelect value={language} interface="popover" onIonChange={e => { setLanguage(e.detail.value); setProvider('default'); }} className="custom-select-inline">
+                 <IonSelectOption value="sub-es">Sub Español</IonSelectOption>
+                 <IonSelectOption value="latino">Latino</IonSelectOption>
+              </IonSelect>
             </div>
+
+            <div className="filter-select-inline">
+              <span className="filter-label">Servidor:</span>
+              <IonSelect value={provider} interface="popover" onIonChange={e => setProvider(e.detail.value)} className="custom-select-inline">
+                 <IonSelectOption value="default">S-Principal</IonSelectOption>
+                 {language === 'sub-es' && (
+                     <IonSelectOption value="tioanime">S-Rápido</IonSelectOption>
+                 )}
+              </IonSelect>
+            </div>
+
+            <div className="filter-select-inline">
+              <span className="filter-label">Formato:</span>
+              <IonSelect value={type} interface="popover" onIonChange={e => setType(e.detail.value)} className="custom-select-inline">
+                 <IonSelectOption value="all">Todos</IonSelectOption>
+                 <IonSelectOption value="TV">TV</IonSelectOption>
+                 <IonSelectOption value="Movie">Película</IonSelectOption>
+                 <IonSelectOption value="OVA">OVA</IonSelectOption>
+                 <IonSelectOption value="ONA">ONA</IonSelectOption>
+                 <IonSelectOption value="Special">Especial</IonSelectOption>
+              </IonSelect>
+            </div>
+
+            <div className="filter-select-inline">
+              <span className="filter-label">Género:</span>
+              <IonSelect value={genre} interface="popover" onIonChange={e => setGenre(e.detail.value)} className="custom-select-inline">
+                 <IonSelectOption value="all">Todos</IonSelectOption>
+                 {genres.map(g => (
+                   <IonSelectOption key={g} value={g}>{g}</IonSelectOption>
+                 ))}
+              </IonSelect>
+            </div>
+
+            <div className="filter-select-inline">
+              <span className="filter-label">Orden:</span>
+              <IonSelect value={sort} interface="popover" onIonChange={e => setSort(e.detail.value)} className="custom-select-inline">
+                 <IonSelectOption value="default">Recientes</IonSelectOption>
+                 <IonSelectOption value="rating">Calificación</IonSelectOption>
+                 <IonSelectOption value="updated">Subidos</IonSelectOption>
+              </IonSelect>
+            </div>
+
+             <div className="filter-select-inline">
+              <span className="filter-label">Año:</span>
+              <IonSelect value={year} interface="popover" onIonChange={e => setYear(e.detail.value)} className="custom-select-inline">
+                 <IonSelectOption value="all">Todos</IonSelectOption>
+                 {years.map(y => <IonSelectOption key={y} value={y}>{y}</IonSelectOption>)}
+              </IonSelect>
+            </div>
+          </div>
+
+          <div className="catalog-tracker">
+            <div className="tracker-left">
+              <span className={`tracker-dot ${loading ? 'pulse' : ''}`} />
+              <span className="tracker-label">
+                {hasActiveFilter ? getActiveFilterLabel() : 'Catálogo General'}
+              </span>
+            </div>
+            <div className="tracker-right">
+              {loading ? (
+                <IonSpinner name="dots" style={{ width: '20px', height: '20px' }} color="primary" />
+              ) : (
+                <span className="tracker-count">
+                  {totalCount > 0 ? (
+                    <>Se encontraron <strong>{totalCount.toLocaleString()}</strong> títulos</>
+                  ) : (
+                    <span>Sin resultados</span>
+                  )}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
       </IonHeader>
 
       <IonContent fullscreen className="directory-content">
@@ -350,8 +262,7 @@ const AnimeDirectoryPage: React.FC = () => {
                        <AnimeCardItem 
                           anime={anime} 
                           onClick={() => {
-                             const prefix = anime.source === 'lacartoons' ? 'lacartoons-' : '';
-                             router.push(`/anime/${prefix}${anime.id}`, 'forward', 'push', { anime } as any);
+                             router.push(`/anime/${anime.id}`, 'forward', 'push', { anime } as any);
                           }}
                           index={idx}
                        />
@@ -364,14 +275,13 @@ const AnimeDirectoryPage: React.FC = () => {
                <div className="empty-icon-pulse">
                   <IonIcon icon={searchOutline} style={{ fontSize: '4rem', color: 'rgba(var(--ion-color-primary-rgb), 0.2)' }} />
                </div>
-               <h4 style={{ fontWeight: 800 }}>Misión de Búsqueda Fallida</h4>
-               <p>No encontramos nada bajo esos criterios en nuestra base de datos elite.</p>
+               <h4 style={{ fontWeight: 800 }}>Búsqueda Fallida</h4>
+               <p>No encontramos nada bajo esos criterios.</p>
                <IonButton fill="solid" color="primary" onClick={resetFilters} style={{ '--border-radius': '12px', fontWeight: 700 }}>VER TODO EL CATÁLOGO</IonButton>
             </div>
           )}
 
-           {/* NUEVA PAGINACIÓN PREMIUM */}
-           {!loading && results.length > 0 && totalPages > 1 && (
+          {!loading && results.length > 0 && totalPages > 1 && (
             <div className="premium-pagination-wrapper">
                <div className="pagination-main-controls">
                   <IonButton 
@@ -409,12 +319,6 @@ const AnimeDirectoryPage: React.FC = () => {
                     Última ({totalPages})
                   </button>
                </div>
-            </div>
-           )}
-
-          {!loading && results.length === 0 && page > 1 && (
-            <div className="end-of-catalog">
-               <p>✨ Has llegado al final de esta sección del catálogo ✨</p>
             </div>
           )}
           

@@ -92,8 +92,10 @@ async function apiFetch(endpoint: string, retries = 3, delay = 1500): Promise<an
                     return await fallbackResponse.json();
                 }
                 console.warn(`[MangaDex] Worker Fallback also returned: ${fallbackResponse.status}`);
+                throw new Error(`Worker Fallback failed with ${fallbackResponse.status}`);
             } catch (fallbackErr) {
                 console.error('[MangaDex] Critical: Worker Fallback failed execution:', fallbackErr);
+                throw fallbackErr; // Abortar rápido para evitar cuellos de botella en la página inicial
             }
         }
 
@@ -101,6 +103,11 @@ async function apiFetch(endpoint: string, retries = 3, delay = 1500): Promise<an
         if (retries > 0) {
             const isAborted = err.name === 'AbortError' || err.message?.includes('aborted');
             const isReset = err.message?.includes('reset') || err.message?.includes('ECONNRESET');
+            
+            // Si el worker falló por 429, no vale la pena reintentar recursivamente, el límite no se quitará en 3 segundos.
+            if (err.message?.includes('Worker Fallback')) {
+               throw err;
+            }
             
             console.warn(`[MangaDex] ${isAborted ? 'Timeout' : (isReset ? 'Connection Reset' : 'Network Error')}. Retrying in ${delay}ms... (${retries} left)`);
             

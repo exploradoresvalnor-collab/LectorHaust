@@ -45,7 +45,7 @@ async function rateLimitedFetch(query: string, variables: any): Promise<any> {
             }
             return response;
         } catch (err) {
-            console.error("AniList Fetch Error:", err);
+            // El error es esperado si Cloudflare o AniList rechazan la IP/proxy. Silenciado para no asustar al log.
             throw err;
         }
     });
@@ -135,13 +135,17 @@ query ($id: Int) {
 
 export const anilistService = {
     async getTrendingManga(origin: string | null = null) {
-        const data = await rateLimitedFetch(TRENDING_QUERY, { origin });
-        return data.data.Page.media;
+        try {
+            const data = await rateLimitedFetch(TRENDING_QUERY, { origin });
+            return data?.data?.Page?.media || [];
+        } catch { return []; }
     },
 
     async getMangaDetails(id: number) {
-        const data = await rateLimitedFetch(DETAILS_QUERY, { id });
-        return data.data.Media;
+        try {
+            const data = await rateLimitedFetch(DETAILS_QUERY, { id });
+            return data?.data?.Media || null;
+        } catch { return null; }
     },
 
     cleanTitle(title: string) {
@@ -212,7 +216,9 @@ export const anilistService = {
           }
         }
         `;
-        const data = await rateLimitedFetch(query, {});
-        return data.data.Page.media;
+        try {
+            const data = await rateLimitedFetch(query, {});
+            return data?.data?.Page?.media || [];
+        } catch { return []; }
     }
 };

@@ -45,8 +45,8 @@ const isRobustMatch = (targetNom: string, targetDeleet: string, resultNom: strin
     
     if (targetNom === cleanResult || targetDeleet === cleanResultDeleet) return true;
 
-    // 3. Bloqueo de secuelas/spin-offs (si el resultado tiene estas palabras pero el target no)
-    const sequelKeywords = ['ragnarok', 'sequel', 'side story', 'gaiden', 'anthology', 'spin off', 'special', 'arise', 'hunter origin', 'hunter-origin', 'origin', 'reboot', 'remake'];
+    // 3. Bloqueo de secuelas/spin-offs/novelas (si el resultado tiene estas palabras pero el target no)
+    const sequelKeywords = ['ragnarok', 'sequel', 'side story', 'gaiden', 'anthology', 'spin off', 'special', 'arise', 'hunter origin', 'hunter-origin', 'origin', 'reboot', 'remake', 'novel', 'light novel', 'web novel', 'after story', 'prequel'];
     const resultHasSequel = sequelKeywords.some(word => resultNom.includes(word));
     const targetHasSequel = sequelKeywords.some(word => targetNom.includes(word));
     if (resultHasSequel && !targetHasSequel) return false;
@@ -461,79 +461,91 @@ export const mangaProvider = {
         const deLeet = (s: string) => s.replace(/3/g, 'e').replace(/1/g, 'i').replace(/0/g, 'o').replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't');
         const deLeetedTargets = normalizedTargets.map(t => deLeet(t));
 
-        try {
-            const searchQueries = [...new Set([searchTitle, ...targetTitles])].filter(q => q && (q as string).length > 2);
-            
-            for (const query of searchQueries) {
-                console.log(`[Intelligence] 🌐 Searching "${query}" on external sources...`);
+        // Helper: match results against target titles
+        const matchResults = (results: any[]) => {
+            const matched: { id: string, source: MangaSource }[] = [];
+            for (const result of results) {
+                const resultTitle = result.attributes?.title?.['en'] || result.attributes?.title?.['es'] || '';
+                const resultNom = normalizeTitle(resultTitle);
+                const resultDeleeted = deLeet(resultNom);
                 
-                // --- 1. ManhwaWeb (ES) ---
-                try {
-                    const mwebResults = await manhwawebService.searchManga(query as string);
-                    if (mwebResults && mwebResults.length > 0) {
-                        for (const result of mwebResults) {
-                            const resultTitle = result.attributes?.title?.['en'] || result.attributes?.title?.['es'] || '';
-                            const resultNom = normalizeTitle(resultTitle);
-                            const resultDeleeted = deLeet(resultNom);
-                            
-                            const isMatch = normalizedTargets.some((target, idx) => {
-                                const targetDeleeted = deLeetedTargets[idx];
-                                return isRobustMatch(target, targetDeleeted, resultNom, resultDeleeted);
-                            });
-                            
-                            if (isMatch && !seenCandidateIds.has(result.id)) {
-                                candidates.push({ id: result.id, source: 'manhwaweb' });
-                                seenCandidateIds.add(result.id);
-                            }
-                        }
-                    }
-                } catch (e) { }
+                const isMatch = normalizedTargets.some((target, idx) => {
+                    const targetDeleeted = deLeetedTargets[idx];
+                    return isRobustMatch(target, targetDeleeted, resultNom, resultDeleeted);
+                });
+                
+                if (isMatch && !seenCandidateIds.has(result.id)) {
+                    const source: MangaSource = result.id.startsWith('mweb:') ? 'manhwaweb' : 
+                                                result.id.startsWith('wc:') ? 'weebcentral' : 
+                                                result.id.startsWith('mp:') ? 'mangapill' : 'mangadex';
+                    matched.push({ id: result.id, source });
+                    seenCandidateIds.add(result.id);
+                }
+            }
+            return matched;
+        };
 
-                // --- 2. WeebCentral (Manhwas/Manhuas) ---
+        try {
+            // Prioritize English/romaji titles (most likely to match on external sources like WeebCentral/MangaPill)
+            const titleObj = manga.attributes.title || {};
+            const englishTitle = typeof titleObj === 'string' ? titleObj : (titleObj['en'] || '');
+            const romajiTitle = typeof titleObj === 'string' ? '' : (titleObj['ja-ro'] || '');
+            const altEnglish = (manga.attributes.altTitles || [])
+                .map((alt: any) => typeof alt === 'string' ? alt : (alt['en'] || alt['es-la'] || alt['es'] || ''))
+                .filter((t: string) => t.length > 2 && /^[a-zA-Z]/.test(t)); // Only latin-script titles
+            
+            // Build priority queue: English > Romaji > Alt English > Others
+            const prioritizedQueries = [
+                ...new Set([
+                    englishTitle,
+                    romajiTitle,
+                    ...altEnglish,
+                    searchTitle, // Original searchTitle as last resort
+                    ...targetTitles
+                ])
+            ].filter(q => q && (q as string).length > 2).slice(0, 4);
+            
+            for (const query of prioritizedQueries) {
+                console.log(`[Intelligence] 🌐 Searching "${query}" on ALL sources in parallel...`);
+                
+                // 🚀 PARALLEL SEARCH: All sources at once instead of sequential
+                const searchPromises: Promise<any[]>[] = [
+                    // 1. ManhwaWeb (ES) - highest priority for Spanish content
+                    manhwawebService.searchManga(query as string).catch(() => []),
+                    // 2. MangaPill (EN) 
+                    mangapillService.searchManga(query as string).catch(() => [])
+                ];
+                
+                // 3. WeebCentral only for Manhwa/Manhua
                 if (isManhwa) {
-                    try {
-                        const wcResults = await weebcentralService.searchManga(query as string);
-                        if (wcResults && wcResults.length > 0) {
-                            for (const result of wcResults) {
-                                const resultTitle = result.attributes?.title?.['en'] || '';
-                                const resultNom = normalizeTitle(resultTitle);
-                                const resultDeleeted = deLeet(resultNom);
-
-                                const isMatch = normalizedTargets.some((target, idx) => {
-                                    const targetDeleeted = deLeetedTargets[idx];
-                                    return isRobustMatch(target, targetDeleeted, resultNom, resultDeleeted);
-                                });
-
-                                if (isMatch && !seenCandidateIds.has(result.id)) {
-                                    candidates.push({ id: result.id, source: 'weebcentral' });
-                                    seenCandidateIds.add(result.id);
-                                }
-                            }
-                        }
-                    } catch (e) { }
+                    searchPromises.push(
+                        weebcentralService.searchManga(query as string).catch(() => [])
+                    );
                 }
 
-                // --- 3. MangaPill ---
-                try {
-                    const mpResults = await mangapillService.searchManga(query as string);
-                    if (mpResults && mpResults.length > 0) {
-                        for (const result of mpResults) {
-                            const resultTitle = result.attributes?.title?.['en'] || '';
-                            const resultNom = normalizeTitle(resultTitle);
-                            const resultDeleeted = deLeet(resultNom);
+                // Race with a 12s timeout to prevent infinite loading
+                const timeoutPromise = new Promise<any[][]>(resolve => 
+                    setTimeout(() => resolve(searchPromises.map(() => [])), 12000)
+                );
 
-                            const isMatch = normalizedTargets.some((target, idx) => {
-                                const targetDeleeted = deLeetedTargets[idx];
-                                return isRobustMatch(target, targetDeleeted, resultNom, resultDeleeted);
-                            });
+                const results = await Promise.race([
+                    Promise.all(searchPromises),
+                    timeoutPromise
+                ]);
 
-                            if (isMatch && !seenCandidateIds.has(result.id)) {
-                                candidates.push({ id: result.id, source: 'mangapill' });
-                                seenCandidateIds.add(result.id);
-                            }
-                        }
-                    }
-                } catch (e) { }
+                const [mwebResults, mpResults, wcResults] = results;
+
+                // Match and collect candidates
+                if (mwebResults?.length) candidates.push(...matchResults(mwebResults));
+                if (wcResults?.length) candidates.push(...matchResults(wcResults));
+                if (mpResults?.length) candidates.push(...matchResults(mpResults));
+                
+                // 🚀 SMART EARLY RETURN: Only stop if we have MULTIPLE candidates 
+                // (single candidate might 404, so keep looking for backups)
+                if (candidates.length >= 2) {
+                    console.log(`[Intelligence] ✅ Found ${candidates.length} candidates for "${query}". Stopping search.`);
+                    break;
+                }
             }
         } catch (err) {
             console.error('[Intelligence] Fallback search failed:', err);

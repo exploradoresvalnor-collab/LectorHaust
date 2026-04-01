@@ -132,6 +132,7 @@ export function useMangaDetails(id?: string, initialData?: any) {
         //    Step 2: Only go to external sources if MangaDex has 0 chapters globally
         // ────────────────────────────────────────────────────────
         const hasNoLocalChapters = !chaptersData.data || chaptersData.data.length === 0;
+        const isManhwaOrManhua = mangaObj.attributes?.originalLanguage === 'ko' || mangaObj.attributes?.originalLanguage === 'zh';
         
         if (hasNoLocalChapters && !mangaProvider.isExternalId(id)) {
           console.log(`[Details] No chapters in "${chapterLang}" for "${title}". Checking MangaDex in ALL languages...`);
@@ -146,84 +147,152 @@ export function useMangaDetails(id?: string, initialData?: any) {
 
           const mdHasChaptersInOtherLangs = allLangChapters?.data && allLangChapters.data.length > 0;
 
-          if (mdHasChaptersInOtherLangs) {
-            // MangaDex HAS chapters, just not in user's language → use them directly
-            console.log(`[Details] ✅ MangaDex has ${allLangChapters.total} chapters in other languages. Switching.`);
-            chaptersData = allLangChapters;
-            
-            if (isMounted.current) {
-              // Detect the most common language and auto-switch
-              const langCounts: Record<string, number> = {};
-              allLangChapters.data.forEach((c: any) => {
-                const lang = c.attributes?.translatedLanguage || 'unknown';
-                langCounts[lang] = (langCounts[lang] || 0) + 1;
-              });
-              const bestLang = Object.entries(langCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'en';
-              setChapterLang(bestLang);
-              setIsOptimized(false); // It's still MangaDex, not external
-            }
-          } else {
-            // Step 2: MangaDex truly has ZERO chapters → try external sources
-            const needsExternalFallback = title && (
-              (!allLangChapters?.data || allLangChapters.data.length === 0) ||
-              (allLangChapters?.total < 5 && mangaObj.attributes.status === 'completed')
-            );
+          // ────────────────────────────────────────────────────────
+          // 🔄 HAUS INTELLIGENT v3: For manhwas/manhuas, ALWAYS try 
+          // external sources (ManhwaWeb has Spanish!) even if MangaDex 
+          // has chapters in English. Spanish external > English MangaDex.
+          // ────────────────────────────────────────────────────────
+          let externalFound = false;
 
-            if (needsExternalFallback) {
-              console.log(`[Details] MangaDex has 0 chapters globally for "${title}". Trying Haus Intelligence...`);
-              try {
-                const candidates = await mangaProvider.findBestExternalSources(mangaObj);
-                
-                if (candidates && candidates.length > 0) {
-                  let foundValidSource = false;
+          if (isManhwaOrManhua && title && !mangaProvider.isExternalId(id)) {
+            console.log(`[Details] 🇰🇷🇨🇳 Manhwa/Manhua detected: "${title}". Trying external Spanish sources FIRST...`);
+            try {
+              const candidates = await mangaProvider.findBestExternalSources(mangaObj);
+              
+              if (candidates && candidates.length > 0) {
+                // Prioritize ManhwaWeb (Spanish) over other sources
+                const sorted = [...candidates].sort((a, b) => {
+                  if (a.source === 'manhwaweb' && b.source !== 'manhwaweb') return -1;
+                  if (b.source === 'manhwaweb' && a.source !== 'manhwaweb') return 1;
+                  return 0;
+                });
+
+                for (const bestSource of sorted) {
+                  if (!isMounted.current) break;
+                  const fullId = bestSource.id; 
+                  console.log(`[Details] Testing candidate: ${bestSource.source} (${fullId})...`);
                   
-                  for (const bestSource of candidates) {
-                    const fullId = bestSource.id; 
-                    console.log(`[Details] Testing candidate: ${bestSource.source} (${fullId})...`);
+                  try {
+                    const extChaptersData = await mangaProvider.getMangaChapters(fullId);
                     
-                    try {
-                      const extChaptersData = await mangaProvider.getMangaChapters(fullId);
+                    if (extChaptersData.data && extChaptersData.data.length > 0) {
+                      externalFallbackId.current = fullId;
+                      const isManhwaWeb = bestSource.source === 'manhwaweb';
+                      const fallbackLang = isManhwaWeb ? 'es' : 'en';
                       
-                      if (extChaptersData.data && extChaptersData.data.length > 0) {
-                        externalFallbackId.current = fullId;
-                        const isManhwaWeb = bestSource.source === 'manhwaweb';
-                        const fallbackLang = isManhwaWeb ? 'es' : 'en';
-                        
-                        chaptersData = {
-                          data: extChaptersData.data.map((c: any) => ({
-                            id: c.id,
-                            attributes: {
-                              chapter: c.attributes.chapter,
-                              title: c.attributes.title,
-                              translatedLanguage: fallbackLang
-                            }
-                          })),
-                          total: extChaptersData.total
-                        };
+                      chaptersData = {
+                        data: extChaptersData.data.map((c: any) => ({
+                          id: c.id,
+                          attributes: {
+                            chapter: c.attributes.chapter,
+                            title: c.attributes.title,
+                            translatedLanguage: fallbackLang
+                          }
+                        })),
+                        total: extChaptersData.total
+                      };
 
-                        if (isMounted.current) {
-                          setAvailableLangs([fallbackLang]);
-                          setIsOptimized(true);
-                          setChapterLang(fallbackLang);
-                          console.log(`[Details] Haus Applied via ${bestSource.source} (${fallbackLang.toUpperCase()}). ${extChaptersData.total} chapters.`);
-                        }
-                        
-                        foundValidSource = true;
-                        break; // Stop at first valid source
+                      if (isMounted.current) {
+                        setAvailableLangs(prev => [...new Set([...prev, fallbackLang])]);
+                        setIsOptimized(true);
+                        setChapterLang(fallbackLang);
+                        console.log(`[Details] ✅ Haus v3 Applied via ${bestSource.source} (${fallbackLang.toUpperCase()}). ${extChaptersData.total} chapters.`);
                       }
-                    } catch (chapErr) {
-                      console.warn(`[Details] Candidate ${bestSource.source} failed chapter fetch:`, chapErr);
+                      
+                      externalFound = true;
+                      break; // Stop at first valid source
                     }
+                  } catch (chapErr) {
+                    console.warn(`[Details] Candidate ${bestSource.source} failed chapter fetch:`, chapErr);
                   }
-
-                  if (!foundValidSource && isMounted.current) {
-                    setIsOptimized(false);
-                  }
-                } else {
-                  if (isMounted.current) setIsOptimized(false);
                 }
-              } catch (err) {
-                console.warn('[Details] Haus Intelligence fallback failed:', err);
+              }
+            } catch (err) {
+              console.warn('[Details] Haus v3 manhwa external search failed:', err);
+            }
+          }
+
+          // If external source worked, skip MangaDex fallback logic
+          if (!externalFound) {
+            if (mdHasChaptersInOtherLangs) {
+              // MangaDex HAS chapters in other languages → use them as last resort
+              console.log(`[Details] Using MangaDex (${allLangChapters.total} chapters in other languages).`);
+              chaptersData = allLangChapters;
+              
+              if (isMounted.current) {
+                const langCounts: Record<string, number> = {};
+                allLangChapters.data.forEach((c: any) => {
+                  const lang = c.attributes?.translatedLanguage || 'unknown';
+                  langCounts[lang] = (langCounts[lang] || 0) + 1;
+                });
+                const bestLang = Object.entries(langCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'en';
+                setChapterLang(bestLang);
+                setIsOptimized(false);
+              }
+            } else {
+              // MangaDex truly has ZERO chapters → try ALL external sources (not just manhwa-specific)
+              const needsExternalFallback = title && (
+                (!allLangChapters?.data || allLangChapters.data.length === 0) ||
+                (allLangChapters?.total < 5 && mangaObj.attributes.status === 'completed')
+              );
+
+              if (needsExternalFallback) {
+                console.log(`[Details] MangaDex has 0 chapters globally for "${title}". Trying Haus Intelligence...`);
+                try {
+                  const candidates = await mangaProvider.findBestExternalSources(mangaObj);
+                  
+                  if (candidates && candidates.length > 0) {
+                    let foundValidSource = false;
+                    
+                    for (const bestSource of candidates) {
+                      if (!isMounted.current) break;
+                      const fullId = bestSource.id; 
+                      console.log(`[Details] Testing candidate: ${bestSource.source} (${fullId})...`);
+                      
+                      try {
+                        const extChaptersData = await mangaProvider.getMangaChapters(fullId);
+                        
+                        if (extChaptersData.data && extChaptersData.data.length > 0) {
+                          externalFallbackId.current = fullId;
+                          const isManhwaWeb = bestSource.source === 'manhwaweb';
+                          const fallbackLang = isManhwaWeb ? 'es' : 'en';
+                          
+                          chaptersData = {
+                            data: extChaptersData.data.map((c: any) => ({
+                              id: c.id,
+                              attributes: {
+                                chapter: c.attributes.chapter,
+                                title: c.attributes.title,
+                                translatedLanguage: fallbackLang
+                              }
+                            })),
+                            total: extChaptersData.total
+                          };
+
+                          if (isMounted.current) {
+                            setAvailableLangs([fallbackLang]);
+                            setIsOptimized(true);
+                            setChapterLang(fallbackLang);
+                            console.log(`[Details] ✅ Haus Applied via ${bestSource.source} (${fallbackLang.toUpperCase()}). ${extChaptersData.total} chapters.`);
+                          }
+                          
+                          foundValidSource = true;
+                          break;
+                        }
+                      } catch (chapErr) {
+                        console.warn(`[Details] Candidate ${bestSource.source} failed chapter fetch:`, chapErr);
+                      }
+                    }
+
+                    if (!foundValidSource && isMounted.current) {
+                      setIsOptimized(false);
+                    }
+                  } else {
+                    if (isMounted.current) setIsOptimized(false);
+                  }
+                } catch (err) {
+                  console.warn('[Details] Haus Intelligence fallback failed:', err);
+                }
               }
             }
           }
