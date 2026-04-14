@@ -10,10 +10,11 @@ interface MangaCardProps {
   format?: string;
   tags?: string[];
   progressLabel?: string;
+  sources?: string[]; // New: List of sources (MangaDex, WeebCentral, etc.)
   onClick?: () => void;
 }
 
-const MangaCard: React.FC<MangaCardProps> = ({ title, coverUrl, format, tags = [], progressLabel, onClick }) => {
+const MangaCard: React.FC<MangaCardProps> = ({ title, coverUrl, format, tags = [], progressLabel, sources = [], onClick }) => {
   const getBadgeInfo = () => {
     if (!format) return null;
     const lowerFormat = format.toLowerCase();
@@ -38,12 +39,22 @@ const MangaCard: React.FC<MangaCardProps> = ({ title, coverUrl, format, tags = [
     <div className="manga-card-pro animate-fade-in" onClick={onClick}>
       <div className="card-media">
         <SmartImage 
-          src={coverUrl.includes('res.cloudinary.com') || coverUrl.includes('anilist.co') || coverUrl.includes('s4.anilist.co') ? coverUrl : mangadexService.getOptimizedUrl(coverUrl)} 
+          src={coverUrl.includes('res.cloudinary.com') || coverUrl.includes('anilist.co') || coverUrl.includes('s4.anilist.co') || coverUrl.includes('manga-proxy.mchaustman') ? coverUrl : mangadexService.getOptimizedUrl(coverUrl)} 
           alt={title} 
           className="card-img" 
           width={150}
           height={225}
         />
+        
+        {/* Omni-Source Indicators (Haus Intel v3) */}
+        {sources.length > 0 && (
+          <div className="card-sources-indicator">
+            {sources.map(src => {
+               const label = src === 'mangadex' ? 'MD' : src === 'weebcentral' ? 'WC' : src === 'mangapill' ? 'MP' : 'MW';
+               return <span key={src} className={`source-pip src-${src}`}>{label}</span>;
+            })}
+          </div>
+        )}
         <div className="card-overlay">
           <div className="card-content-bottom">
             <div className="card-tags-container">

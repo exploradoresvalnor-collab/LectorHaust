@@ -1,0 +1,163 @@
+.hero-skeleton-wrapper {
+    height: 65vh;
+    min-height: 450px;
+    background: #000;
+    border-radius: 24px;
+    padding: 0 6%;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 40px;
+}
+
+.hero-skeleton-content {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 40px;
+}
+
+.hero-skeleton-info {
+    flex: 1;
+}
+
+.skeleton-badge {
+    width: 80px;
+    height: 24px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.05);
+}
+
+.skeleton-title {
+    width: 60%;
+    height: 60px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    background: rgba(255,255,255,0.08);
+}
+
+.skeleton-desc {
+    width: 80%;
+    height: 80px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    background: rgba(255,255,255,0.04);
+}
+
+.skeleton-btn {
+    width: 140px;
+    height: 48px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.06);
+}
+
+.hero-skeleton-poster {
+    flex: 0 0 280px;
+}
+
+.skeleton-poster-img {
+    width: 100%;
+    aspect-ratio: 2/3;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.05);
+}
+
+/* Card Skeleton */
+.card-skeleton {
+    margin-bottom: 20px;
+}
+
+.card-skeleton-img {
+    aspect-ratio: 2/3;
+    border-radius: 18px;
+    overflow: hidden;
+    background: rgba(255,255,255,0.03);
+    margin-bottom: 12px;
+}
+
+.card-skeleton-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0 4px;
+}
+
+/* List Item Skeleton */
+.list-item-skeleton {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 20px;
+    margin-bottom: 12px;
+}
+
+.list-item-skeleton-thumb {
+    width: 65px;
+    height: 85px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: rgba(255,255,255,0.04);
+    flex-shrink: 0;
+}
+
+.list-item-skeleton-info {
+    flex: 1;
+}
+
+.list-item-skeleton-action {
+    flex-shrink: 0;
+}
+
+/* Pulse Animation */
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@media (max-width: 768px) {
+    .hero-skeleton-wrapper {
+        height: 55vh;
+        border-radius: 0 0 30px 30px;
+        margin: 0 -16px 24px;
+        width: calc(100% + 32px);
+    }
+    
+    .hero-skeleton-content {
+        flex-direction: column-reverse;
+        padding-top: 20px;
+        gap: 0;
+    }
+
+    .hero-skeleton-info {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        margin-top: -20px;
+    }
+
+    .skeleton-title {
+        width: 80%;
+        height: 30px;
+    }
+
+    .skeleton-desc {
+        width: 90%;
+        height: 40px;
+    }
+
+    .hero-skeleton-poster {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        transform: scale(0.6);
+        margin-top: 10px;
+    }
+}

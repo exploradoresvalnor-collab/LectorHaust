@@ -6,7 +6,7 @@ import { proxifyImage } from '../utils/imageUtils';
  */
 
 // 1. Detectamos si estamos en desarrollo local
-const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const isLocalhost = typeof globalThis.window !== 'undefined' && (globalThis.window.location.hostname === 'localhost' || globalThis.window.location.hostname === '127.0.0.1');
 
 const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
 const baseUrl = '/api-md';
@@ -179,10 +179,18 @@ export const mangadexService = {
     getContentRatingParams(allowNSFW: boolean): string {
         let params = '&contentRating[]=safe&contentRating[]=suggestive';
         if (allowNSFW) {
-            // Se elimina 'pornographic' porque causa errores 500/403 en MangaDex sin autenticación OAuth.
             params += '&contentRating[]=erotica';
         }
         return params;
+    },
+
+    /**
+     * Helper to build a standard MangaDex URL with common parameters
+     */
+    buildUrl(basePath: string, limit: number, offset: number, allowNSFW = false): string {
+        let url = `${basePath}?limit=${limit}&offset=${offset}`;
+        url += this.getContentRatingParams(allowNSFW);
+        return url;
     },
 
     /**
@@ -282,8 +290,8 @@ export const mangadexService = {
      * Search for manga with various filters
      */
     async searchManga(query: string, filters: { origin?: string, lang?: string, tags?: string[], status?: string, demographic?: string, fullColor?: boolean } = {}, limit = 20, offset = 0, order?: any, allowNSFW = false) {
-        let url = `/manga?limit=${limit}&offset=${offset}&includes[]=cover_art&includes[]=author`;
-        url += this.getContentRatingParams(allowNSFW);
+        let url = this.buildUrl('/manga', limit, offset, allowNSFW);
+        url += '&includes[]=cover_art&includes[]=author';
         
         if (query) {
             url += `&title=${encodeURIComponent(query)}`;
@@ -335,8 +343,8 @@ export const mangadexService = {
      * Get popular manga filtered by language and origin
      */
     async getPopularManga(origin: string | null = null, lang: string | null = 'es', limit = 12, offset = 0, genre: string | null = null, fullColor = false, allowNSFW = false): Promise<any> {
-        let url = `/manga?limit=${limit}&offset=${offset}&hasAvailableChapters=true&order[followedCount]=desc&includes[]=cover_art&includes[]=author`;
-        url += this.getContentRatingParams(allowNSFW);
+        let url = this.buildUrl('/manga', limit, offset, allowNSFW);
+        url += '&hasAvailableChapters=true&order[followedCount]=desc&includes[]=cover_art&includes[]=author';
         
         if (lang && lang !== 'all') {
             url += `&availableTranslatedLanguage[]=${lang}`;
@@ -487,8 +495,8 @@ export const mangadexService = {
                         // 2. Coverage calculation
                         let hasEnoughCoverage = false;
                         if (lastChapterStr) {
-                            const lastChapterNum = parseFloat(lastChapterStr);
-                            if (!isNaN(lastChapterNum) && lastChapterNum > 0) {
+                            const lastChapterNum = Number.parseFloat(lastChapterStr);
+                            if (!Number.isNaN(lastChapterNum) && lastChapterNum > 0) {
                                 const coverage = totalChaptersInLang / lastChapterNum;
                                 // RELAXED: 70% coverage instead of 80% to account for fast Korean scanlation gaps
                                 if (coverage >= 0.7) hasEnoughCoverage = true;
@@ -681,8 +689,8 @@ export const mangadexService = {
     },
 
     async getLatestChapters(limit = 12, offset = 0, lang: string | null = null, allowNSFW = false) {
-        let url = `/chapter?limit=${limit}&offset=${offset}&order[readableAt]=desc&includes[]=manga`;
-        url += this.getContentRatingParams(allowNSFW);
+        let url = this.buildUrl('/chapter', limit, offset, allowNSFW);
+        url += '&order[readableAt]=desc&includes[]=manga';
         
         if (lang === 'all') {
             // World mode: No language filter
@@ -716,11 +724,11 @@ export const mangadexService = {
 
         // Bucle para descargar TODOS los capítulos (paginado de 500 en 500)
         while (hasMore) {
-            let url = `/manga/${mangaId}/feed?limit=${limit}&offset=${offset}&order[volume]=${orderDir}&order[chapter]=${orderDir}&includes[]=scanlation_group`;
-            url += this.getContentRatingParams(allowNSFW);
+            let url = this.buildUrl(`/manga/${mangaId}/feed`, limit, offset, allowNSFW);
+            url += `&order[volume]=${orderDir}&order[chapter]=${orderDir}&includes[]=scanlation_group`;
             
             if (lang && lang !== 'all') {
-                let langsArray = Array.isArray(lang) ? lang : [lang];
+                const langsArray = Array.isArray(lang) ? lang : [lang];
                 // Si piden español, incluir latam
                 if (langsArray.includes('es') && !langsArray.includes('es-la')) {
                     langsArray.push('es-la');
@@ -836,7 +844,7 @@ export const mangadexService = {
         if (!title) return null;
         try {
             // Clean title for better matching
-            const cleanTitle = title.replace(/[^\w\s]/gi, '').trim();
+            const cleanTitle = title.replaceAll(/[^\w\s]/gi, '').trim();
             const url = `/manga?title=${encodeURIComponent(cleanTitle)}&limit=1&order[relevance]=desc`;
             const data = await apiFetch(url);
             if (data.data && data.data.length > 0) {

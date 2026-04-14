@@ -60,9 +60,9 @@
   /**
    * Spacing Tokens (Native App Standard)
    */
-  --app-side-padding: 30px; /* Base for Mobile */
-  --section-gap: 32px;
-  --card-gap: 16px;
+  --app-side-padding: 16px; /* Optimized for Mobile (Better use of screen real estate) */
+  --section-gap: 24px;
+  --card-gap: 12px;
 }
 
 /* --- Responsive Layout Tokens (Desktop Pro) --- */
@@ -75,14 +75,14 @@
 
 @media (min-width: 1440px) {
   :root {
-    --app-side-padding: 6vw; /* Cinematic padding for large desktops */
-    --section-gap: 48px;
+    --app-side-padding: 80px; /* Precise padding for 1440p */
+    --section-gap: 56px;
   }
 }
 
 @media (min-width: 1920px) {
   :root {
-    --app-side-padding: 10vw; /* Maximum breathing room for 4K/Ultrawide */
+    --app-side-padding: 120px; /* Precise padding for 4K/Ultrawide */
     --section-gap: 64px;
   }
 }
@@ -95,21 +95,21 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* Premium TabBar - Phase 22 Minimalist */
+/* Premium TabBar - Ultra Minimalist Refinement */
 ion-tab-bar {
-  --background: rgba(10, 10, 10, 0.45) !important; /* Higher transparency */
+  --background: rgba(10, 10, 10, 0.45) !important;
   backdrop-filter: blur(25px);
   -webkit-backdrop-filter: blur(25px);
-  border: 1px solid rgba(255, 255, 255, 0.05) !important;
-  border-radius: 30px;
-  margin: 0 15px calc(15px + env(safe-area-inset-bottom)); /* Unified 15px margin */
-  height: 65px; /* Unified height */
+  border: 1px solid rgba(255, 255, 255, 0.03) !important; /* Thinner border */
+  border-radius: 40px; /* More rounded */
+  margin: 0 20px calc(15px + env(safe-area-inset-bottom));
+  height: 60px; /* Slightly slimmer */
   position: absolute;
   bottom: 0;
-  width: calc(100% - 30px);
-  box-shadow: 0 4px 30px rgba(0,0,0,0.3);
-  overflow: visible; /* Allow glows */
-  padding-bottom: env(safe-area-inset-bottom); /* Internal safety */
+  width: calc(100% - 40px);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  overflow: visible;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 ion-tab-button {

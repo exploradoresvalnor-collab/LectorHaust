@@ -12,12 +12,15 @@ const BASE_URL = 'https://www4.animeflv.net';
 // Proxy temporal para web dev (evita CORS)
 const PROXY_URL = 'https://manga-proxy.mchaustman.workers.dev/?url=';
 
+/**
+ * Helper to fetch HTML content with timeout and proxy support
+ */
 async function fetchHtml(url: string) {
     // Si es nativo (Android/iOS), NO hay problemas de CORS, vamos DIRECTO por velocidad y fiabilidad.
     if (Capacitor.isNativePlatform()) {
         try {
             const directResp = await fetch(url);
-            if (directResp.ok) return directResp.text();
+            if (directResp.ok) return await directResp.text();
         } catch (e) {
             console.warn(`[AnimeFLV] Direct fetch failed on native, trying proxy...`);
         }
@@ -52,6 +55,10 @@ export const animeflvService = {
       const html = await fetchHtml(url);
       
       const results: any[] = [];
+      /**
+       * Regex to match Anime Cards in Directory
+       * Groups: 1: Slug, 2: Image URL, 3: Title
+       */
       const regex = /<article[^>]*class="[^"]*Anime[^"]*"[^>]*>[\s\S]*?<a href="\/anime\/([^"]+)">[\s\S]*?<img src="([^"]+)"[\s\S]*?<h3[^>]*>([^<]+)<\/h3>/gi;
       
       let match;
@@ -59,18 +66,19 @@ export const animeflvService = {
           let imgUrl = match[2];
           // Pro quality improvement: Use /cover/ instead of /thumb/
           if (imgUrl.includes('/thumb/')) {
-              imgUrl = imgUrl.replace('/thumb/', '/cover/');
+              imgUrl = imgUrl.replaceAll('/thumb/', '/cover/');
           }
           if (imgUrl.startsWith('/')) imgUrl = `${BASE_URL}${imgUrl}`;
           // Proxy de imagen para evitar bloqueos
-          const proxiedImg = `https://i0.wp.com/${imgUrl.replace(/^https?:\/\//, '')}`;
-          results.push({ 
+          const proxiedImg = `https://i0.wp.com/${imgUrl.replaceAll(/^https?:\/\//g, '')}`;
+        results.push({ 
             id: match[1], 
             title: match[3], 
             name: match[3], 
             image: proxiedImg,
-            source: 'animeflv'
-          });
+            sources: ['FL'],
+            hasSub: true
+        });
       }
       return results;
     } catch (err) {
@@ -183,7 +191,14 @@ export const animeflvService = {
           if (imgUrl.startsWith('/')) imgUrl = `${BASE_URL}${imgUrl}`;
           // Use WordPress Photon proxy for images to avoid blocks
           const proxiedImg = `https://i0.wp.com/${imgUrl.replace(/^https?:\/\//, '')}`;
-          results.push({ id: match[1], title: match[3], name: match[3], image: proxiedImg });
+          results.push({ 
+              id: match[1], 
+              title: match[3], 
+              name: match[3], 
+              image: proxiedImg,
+              sources: ['FL'],
+              hasSub: true
+          });
       }
 
       // Extraer paginación para calcular volumen total

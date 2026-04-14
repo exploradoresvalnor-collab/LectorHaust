@@ -1,0 +1,446 @@
+/* --- AnimeDirectoryPage Styles --- */
+
+:root {
+    --app-side-padding: 24px;
+}
+
+@media (min-width: 768px) {
+    :root {
+        --app-side-padding: 10%;
+    }
+}
+
+.main-content-wrapper {
+    width: 100%;
+    padding: 0 var(--app-side-padding);
+    box-sizing: border-box !important;
+    display: block;
+}
+
+/* 5 Column Grid for Desktop */
+@media (min-width: 768px) {
+    .anime-col-5 {
+        flex: 0 0 20% !important;
+        max-width: 20% !important;
+    }
+}
+
+.manga-card-pro {
+    cursor: pointer;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    background: transparent;
+    margin-bottom: 12px;
+}
+
+.manga-card-pro:hover .card-media {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 24px rgba(var(--ion-color-primary-rgb), 0.3);
+}
+
+.card-media {
+    width: 100%;
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #1a1a1a;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.card-media::before {
+    content: "";
+    display: block;
+    padding-top: 150%;
+}
+
+.card-media > .smart-image-wrapper {
+    position: absolute;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover !important;
+}
+
+.card-overlay {
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+}
+
+.card-tags-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    width: 100%;
+    height: 100%;
+}
+
+.card-tag {
+    color: #fff;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    font-size: 0.6rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+
+.card-tag.tv { background: rgba(52, 152, 219, 0.85); border-color: transparent; }
+.card-tag.movie { background: rgba(155, 89, 182, 0.85); border-color: transparent; }
+.card-tag.sub { background: rgba(46, 204, 113, 0.85); border-color: transparent; }
+.card-tag.dub { background: rgba(231, 76, 60, 0.75); border-color: transparent; }
+.card-tag.eps { background: rgba(241, 196, 15, 0.85); color: #000; border-color: transparent; }
+
+.card-title-pro {
+    margin: 8px 0 2px;
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    white-space: normal;
+    height: 2.6em;
+}
+
+.anime-grid-v {
+    padding: 20px 0 !important;
+}
+
+.anime-row-v {
+    margin: 0 -8px !important;
+}
+
+.anime-col-v {
+    padding: 0 8px 16px !important;
+}
+
+.glass-effect-header {
+    --background: rgba(15, 16, 20, 0.95) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.directory-search {
+    --background: rgba(255, 255, 255, 0.05) !important;
+    --color: #fff !important;
+    --placeholder-color: rgba(255, 255, 255, 0.5) !important;
+    --icon-color: rgba(255, 255, 255, 0.6) !important;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    margin-bottom: 0px !important;
+}
+
+/* Filter Container & Horizontal Scroll (Edge-to-Edge Refinement) */
+.directory-filters-container {
+    padding: 10px 0;
+    background: rgba(15, 16, 20, 0.4);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.filter-row {
+    margin-bottom: 8px;
+    padding: 0 var(--app-side-padding);
+}
+
+.horizontal-filters-outer {
+    position: relative;
+    width: 100%;
+    margin-top: 5px;
+}
+
+.horizontal-filters-scroll {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 8px;
+    padding: 4px var(--app-side-padding) 12px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+.horizontal-filters-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+.filter-select-inline {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 0 10px;
+    white-space: nowrap;
+    backdrop-filter: blur(10px);
+    transition: all 0.2s ease;
+    height: 32px; /* Smaller height */
+}
+
+.filter-select-inline:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.filter-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+    margin-right: 6px;
+    letter-spacing: 0.3px;
+}
+
+.custom-select-inline {
+    --placeholder-color: #fff;
+    --placeholder-opacity: 1;
+    font-size: 0.75rem; /* Smaller font */
+    font-weight: 700;
+    color: #fff;
+    padding: 0;
+    min-height: 28px;
+}
+
+.filter-submit-button {
+    background: var(--ion-color-primary);
+    color: #fff;
+    font-weight: 800;
+    font-size: 0.7rem;
+    padding: 0 15px;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 4px 12px rgba(var(--ion-color-primary-rgb), 0.3);
+}
+
+.filter-submit-button:active {
+    transform: scale(0.95);
+}
+
+/* Catalog Tracker (Haus Elite Style) */
+.catalog-tracker {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0 var(--app-side-padding) 5px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
+    border: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.tracker-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tracker-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--ion-color-primary);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--ion-color-primary);
+}
+
+.tracker-dot.pulse {
+    animation: dot-pulse 1.5s infinite;
+}
+
+@keyframes dot-pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.5); opacity: 0.5; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.tracker-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.tracker-count {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.tracker-count strong {
+    color: var(--ion-color-primary);
+    font-weight: 800;
+}
+
+/* Results Grid (Full width for standard scroll) */
+.directory-content {
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 0 100px; /* Reduced side padding so scroll is at edge */
+}
+
+.main-content-wrapper {
+    width: 100%;
+    padding: 0 var(--app-side-padding);
+    box-sizing: border-box;
+}
+
+.results-count {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+/* Premium Pagination (Ultra-Slim & Minimal) */
+.premium-pagination-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin: 20px auto 40px;
+    padding: 10px 0;
+    width: 100%;
+    max-width: 500px;
+    background: transparent;
+    border: none;
+}
+
+.pagination-main-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+}
+
+.pagination-nav-btn {
+    --color: var(--ion-color-primary);
+    font-weight: 800;
+    font-size: 0.65rem;
+    height: 30px;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.pagination-central-indicator {
+    display: flex;
+    flex-direction: row; /* Single line */
+    align-items: center;
+    gap: 10px;
+}
+
+.pagination-central-indicator .page-text {
+    display: none; /* Hide label for slimness */
+}
+
+.pagination-central-indicator .page-numbers {
+    font-size: 0.85rem;
+    font-weight: 900;
+    color: #fff;
+}
+
+.pagination-central-indicator .dim {
+    color: rgba(255, 255, 255, 0.2);
+    margin: 0 4px;
+}
+
+.pagination-extra-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 100px;
+}
+
+.jump-btn {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.4);
+    border: none;
+    font-size: 0.65rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: color 0.2s ease;
+}
+
+.jump-btn:hover:not(:disabled) {
+    color: #fff;
+}
+
+.jump-btn:disabled {
+    opacity: 0.2;
+    cursor: default;
+}
+
+.jump-divider {
+    width: 1px;
+    height: 10px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Page Footer */
+.page-footer {
+    width: 100%;
+    margin-top: 50px;
+    padding-top: 20px;
+    text-align: center;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.footer-divider {
+    width: 40px;
+    height: 4px;
+    background: var(--ion-color-primary);
+    margin: 0 auto 15px;
+    border-radius: 10px;
+}
+
+.page-footer p {
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+}
+
+.page-footer span {
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.3);
+}
+
+@media (max-width: 768px) {
+    .filters-container {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .pagination-main-controls {
+        gap: 10px;
+    }
+    
+    .pagination-nav-btn {
+        font-size: 0.65rem;
+    }
+    
+    .directory-content {
+        padding: 0 var(--app-side-padding) 80px;
+    }
+}

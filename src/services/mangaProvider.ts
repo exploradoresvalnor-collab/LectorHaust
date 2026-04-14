@@ -3,7 +3,70 @@ import { mangapillService } from './mangapillService';
 import { weebcentralService } from './weebcentralService';
 import { manhwawebService } from './manhwawebService';
 
+/**
+ * Sanitiza las descripciones crudas de MangaDex y otras fuentes con lógica agresiva.
+ * Elimina enlaces Markdown, créditos de autor/traductor redundantes y basura de formato.
+ */
+export function sanitizeDescription(text: string): string {
+    if (!text) return '';
+    
+    // 1. Primero eliminamos enlaces Markdown: [Texto](URL) -> Texto
+    let clean = text.replace(/\[([^\]]+)\]\([^)]+\)/gi, '$1');
+    
+    // 2. Dividimos por separadores comunes (--- o ___) y nos quedamos con la primera parte
+    // Muchas descripciones de MangaDex ponen los créditos después de una línea divisoria.
+    clean = clean.split(/(\r?\n)+\s*(---+|___+)\s*/)[0];
+    
+    // 3. Eliminamos líneas específicas que suelen contener créditos si no se cortaron antes
+    clean = clean.replace(/(\r?\n)+\s*(Character design|Original work|Author|Author\(s\)|Artist|Diseñador|Diseño|Obra original|Credit|Source|Source:|\(Source:|Official Website|Enlace).*$/gis, '');
+    
+    // 4. Eliminamos formateo Markdown pesado
+    clean = clean.replace(/\*\*\*|\*\*|__|`/g, '');
+    
+    // 5. Limpieza final de separadores y espacios
+    clean = clean
+        .replace(/---+|___+/g, '')
+        .replace(/\r?\n\s*\r?\n\s*\r?\n/g, '\n\n')
+        .trim();
+        
+    return clean;
+}
+
 export type MangaSource = 'mangadex' | 'mangapill' | 'weebcentral' | 'manhwaweb';
+
+export interface MangaItem {
+  id: string;
+  type: string;
+  attributes: {
+    title: { [key: string]: string } | string;
+    description?: { [key: string]: string } | string;
+    status?: string;
+    originalLanguage?: string;
+    lastChapter?: string;
+    coverUrl?: string;
+    mangaType?: string;
+    [key: string]: any;
+  };
+  relationships?: any[];
+  // Haus v3 Omni-Data
+  sources?: MangaSource[];
+  alternativeIds?: Record<string, string>;
+  bestCover?: string;
+  [key: string]: any;
+}
+
+export interface ChapterItem {
+  id: string;
+  attributes: {
+    chapter: string;
+    title?: string;
+    translatedLanguage?: string;
+    pages?: number;
+    externalUrl?: string | null;
+    [key: string]: any;
+  };
+  [key: string]: any;
+}
 
 let currentSource: MangaSource = 'mangadex';
 
@@ -61,41 +124,76 @@ const isRobustMatch = (targetNom: string, targetDeleet: string, resultNom: strin
     return false;
 };
 
-// Helper: Deduplicar resultados por ID y por título normalizado (resistente a leetspeak y duplicidad entre fuentes)
-const deduplicateResults = (results: any[]): any[] => {
-  const seenIds = new Set<string>();
-  const seenTitles = new Set<string>();
-  
-  // Leetspeak mapping to handle 'Solo L3vel1ng' -> 'solo leveling'
+// Helper: Fusión inteligente de resultados (Haus Omni-Manga v3)
+const mergeResults = (results: MangaItem[]): MangaItem[] => {
+  const mergedMap = new Map<string, MangaItem>();
   const deLeet = (s: string) => s.replace(/3/g, 'e').replace(/1/g, 'i').replace(/0/g, 'o').replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't');
 
-  return results.filter(item => {
-    if (!item) return false;
-    const id = item.id;
+  results.forEach(item => {
+    if (!item) return;
     
-    // Safely extract the title string before normalizing
+    // 1. Obtener identificadores únicos (Título Normalizado + ID Externo si existe)
     let titleStr = '';
-    const rawTitle = item.attributes?.title || item.name || '';
-    if (typeof rawTitle === 'string') {
-        titleStr = rawTitle;
-    } else if (typeof rawTitle === 'object' && rawTitle !== null) {
-        titleStr = rawTitle['en'] || rawTitle['es'] || Object.values(rawTitle)[0] as string || '';
+    const rawTitle = item.attributes?.title || (item as any).name || '';
+    if (typeof rawTitle === 'string') titleStr = rawTitle;
+    else if (typeof rawTitle === 'object') titleStr = (rawTitle as any)['en'] || (rawTitle as any)['es'] || Object.values(rawTitle)[0] || '';
+    
+    const titleKey = cleanJunkSuffixes(deLeet(normalizeTitle(titleStr)));
+    if (!titleKey) return;
+
+    // Buscamos si ya existe una entrada para este manga
+    let existing = mergedMap.get(titleKey);
+    
+    // Si no existe, comprobamos por coincidencia robusta (fuzzy) con los existentes
+    if (!existing) {
+        for (const [key, val] of mergedMap.entries()) {
+            if (isRobustMatch(titleKey, titleKey, key, key)) {
+                existing = val;
+                break;
+            }
+        }
     }
-    
-    const titleNom = normalizeTitle(titleStr);
-    const titleDeleeted = deLeet(titleNom);
-    const cleanTitle = cleanJunkSuffixes(titleDeleeted);
-    
-    // Descartar si el ID ya existe
-    if (seenIds.has(id)) return false;
-    seenIds.add(id);
-    
-    // Descartar si el título limpio (deleeted y sin caps) ya existe
-    if (cleanTitle && seenTitles.has(cleanTitle)) return false;
-    if (cleanTitle) seenTitles.add(cleanTitle);
-    
-    return true;
+
+    const source: MangaSource = item.id.startsWith('mp:') ? 'mangapill' : 
+                                item.id.startsWith('wc:') ? 'weebcentral' : 
+                                item.id.startsWith('mweb:') ? 'manhwaweb' : 'mangadex';
+
+    if (existing) {
+        // FUSIONAR: Añadir fuente y IDs alternativos
+        if (!existing.sources) existing.sources = [existing.id.startsWith('mp:') ? 'mangapill' : existing.id.startsWith('wc:') ? 'weebcentral' : existing.id.startsWith('mweb:') ? 'manhwaweb' : 'mangadex'];
+        if (!existing.sources.includes(source)) {
+            existing.sources.push(source);
+            if (!existing.alternativeIds) existing.alternativeIds = {};
+            existing.alternativeIds[source] = item.id;
+        }
+        
+        // Mantener la mejor descripción si la actual es corta
+        const existingDesc = typeof existing.attributes.description === 'string' ? existing.attributes.description : '';
+        const newItemDesc = typeof item.attributes.description === 'string' ? item.attributes.description : '';
+        if (newItemDesc.length > existingDesc.length) {
+            existing.attributes.description = item.attributes.description;
+        }
+
+        // Si el item nuevo tiene una portada y no teníamos, o es de mangadex (mejor metadata), la usamos
+        if (source === 'mangadex' && !existing.id.startsWith('md:')) {
+            // Prioridad a MangaDex para metadatos base
+            existing.attributes.status = item.attributes.status || existing.attributes.status;
+            existing.attributes.tags = item.attributes.tags || existing.attributes.tags;
+        }
+    } else {
+        // NUEVO: Inicializar con su fuente
+        item.sources = [source];
+        item.alternativeIds = { [source]: item.id };
+        mergedMap.set(titleKey, item);
+    }
   });
+
+  return Array.from(mergedMap.values());
+};
+
+// Helper: Deduplicar resultados por ID y por título normalizado
+const deduplicateResults = (results: MangaItem[]): MangaItem[] => {
+  return mergeResults(results); // Redirigir a mergeResults para Haus v3
 };
 
 export const mangaProvider = {
@@ -175,33 +273,30 @@ export const mangaProvider = {
             const hasStrictFilters = filters.demographic || filters.status || (filters.tags && filters.tags.length > 0) || filters.fullColor;
             const hasQuery = query && query.trim().length > 1;
 
-            // 🔄 HAUS INTELLIGENT SEARCH (v2):
-            // Si hay pocos resultados O el usuario busca específicamente Manhwa/Manhua/Manga,
-            // activamos la cascada inteligente hacia fuentes externas.
+            // 🔄 HAUS INTELLIGENT SEARCH PROACTIVE (v3):
+            // Lógica de detección proactiva: Si el usuario busca algo que parece un título específico
+            // o ha seleccionado orígenes tipo Manhwa/Manhua, disparamos TODO en paralelo inmediatamente.
+            const isSpecificSearch = hasQuery && query.trim().split(' ').length > 0;
             const isManhwaSearch = filters.origin === 'ko';
             const isManhuaSearch = filters.origin === 'zh';
-            const isMangaSearch = filters.origin === 'ja';
             
-            if ((allResults.length < 10 || isManhwaSearch || isManhuaSearch || isMangaSearch) && hasQuery && !hasStrictFilters) {
-                console.log(`[Search] Low results or specific origin (${filters.origin}). Triggering Haus Intelligence...`);
+            if (isSpecificSearch && !hasStrictFilters) {
+                console.log(`[Search] Haus Intelligence v3: Proactive Parallel Search Activated for "${query}"`);
                 
-                // Intelligent Source Selection:
-                // Map the results back to their variables
-                const fallbackPromises = [
+                const proactivePromises = [
+                    mangadexService.searchManga(query, { ...filters, lang: 'es' }, limit, offset, order, allowNSFW),
                     mangadexService.searchManga(query, { ...filters, lang: 'en' }, limit, offset, order, allowNSFW),
                     manhwawebService.searchManga(query, filters),
                     weebcentralService.searchManga(query, { ...filters, order: order ? Object.keys(order)[0] : undefined }),
                     mangapillService.searchManga(query, allowNSFW)
                 ];
-                const [mdEnglishResults, mwebResults, wcResults, mpResults] = await Promise.all(fallbackPromises);
 
-                allResults = [
-                    ...allResults,
-                    ...(mwebResults as any[] || []), // ManhwaWeb (ES) comes before EN sources
-                    ...((mdEnglishResults as any).data || []),
-                    ...(wcResults as any[] || []),
-                    ...(mpResults as any[] || [])
-                ];
+                const results = await Promise.all(proactivePromises);
+                
+                allResults = results.flatMap((r: any) => r.data || r || []);
+            } else {
+                // Fallback a cascada clásica para búsquedas genéricas con filtros pesados
+                allResults = mdSpanishResults.data || [];
             }
 
             // Deduplicar (MangaDex Español siempre queda arriba)
@@ -218,6 +313,33 @@ export const mangaProvider = {
         } catch (err) {
             console.error('[Search] Cascade failed:', err);
             return { data: [], pagination: { limit, offset, total: 0 } };
+        }
+    },
+
+    /**
+     * Busca un manga por título y verifica su existencia real y disponibilidad de capítulos.
+     */
+    async fetchVerifiedRecommendation(title: string, allowNSFW = false): Promise<any | null> {
+        try {
+            const results = await this.searchManga(title, {}, 1, 0, undefined, allowNSFW);
+            if (!results.data || results.data.length === 0) return null;
+
+            const best = results.data[0];
+            
+            // Verificación extra: Si es de MangaDex, confirmamos que tenga capítulos
+            if (!this.isExternalId(best.id)) {
+                const chapters = await mangadexService.getMangaChapters(best.id, 'all', 1);
+                if (chapters.data.length === 0) return null;
+            }
+
+            return {
+                id: best.id,
+                hasChapters: true,
+                title: this.getLocalizedTitle(best)
+            };
+        } catch (err) {
+            console.warn('[Provider] Verification failed for:', title, err);
+            return null;
         }
     },
    
@@ -256,24 +378,27 @@ export const mangaProvider = {
         }
     },
 
-    getTopWeekly() {
-        return manhwawebService.getTopWeekly();
-    },
-
-    getTopGlobal() {
-        return manhwawebService.getTopGlobal();
-    },
 
     getLatestUpdatedManga(limit = 12, offset = 0, lang = 'es', type = 'all', allowNSFW = false) {
         return mangadexService.getLatestUpdatedManga(limit, offset, lang, type, allowNSFW);
     },
 
-    async getFullyTranslatedMasterpieces(origin: string | null = null, lang = 'es', limit = 10, offset = 0, genre: string | null = null, fullColor = false, allowNSFW = false) {
-        const mdResp = await mangadexService.getFullyTranslatedMasterpieces(origin, lang, limit, offset, genre, fullColor, allowNSFW);
-        
-        // No specific masterpiece endpoint on ManhwaWeb, so we just return MD results for now
-        // But we could enrich with global top if needed
-        return mdResp;
+    async getFullyTranslatedMasterpieces(origin: string | null = null, lang: string | null = 'es', limit = 12, offset = 0, genre: string | null = null, fullColor = false, allowNSFW = false) {
+        try {
+            // Get completed manga with verified translations
+            const results = await mangadexService.searchManga('', {
+                status: 'completed',
+                lang: lang || 'es',
+                origin: origin || undefined,
+                tags: genre ? [genre] : undefined,
+                fullColor: fullColor
+            }, limit, offset, undefined, allowNSFW);
+            
+            return results;
+        } catch (err) {
+            console.warn('[Provider] getFullyTranslatedMasterpieces failed:', err);
+            return { data: [], pagination: { limit, offset, total: 0 } };
+        }
     },
 
     getLatestChapters(limit = 12, offset = 0, lang: string | null = null, allowNSFW = false) {
@@ -408,8 +533,13 @@ export const mangaProvider = {
     getLocalizedDescription(manga: any) {
         if (!manga?.attributes?.description) return '';
         const desc = manga.attributes.description;
-        if (typeof desc === 'string') return desc;
-        return desc['es-la'] || desc['es'] || desc['en'] || Object.values(desc)[0] || '';
+        let rawDesc = '';
+        if (typeof desc === 'string') {
+            rawDesc = desc;
+        } else {
+            rawDesc = desc['es-la'] || desc['es'] || desc['en'] || Object.values(desc)[0] || '';
+        }
+        return sanitizeDescription(rawDesc);
     },
 
     getOptimizedUrl(url: string) {
@@ -420,9 +550,6 @@ export const mangaProvider = {
         return mangadexService.getProxiedUrl(url);
     },
 
-    fetchVerifiedRecommendation(title: string, allowNSFW = false) {
-        return mangadexService.fetchVerifiedRecommendation(title, allowNSFW);
-    },
 
     // --- INTELLIGENT FALLBACK HELPERS ---
     

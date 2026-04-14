@@ -9,17 +9,36 @@ export interface TioSource {
 const BASE_URL = 'https://tioanime.com';
 const PROXY_URL = 'https://manga-proxy.mchaustman.workers.dev/?url=';
 
+/**
+ * Helper to fetch HTML content with timeout and proxy support (consistent with animeflvService)
+ */
 async function fetchHtml(url: string) {
-    const proxyUrl = `${PROXY_URL}${encodeURIComponent(url)}`;
-    const resp = await fetch(proxyUrl);
-    if (!resp.ok) {
-        if (Capacitor.isNativePlatform()) {
+    // Si es nativo (Android/iOS), NO hay problemas de CORS, vamos DIRECTO por velocidad y fiabilidad.
+    if (Capacitor.isNativePlatform()) {
+        try {
             const directResp = await fetch(url);
-            if (directResp.ok) return directResp.text();
+            if (directResp.ok) return await directResp.text();
+        } catch (e) {
+            console.warn(`[TioAnime] Direct fetch failed on native, trying proxy...`);
         }
-        throw new Error(`Proxy Error: ${resp.status}`);
     }
-    return resp.text(); 
+
+    const proxyUrl = `${PROXY_URL}${encodeURIComponent(url)}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+    
+    try {
+        const resp = await fetch(proxyUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
+        if (!resp.ok) {
+            throw new Error(`Proxy Error: ${resp.status}`);
+        }
+        return await resp.text(); 
+    } catch (e) {
+        clearTimeout(timeoutId);
+        throw e;
+    }
 }
 
 export const tioanimeService = {
@@ -30,6 +49,10 @@ export const tioanimeService = {
       const results: any[] = [];
       
       // Updated regex based on actual S-T structure
+      /**
+       * Regex to match Latest Episode Cards
+       * Groups: 1: Slug, 2: Image URL, 3: Full Title (Alt), 4: H3 Title
+       */
       const regex = /<article class="episode">[\s\S]*?<a href="\/ver\/([^"]+)">[\s\S]*?<img src="([^"]+)" alt="([^"]+)">[\s\S]*?<h3 class="title">([^<]+)<\/h3>/gi;
       
       let match;
@@ -41,7 +64,7 @@ export const tioanimeService = {
         const fullTitle = match[4].trim(); // e.g. "Mayonaka Heart Tune 12"
         
         // Use Photon proxy for faster image delivery
-        const proxiedImg = `https://i0.wp.com/${imgUrl.replace(/^https?:\/\//, '')}`;
+        const proxiedImg = `https://i0.wp.com/${imgUrl.replaceAll(/^https?:\/\//g, '')}`;
         
         // Extract episode number from end of title
         const numMatch = fullTitle.match(/\d+$/);
@@ -84,7 +107,9 @@ export const tioanimeService = {
           id: match[1],
           title: match[3],
           name: match[3],
-          image: proxiedImg
+          image: proxiedImg,
+          sources: ['TI'],
+          hasDub: true
         });
       }
       return results;
@@ -114,7 +139,9 @@ export const tioanimeService = {
           id: match[1],
           title: match[3],
           name: match[3],
-          image: proxiedImg
+          image: proxiedImg,
+          sources: ['TI'],
+          hasDub: true
         });
       }
       return results;

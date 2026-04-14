@@ -7,6 +7,9 @@
 const CACHE_PREFIX = 'tr_cache_';
 const GOOGLE_TRANSLATE_API = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=es&dt=t&q=';
 
+let isRateLimited = false;
+let rateLimitExpiration = 0;
+
 export const translationService = {
   /**
    * Translates a text to Spanish if it's not already in Spanish.
@@ -28,13 +31,20 @@ export const translationService = {
     // 2. Performance: If text is too short, don't translate
     if (text.length < 15) return { text, isTranslated: false };
 
+    // 2.1 Check Rate Limit Cooldown
+    if (isRateLimited && Date.now() < rateLimitExpiration) {
+      return { text, isTranslated: false };
+    } else if (isRateLimited) {
+      isRateLimited = false; // Reset after expiration
+    }
+
     try {
       // 3. Call Public Google Translate API (gtx client)
       const url = `${GOOGLE_TRANSLATE_API}${encodeURIComponent(text)}`;
       const PROXY_URL = 'https://manga-proxy.mchaustman.workers.dev/?url=';
       
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s timeout max
+      const timeoutId = setTimeout(() => controller.abort(), 3500); // Reduce to 3.5s for snappy UI
       
       const response = await fetch(`${PROXY_URL}${encodeURIComponent(url)}`, {
           signal: controller.signal
@@ -42,7 +52,9 @@ export const translationService = {
       clearTimeout(timeoutId);
       
       if (response.status === 429) {
-         console.warn('[Translation] Rate limited by proxy. Skipping translation.');
+         console.warn('[Translation] Rate limited by proxy. Cooling down for 3 minutes.');
+         isRateLimited = true;
+         rateLimitExpiration = Date.now() + 3 * 60 * 1000; // 3 min is enough
          return { text, isTranslated: false };
       }
       

@@ -105,3 +105,34 @@
         line-height: 1.25;
     }
 }
+
+/* Haus Intel v3 Omni-Source Indicators */
+.card-sources-indicator {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    z-index: 20;
+}
+
+.source-pip {
+    font-size: 0.5rem;
+    font-weight: 900;
+    padding: 1px 4px;
+    border-radius: 4px;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    min-width: 18px;
+    text-align: center;
+}
+
+/* Distinct Source Colors */
+.src-mangadex { background: rgba(var(--ion-color-primary-rgb), 0.85); }
+.src-weebcentral { background: rgba(var(--ion-color-secondary-rgb), 0.85); }
+.src-mangapill { background: rgba(30, 30, 30, 0.85); }
+.src-manhwaweb { background: rgba(255, 100, 0, 0.85); }

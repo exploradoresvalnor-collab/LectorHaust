@@ -15,42 +15,49 @@ const googleProvider = new GoogleAuthProvider();
 
 export const firebaseAuthService = {
   /**
+   * Helper: Ensure user document exists in Firestore
+   */
+  async ensureUserDoc(user: User, customData: any = {}) {
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+      
+      if (!userSnap.exists()) {
+        await setDoc(userRef, {
+          name: user.displayName,
+          avatar: user.photoURL,
+          email: user.email || null,
+          createdAt: serverTimestamp(),
+          friends: [],
+          ...customData
+        });
+      }
+    } catch (e) {
+      console.warn('[Auth] Failed to ensure user doc:', e);
+    }
+  },
+
+  /**
    * Login with Google
    */
   async loginWithGoogle() {
     try {
-      // On native mobile platforms, signInWithPopup often fails. 
-      // Using signInWithRedirect or a future native plugin is recommended.
       if (Capacitor.getPlatform() !== 'web') {
         const { signInWithRedirect } = await import('firebase/auth');
         return await signInWithRedirect(auth, googleProvider);
       }
       const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
+      
+      // Sync with Firestore
+      await this.ensureUserDoc(result.user);
 
-      // Ensure user document exists in Firestore
-      const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
-      if (!userSnap.exists()) {
-        await setDoc(userRef, {
-          name: user.displayName,
-          avatar: user.photoURL,
-          email: user.email,
-          createdAt: serverTimestamp(),
-          friends: []
-        });
-      }
-
-      return user;
+      return result.user;
     } catch (error) {
       console.error('Error logging in with Google:', error);
       throw error;
     }
   },
 
-  /**
-   * Login Anonymously (Lector Fantasma)
-   */
   /**
    * Helper: Convert country code 'CO' to emoji flag
    */
@@ -72,43 +79,30 @@ export const firebaseAuthService = {
       const result = await signInAnonymously(auth);
       const user = result.user;
 
-      // If user already has a display name, don't overwrite with new flag (optional)
       if (user.displayName) return user;
 
-      // Fetch country by IP (Fast & Free API)
+      // Geolocation
       let flag = '🌍';
-      let countryCode = 'UN';
       try {
         const res = await fetch('https://ipapi.co/json/');
         const data = await res.json();
-        countryCode = data.country_code || 'UN';
-        flag = this.getFlagEmoji(countryCode);
+        flag = this.getFlagEmoji(data.country_code || 'UN');
       } catch (e) {
-        console.warn('Geolocation failed, using default flag');
+        console.warn('Geolocation failed');
       }
 
-      // Generate Ghost Name: Lector [ShortID] [Flag]
       const shortId = user.uid.substring(0, 4).toUpperCase();
       const ghostName = `Lector ${shortId} ${flag}`;
+      const ghostAvatar = `https://api.dicebear.com/7.x/identicon/svg?seed=${user.uid}`;
 
-      // Update Firebase Profile so it persists
+      // Update Firebase Profile
       await updateProfile(user, {
         displayName: ghostName,
-        photoURL: `https://api.dicebear.com/7.x/identicon/svg?seed=${user.uid}`
+        photoURL: ghostAvatar
       });
       
-      // Ensure user document exists in Firestore for Anonymous Users too
-      const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
-      if (!userSnap.exists()) {
-        await setDoc(userRef, {
-          name: ghostName,
-          avatar: `https://api.dicebear.com/7.x/identicon/svg?seed=${user.uid}`,
-          isAnonymous: true,
-          createdAt: serverTimestamp(),
-          friends: []
-        });
-      }
+      // Sync with Firestore
+      await this.ensureUserDoc(user, { isAnonymous: true });
 
       return user;
     } catch (error) {

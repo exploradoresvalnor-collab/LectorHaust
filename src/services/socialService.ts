@@ -20,7 +20,7 @@ import { db } from './firebase';
 export interface FriendRequest {
   id: string; // The UI of the sender
   fromId: string;
-  timestamp: any;
+  timestamp: { seconds: number; nanoseconds: number } | any;
   status: 'pending' | 'accepted' | 'rejected';
 }
 
@@ -213,15 +213,29 @@ export const socialService = {
   },
 
   async blockUser(myUid: string, userToBlockUid: string) {
+    if (!myUid || !userToBlockUid) return;
     try {
       const myRef = doc(db, 'users', myUid);
+      
+      // 1. Add to blocked list
       await updateDoc(myRef, {
         blockedUsers: arrayUnion(userToBlockUid)
       });
-      // Try to remove friendship if it exists
+      
+      // 2. Automatically remove friendship if it exists (Atomic-ish)
       await this.removeFriend(myUid, userToBlockUid).catch(() => {});
+      
+      // 3. Delete any pending friend requests between them
+      const myRequestRef = doc(db, `users/${myUid}/friendRequests`, userToBlockUid);
+      const theirRequestRef = doc(db, `users/${userToBlockUid}/friendRequests`, myUid);
+      
+      const batch = writeBatch(db);
+      batch.delete(myRequestRef);
+      batch.delete(theirRequestRef);
+      await batch.commit().catch(() => {});
+      
     } catch (e) {
-      console.error("Block failed", e);
+      console.error("[Social] Block failed:", e);
       throw e;
     }
   }

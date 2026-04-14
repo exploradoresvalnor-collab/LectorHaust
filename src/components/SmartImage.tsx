@@ -66,8 +66,7 @@ const SmartImage: React.FC<SmartImageProps> = ({
         onError={() => setStatus('error')}
         width={width}
         height={height}
-        // @ts-ignore
-        fetchPriority={fetchPriority}
+        {...(fetchPriority ? { fetchPriority } : {})}
       />
       {children}
     </div>
