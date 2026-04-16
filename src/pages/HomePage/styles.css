@@ -17,10 +17,14 @@
 
 /* --- HEADER --- */
 .desktop-header-ref .main-header {
-  --background: #0b0e14;
+  --background: transparent;
   --border-width: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  height: 70px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  height: 60px;
+  background: rgba(11, 14, 20, 0.45);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  z-index: 1001;
 }
 
 .header-inner-content {
@@ -42,33 +46,34 @@
   cursor: pointer;
 }
 
-.brand-name-main { font-size: 1.5rem; font-weight: 800; color: #fff; }
+.brand-name-main { font-size: 1.2rem; font-weight: 800; color: #fff; }
 .brand-name-sub { 
-  font-size: 1.5rem; 
+  font-size: 1.2rem; 
   font-weight: 900; 
   color: #fff; 
   background: #007bff; 
-  padding: 0 6px; 
+  padding: 0 5px; 
   border-radius: 4px;
 }
 
 .desktop-nav { display: flex; gap: 20px; }
 @media (max-width: 1024px) {
   .desktop-nav { display: none !important; }
+  .header-search-wrapper { display: none !important; }
 }
 .nav-link { color: #fff; font-weight: 600; cursor: pointer; transition: color 0.2s; }
 .nav-link:hover, .nav-link.active { color: #007bff; }
 
 .header-search-wrapper {
   flex: 1;
-  max-width: 500px;
-  height: 44px;
-  background: #161b22;
-  border-radius: 12px;
+  max-width: 420px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
   display: flex;
   align-items: center;
-  padding: 0 16px;
-  gap: 10px;
+  padding: 0 12px;
+  gap: 8px;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -332,13 +337,16 @@
     gap: 0;
   }
   .carousel-nav-btn {
-    width: 36px;
-    height: 36px;
-    font-size: 1rem;
+    width: 32px;
+    height: 32px;
+    font-size: 0.9rem;
     background: rgba(0,0,0,0.4);
+    opacity: 0.4;
+    border: none;
   }
-  .carousel-nav-prev { left: 4px; }
-  .carousel-nav-next { right: 4px; }
+  .carousel-nav-prev { left: 8px; }
+  .carousel-nav-next { right: 8px; }
+  /* ... rest of existing mobile styles ... */
   .hero-carousel-content {
     padding: 15px 15px 15px 20px;
   }
@@ -560,6 +568,9 @@
 }
 
 @media (max-width: 768px) {
+  .desktop-header-ref .main-header { height: 50px !important; }
+  .header-inner-content { padding: 0 12px; gap: 15px; }
+  .brand-name-main, .brand-name-sub { font-size: 1.1rem; }
   .hero-full-wrap { height: 260px; margin-bottom: 25px; }
   .section-title-text { font-size: 1.2rem; }
   .hero-carousel-title { font-size: 1.4rem; }

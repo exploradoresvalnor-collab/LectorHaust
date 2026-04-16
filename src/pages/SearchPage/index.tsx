@@ -136,7 +136,7 @@ const SearchPage: React.FC = () => {
   return (
     <IonPage>
       <IonHeader className="ion-no-border">
-        <IonToolbar className="glass-effect" style={{ padding: '10px 0' }}>
+        <IonToolbar className="glass-effect" style={{ minHeight: '50px' }}>
           <IonButtons slot="start" style={{ position: 'absolute', left: 0, zIndex: 10 }}>
             <IonButton 
               onClick={() => router.canGoBack() ? router.goBack() : router.push('/home', 'back')} 
@@ -300,7 +300,7 @@ const SearchPage: React.FC = () => {
                           coverUrl={mangaProvider.getCoverUrl(manga)}
                           format={manga.attributes.originalLanguage}
                           sources={manga.sources || []}
-                          status={mangaProvider.getLocalizedStatus(manga)}
+                          status={mangaProvider.getLocalizedStatus?.(manga) || 'En emisión'}
                           chapters={manga.attributes.calculatedTotalChapters || manga.attributes.lastChapter || manga.attributes.latestChapterNumber}
                           tags={manga.attributes.tags
                             ?.filter((t: any) => t.attributes?.group === 'genre')
@@ -318,7 +318,7 @@ const SearchPage: React.FC = () => {
                           coverUrl={mangaProvider.getCoverUrl(manga)}
                           format={manga.attributes.originalLanguage}
                           sources={manga.sources || []}
-                          status={mangaProvider.getLocalizedStatus(manga)}
+                          status={mangaProvider.getLocalizedStatus?.(manga) || 'En emisión'}
                           chapters={manga.attributes.calculatedTotalChapters || manga.attributes.lastChapter || manga.attributes.latestChapterNumber}
                           tags={manga.attributes.tags
                             ?.filter((t: any) => t.attributes?.group === 'genre')
@@ -385,7 +385,7 @@ const SearchPage: React.FC = () => {
                           coverUrl={mangaProvider.getCoverUrl(m)}
                           format={m.attributes.originalLanguage}
                           sources={m.sources || []}
-                          status={mangaProvider.getLocalizedStatus(m)}
+                          status={mangaProvider.getLocalizedStatus?.(m) || 'En emisión'}
                           chapters={m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber}
                           tags={m.attributes.tags
                             ?.filter((t: any) => t.attributes?.group === 'genre')
@@ -402,7 +402,7 @@ const SearchPage: React.FC = () => {
                           coverUrl={mangaProvider.getCoverUrl(m)}
                           format={m.attributes.originalLanguage}
                           sources={m.sources || []}
-                          status={mangaProvider.getLocalizedStatus(m)}
+                          status={mangaProvider.getLocalizedStatus?.(m) || 'En emisión'}
                           chapters={m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber}
                           tags={m.attributes.tags
                             ?.filter((t: any) => t.attributes?.group === 'genre')
@@ -454,7 +454,7 @@ const SearchPage: React.FC = () => {
                         coverUrl={mangaProvider.getCoverUrl(m)}
                         format={m.attributes.originalLanguage}
                         sources={m.sources || []}
-                        status={mangaProvider.getLocalizedStatus(m)}
+                        status={mangaProvider.getLocalizedStatus?.(m) || 'En emisión'}
                         chapters={m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber}
                         tags={m.attributes.tags
                           ?.filter((t: any) => t.attributes?.group === 'genre')
@@ -471,7 +471,7 @@ const SearchPage: React.FC = () => {
                         coverUrl={mangaProvider.getCoverUrl(m)}
                         format={m.attributes.originalLanguage}
                         sources={m.sources || []}
-                        status={mangaProvider.getLocalizedStatus(m)}
+                        status={mangaProvider.getLocalizedStatus?.(m) || 'En emisión'}
                         chapters={m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber}
                         tags={m.attributes.tags
                           ?.filter((t: any) => t.attributes?.group === 'genre')
@@ -594,7 +594,7 @@ const SearchPage: React.FC = () => {
                             coverUrl={mangaProvider.getCoverUrl(manga)}
                             format={manga.attributes.mangaType || manga.attributes.originalLanguage}
                             sources={manga.sources || []}
-                            status={mangaProvider.getLocalizedStatus(manga)}
+                            status={mangaProvider.getLocalizedStatus?.(manga) || 'En emisión'}
                             chapters={manga.attributes.calculatedTotalChapters || manga.attributes.lastChapter || manga.attributes.latestChapterNumber}
                             onClick={() => router.push(`/manga/${manga.id}`)}
                           />
@@ -609,7 +609,7 @@ const SearchPage: React.FC = () => {
                             coverUrl={mangaProvider.getCoverUrl(manga)}
                             format={manga.attributes.mangaType || manga.attributes.originalLanguage}
                             sources={manga.sources || []}
-                            status={mangaProvider.getLocalizedStatus(manga)}
+                            status={mangaProvider.getLocalizedStatus?.(manga) || 'En emisión'}
                             chapters={manga.attributes.calculatedTotalChapters || manga.attributes.lastChapter || manga.attributes.latestChapterNumber}
                             onClick={() => router.push(`/manga/${manga.id}`)}
                           />
