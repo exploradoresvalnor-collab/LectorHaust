@@ -33,9 +33,12 @@ interface HeroGridProps {
 const HeroGrid: React.FC<HeroGridProps> = ({ heroItems, onItemClick }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
+  const [isMobile] = useState(window.innerWidth < 768);
+  const itemsPerView = isMobile ? 1 : 2;
+
   const handleNext = () => {
     setCurrentIndex((prev) => {
-      const nextIndex = prev + 2;
+      const nextIndex = prev + itemsPerView;
       return nextIndex >= heroItems.length ? 0 : nextIndex;
     });
   };
@@ -43,16 +46,16 @@ const HeroGrid: React.FC<HeroGridProps> = ({ heroItems, onItemClick }) => {
   const handlePrev = () => {
     setCurrentIndex((prev) => {
       if (prev === 0) {
-        return heroItems.length - 2 < 0 ? 0 : heroItems.length - 2;
+        return heroItems.length - itemsPerView < 0 ? 0 : heroItems.length - itemsPerView;
       }
-      return prev - 2;
+      return prev - itemsPerView;
     });
   };
 
-  const visibleItems = heroItems.slice(currentIndex, currentIndex + 2);
+  const visibleItems = heroItems.slice(currentIndex, currentIndex + itemsPerView);
 
-  if (visibleItems.length < 2 && currentIndex > 0) {
-    visibleItems.push(...heroItems.slice(0, 2 - visibleItems.length));
+  if (visibleItems.length < itemsPerView && currentIndex > 0) {
+    visibleItems.push(...heroItems.slice(0, itemsPerView - visibleItems.length));
   }
 
   // Helper to extract metadata (since real data might vary)
@@ -89,14 +92,13 @@ const HeroGrid: React.FC<HeroGridProps> = ({ heroItems, onItemClick }) => {
         <IonIcon icon={chevronBackOutline} />
       </button>
 
-      {/* Carousel items container */}
-      <div className="hero-carousel-items-wrapper">
+      <div className={`hero-carousel-items-wrapper ${isMobile ? 'mobile-view' : 'desktop-view'}`}>
         {visibleItems.map((item) => {
           const { chapters, genres } = getMetadata(item);
           return (
             <div 
               key={item.id}
-              className="hero-carousel-item"
+              className="hero-carousel-item animate-fade-in"
               onClick={() => onItemClick(item)}
               role="link"
 

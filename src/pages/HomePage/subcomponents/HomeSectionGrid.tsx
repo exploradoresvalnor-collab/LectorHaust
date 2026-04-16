@@ -37,7 +37,7 @@ const HomeSectionGrid: React.FC<HomeSectionGridProps> = ({
       <IonGrid className="home-manga-grid">
         <IonRow>
           {items.map((manga) => (
-            <IonCol size="12" sizeSm="6" sizeMd="6" sizeLg="4" sizeXl="4" key={manga.id}>
+            <IonCol size="6" sizeSm="6" sizeMd="6" sizeLg="4" sizeXl="4" key={manga.id}>
               <MangaCard 
                 title={mangaProvider.getLocalizedTitle(manga)}
                 coverUrl={mangaProvider.getCoverUrl(manga)}

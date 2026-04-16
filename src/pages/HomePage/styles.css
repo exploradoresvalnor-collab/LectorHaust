@@ -122,6 +122,13 @@
   .home-layout-container { padding: 0 10px; }
 }
 
+@media (max-width: 768px) {
+  .home-layout-container {
+    padding: 0 8px;
+    gap: 20px;
+  }
+}
+
 /* --- HERO SECTION --- */
 .hero-full-wrap {
   width: 100%;
@@ -301,6 +308,34 @@
 .carousel-nav-prev { left: 10px; }
 .carousel-nav-next { right: 10px; }
 
+@media (max-width: 768px) {
+  .hero-carousel-items-wrapper {
+    padding: 0;
+    gap: 0;
+  }
+  .carousel-nav-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+    background: rgba(0,0,0,0.4);
+  }
+  .carousel-nav-prev { left: 4px; }
+  .carousel-nav-next { right: 4px; }
+  .hero-carousel-content {
+    padding: 15px 15px 15px 20px;
+  }
+  .hero-carousel-desc {
+    display: none; /* Hide description on mobile to save space */
+  }
+  .hero-meta-info {
+    margin-bottom: 12px;
+  }
+  .hero-carousel-button-tmo {
+    padding: 8px 16px;
+    font-size: 0.75rem;
+  }
+}
+
 /* --- SECTION GRIDS --- */
 .home-section-container {
   margin-bottom: 60px;
@@ -445,15 +480,55 @@
 
 .minimal-login-pill-top {
   pointer-events: auto;
-  background: rgba(140, 82, 255, 0.15);
+  background: rgba(140, 82, 255, 0.25);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(140,82,255,0.3);
-  padding: 8px 20px;
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(140,82,255,0.4);
+  padding: 8px 16px;
   border-radius: 50px;
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 12px;
   cursor: pointer;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  max-width: 90vw;
+}
+
+.pill-content-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.pill-status-text {
+  font-weight: 900;
+  font-size: 0.65rem;
+  letter-spacing: 1px;
+  color: var(--ion-color-primary);
+  white-space: nowrap;
+}
+
+.pill-action-text {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 480px) {
+  .login-pill-wrapper {
+    top: 75px;
+  }
+  .minimal-login-pill-top {
+    gap: 8px;
+    padding: 6px 12px;
+  }
+  .pill-action-text {
+    max-width: 120px;
+  }
 }
 
 /* --- UTILS --- */
