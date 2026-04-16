@@ -33,8 +33,14 @@ interface HeroGridProps {
 const HeroGrid: React.FC<HeroGridProps> = ({ heroItems, onItemClick }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const [isMobile] = useState(window.innerWidth < 768);
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 1024);
   const itemsPerView = isMobile ? 1 : 2;
+
+  React.useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleNext = () => {
     setCurrentIndex((prev) => {

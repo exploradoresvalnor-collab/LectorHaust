@@ -189,23 +189,43 @@
 .type-pill.one-shot { background: #f39c12; }
 
 /* Responsive Adjustments */
-@media (max-width: 480px) {
+@media (max-width: 768px) {
     .manga-card-tmo-wrapper {
-        min-height: 140px;
+        min-height: 120px;
     }
     .card-thumb-column {
-        width: 85px;
+        width: 100%;
     }
     .card-title-tmo {
-        font-size: 0.85rem;
+        font-size: 0.75rem;
+        font-weight: 800;
+        margin-bottom: 2px;
     }
     .meta-line {
-        font-size: 0.7rem;
+        font-size: 0.6rem;
     }
-    .genre-label {
-        display: none; /* Hide genres on very small mobile to save space */
+    .status-badge {
+        font-size: 0.55rem;
+        padding: 2px 4px;
+        top: 4px;
+        right: 4px;
     }
-    .genre-label:first-child {
-        display: inline-block;
+    .chapters-count {
+        font-size: 0.65rem;
+    }
+    .tag-pill {
+        font-size: 0.5rem;
+        padding: 1px 4px;
+    }
+    .card-info-column {
+        padding: 20px 8px 8px 8px;
+    }
+    .card-rating-pill {
+        top: 4px;
+        left: 4px;
+        padding: 2px 6px;
+    }
+    .rating-num {
+        font-size: 0.6rem;
     }
 }

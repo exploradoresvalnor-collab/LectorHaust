@@ -53,6 +53,9 @@
 }
 
 .desktop-nav { display: flex; gap: 20px; }
+@media (max-width: 1024px) {
+  .desktop-nav { display: none !important; }
+}
 .nav-link { color: #fff; font-weight: 600; cursor: pointer; transition: color 0.2s; }
 .nav-link:hover, .nav-link.active { color: #007bff; }
 
@@ -205,6 +208,21 @@
   font-weight: 800;
   color: #fff;
   margin-bottom: 10px;
+}
+
+@media (max-width: 768px) {
+  .hero-carousel-title {
+    font-size: 1.1rem;
+    margin-bottom: 4px;
+  }
+  .hero-trending-label {
+    font-size: 0.6rem;
+    margin-bottom: 4px;
+  }
+  .hero-meta-info {
+    gap: 8px;
+    font-size: 0.65rem;
+  }
 }
 
 .hero-carousel-poster-v3 {
