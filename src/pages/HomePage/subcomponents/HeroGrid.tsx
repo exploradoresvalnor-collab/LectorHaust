@@ -21,6 +21,7 @@ interface HeroItem {
   link: string;
   type?: string;
   isTranslated?: boolean;
+  episodes?: any;
   raw?: any;
 }
 
