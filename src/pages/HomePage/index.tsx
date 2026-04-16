@@ -8,24 +8,31 @@ import {
   IonRefresherContent,
   IonInfiniteScroll,
   IonInfiniteScrollContent,
-  IonButtons,
-  IonButton,
   IonIcon,
-  IonTitle,
   useIonRouter,
-  IonSkeletonText,
-  IonChip,
-  IonLabel,
+  IonButton,
   IonToast
 } from '@ionic/react';
-import { chevronDownOutline, sparklesOutline, checkmarkCircle, chevronBackOutline, chevronForwardOutline, closeOutline, personOutline, playCircleOutline } from 'ionicons/icons';
+import { 
+  chevronDownOutline, 
+  searchOutline, 
+  lockClosedOutline, 
+  personOutline,
+  bookOutline,
+  sparklesOutline,
+  closeOutline
+} from 'ionicons/icons';
 import EmptyState from '../../components/EmptyState';
 import { useHomeData } from './hooks/useHomeData';
 import { hapticsService } from '../../services/hapticsService';
 import { getTranslation } from '../../utils/translations';
 import { useLanguageStore } from '../../store/useLanguageStore';
-import LatestUpdatesList from './subcomponents/LatestUpdatesList';
 import HausSkeleton from '../../components/HausSkeleton';
+import HeroGrid from './subcomponents/HeroGrid';
+import HomeSectionGrid from './subcomponents/HomeSectionGrid';
+import SidebarRankings from './subcomponents/SidebarRankings';
+import TrendingGenres from './subcomponents/TrendingGenres';
+import { mangaProvider } from '../../services/mangaProvider';
 import './styles.css';
 
 const HomePage: React.FC = () => {
@@ -33,17 +40,15 @@ const HomePage: React.FC = () => {
   const { lang } = useLanguageStore();
   
   const {
-    heroIndex,
-    setHeroIndex,
     latest,
+    latestManga,
+    latestManhwa,
+    latestManhua,
     loading,
     isDone,
     currentUser,
     showLoginHint,
     setShowLoginHint,
-    latestLang, setLatestLang,
-    latestType, setLatestType,
-    unreadNotifications,
     heroItems,
     fetchData,
     loadMoreLatest
@@ -65,71 +70,79 @@ const HomePage: React.FC = () => {
 
   return (
     <IonPage className="home-page-container">
-      <IonHeader className="ion-no-border" translucent={true}>
+      <IonHeader className="ion-no-border desktop-header-ref" translucent={true}>
         <IonToolbar className="main-header">
-          <IonTitle slot="start">
+          <div className="header-inner-content">
+            {/* Logo Section */}
             <div 
               className="brand-container" 
               onClick={() => fetchData(true)}
               role="button"
               tabIndex={0}
               aria-label="Refrescar portada"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  fetchData(true);
-                }
-              }}
             >
-              <img src="/logolh.webp" alt="Lector Haus Logo" className="brand-logo-img" width="48" height="42" />
-              <span className="brand-name-text">lector<span style={{ marginRight: '10px' }}>Haus</span></span>
+              <img src="/logolh.webp" alt="Lector Haus Logo" className="brand-logo-img" width="38" height="34" />
+              <div className="brand-text-wrapper">
+                <span className="brand-name-main">Lector</span>
+                <span className="brand-name-sub">Haus</span>
+              </div>
             </div>
-          </IonTitle>
-          <IonButtons slot="end">
-            <IonButton className="profile-btn" onClick={handleProfileClick} aria-label="Ver perfil">
+
+            {/* Navigation Links */}
+            <nav className="desktop-nav">
+              <span className="nav-link active" onClick={() => router.push('/home')}>Inicio</span>
+              <span className="nav-link" onClick={() => router.push('/search?type=manga')}>Mangas</span>
+              <span className="nav-link" onClick={() => router.push('/search?type=manhwa')}>Manhwa</span>
+              <span className="nav-link" onClick={() => router.push('/search?type=one_shot')}>One Shot</span>
+              <span className="nav-link" onClick={() => router.push('/search?type=manhua')}>Manhua</span>
+              <span className="nav-link" onClick={() => router.push('/library')}>Biblioteca</span>
+            </nav>
+
+            {/* Search Bar */}
+            <div className="header-search-wrapper" onClick={() => router.push('/search')}>
+              <IonIcon icon={searchOutline} className="search-icon-mini" />
+              <input 
+                type="text" 
+                placeholder="Busca tu manga favorito" 
+                readOnly 
+                className="header-search-input"
+              />
+            </div>
+
+            {/* User/Login Section */}
+            <div className="header-actions">
               {currentUser ? (
-                <div className="profile-avatar-wrapper">
-                  {currentUser.photoURL ? (
-                    <div className="user-avatar-small animate-pop-in">
-                      <img src={currentUser.photoURL} alt="user avatar" width="32" height="32" />
-                    </div>
-                  ) : currentUser.isAnonymous ? (
-                    <div className="user-ghost-icon animate-pop-in">👻</div>
-                  ) : (
-                    <div className="user-mascot-golden animate-pop-in">
-                      <img src="/Buho.webp" alt="pro mascot" width="32" height="32" />
-                    </div>
-                  )}
-                  {unreadNotifications > 0 && (
-                    <div className="notification-dot animate-pulse"></div>
-                  )}
+                <div className="profile-btn" onClick={handleProfileClick}>
+                   <div className="profile-avatar-wrapper">
+                    {currentUser.photoURL ? (
+                      <div className="user-avatar-small">
+                        <img src={currentUser.photoURL} alt="user avatar" width="32" height="32" />
+                      </div>
+                    ) : (
+                      <div className="user-icon-blank">
+                        <IonIcon icon={personOutline} />
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
-                <div className="user-icon-blank animate-pop-in">
-                  <img 
-                    src="/Buho.webp" 
-                    alt="guest avatar" 
-                    width="32"
-                    height="32"
-                    style={{ width: '32px', height: '32px', objectFit: 'contain', filter: 'drop-shadow(0 0 5px rgba(140, 82, 255, 0.4))' }}
-                    onError={(e) => (e.currentTarget.src = '/logolh.webp')} 
-                  />
-                </div>
+                <button className="login-btn-tmo" onClick={() => router.push('/profile')}>
+                  <IonIcon icon={lockClosedOutline} />
+                  <span>Login</span>
+                </button>
               )}
-            </IonButton>
-          </IonButtons>
+            </div>
+          </div>
         </IonToolbar>
       </IonHeader>
-      <IonContent fullscreen className="ion-padding">
-        {/* Subtle Sign-in Prompt */}
-        {/* NEW: Fixed Slot for Ultra-Minimalist Floating Login Pill */}
+
+      <IonContent fullscreen className="ion-padding home-main-content-area">
+        {/* Minimalist Floating Login Pill */}
         {showLoginHint && (!currentUser || currentUser.isAnonymous) && (
           <div slot="fixed" className="login-pill-wrapper">
             <div 
               className="minimal-login-pill-top animate-fade-in" 
               onClick={() => router.push('/profile')}
-              role="button"
-              tabIndex={0}
-              aria-label="Ir al perfil para iniciar sesión"
             >
               <div className="pill-content-inner">
                 <IonIcon icon={sparklesOutline} className="mini-sparkle" />
@@ -152,220 +165,101 @@ const HomePage: React.FC = () => {
           />
         </IonRefresher>
 
-        {/* --- CINEMATIC HERO SECTION (NEW v2) --- */}
+        {/* --- HERO GRID SECTION --- */}
         {heroItems && heroItems.length > 0 && (
-          <div className="hero-container-v2 animate-fade-in">
+          <div className="hero-full-wrap animate-fade-in">
             {loading ? (
-               <HausSkeleton type="hero" />
+              <HausSkeleton type="hero" />
             ) : (
-              <div className="hero-slide-v2">
-                {/* Backdrop Ambient Blur Layer */}
-                <div 
-                  className="hero-ambient-bg" 
-                  style={{ backgroundImage: `url(${heroItems[heroIndex]?.image})` }}
-                />
-                
-                {/* High Quality Overlay Gradient */}
-                <div className="hero-overlay-v2" />
-
-                <div 
-                  className="hero-content-inner" 
-                  onClick={() => router.push(heroItems[heroIndex]?.link)}
-                  role="link"
-                  tabIndex={0}
-                  aria-label={`Ver detalles de ${heroItems[heroIndex]?.title || heroItems[heroIndex]?.name}`}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      router.push(heroItems[heroIndex]?.link);
-                    }
-                  }}
-                >
-                  {/* Left Side: Text Info */}
-                  <div className="hero-info-v2">
-                    <div className="hero-top-badges">
-                      <div className="hero-badge-item">
-                        <IonIcon icon={playCircleOutline} style={{ marginRight: '6px' }} />
-                        {heroItems[heroIndex]?.badge}
-                      </div>
-                      <div className="hero-badge-item status-badge">
-                        <IonIcon icon={checkmarkCircle} style={{ marginRight: '6px' }} />
-                        {heroItems[heroIndex]?.status}
-                      </div>
-                    </div>
-
-                    <h1 className="hero-title-v2">{heroItems[heroIndex]?.title || heroItems[heroIndex]?.name}</h1>
-                    <p className="hero-desc-v2">
-                      {heroItems[heroIndex]?.isTranslated && (
-                        <span style={{ color: 'var(--ion-color-secondary)', fontWeight: 800, fontSize: '0.7rem', marginRight: '6px' }}>✨ IA</span>
-                      )}
-                      {(heroItems[heroIndex]?.description || 'Sin descripción disponible.').substring(0, 160)}...
-                    </p>
-
-                    <div className="hero-actions-v2">
-                      <IonButton 
-                        className="hero-btn-primary"
-                        onClick={(e) => { 
-                          e.stopPropagation(); 
-                          const item = heroItems[heroIndex];
-                          router.push(item.type === 'anime' ? `/anime/${item.id}` : `/manga/${item.id}`); 
-                        }}
-                      >
-                        <IonIcon icon={playCircleOutline} slot="start" />
-                        {heroItems[heroIndex]?.type === 'anime' ? 'VER AHORA' : 'LEER AHORA'}
-                      </IonButton>
-                      <IonButton 
-                        fill="clear" 
-                        className="hero-btn-secondary"
-                        onClick={(e) => { 
-                          e.stopPropagation(); 
-                          router.push(heroItems[heroIndex]?.link); 
-                        }}
-                      >
-                        <IonIcon icon={personOutline} slot="start" />
-                        DETALLES
-                      </IonButton>
-                    </div>
-                  </div>
-
-                  {/* Right Side: High-Res Floating Poster (Responsive) */}
-                  <div className="hero-poster-v2">
-                    <div className="poster-inner-v2">
-                      <img src={heroItems[heroIndex]?.image} alt={heroItems[heroIndex]?.title} className="poster-img-v2" />
-                      <div className="poster-shine-v2" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Navigation Dots (Centered Bottom) */}
-                <div className="hero-dots-v2">
-                  {heroItems.map((_: any, idx: number) => (
-                    <div 
-                      key={idx} 
-                      className={`hero-dot ${idx === heroIndex ? 'active' : ''}`}
-                      onClick={(e) => { e.stopPropagation(); setHeroIndex(idx); }}
-                    />
-                  ))}
-                </div>
-
-                {/* Nav Arrows (Desktop Only) */}
-                <div className="hero-nav-arrows">
-                  <div className="nav-arrow-btn" onClick={(e) => { e.stopPropagation(); setHeroIndex((prev: any) => (prev > 0 ? prev - 1 : heroItems.length - 1)); }}>
-                    <IonIcon icon={chevronBackOutline} />
-                  </div>
-                  <div className="nav-arrow-btn" onClick={(e) => { e.stopPropagation(); setHeroIndex((prev: any) => (prev < heroItems.length - 1 ? prev + 1 : 0)); }}>
-                    <IonIcon icon={chevronForwardOutline} />
-                  </div>
-                </div>
-              </div>
+              <HeroGrid 
+                heroItems={heroItems}
+                onItemClick={(item) => {
+                  hapticsService.lightImpact();
+                  router.push(item.type === 'anime' ? `/anime/${item.id}` : `/manga/${item.id}`);
+                }}
+              />
             )}
           </div>
         )}
 
-
-
-
-        {loading ? (
-          <div className="animate-fade-in">
-            {[1, 2, 3, 4, 5, 6].map(i => (
-              <HausSkeleton key={i} type="list-item" />
-            ))}
-          </div>
-        ) : latest.length > 0 ? (
-          <div className="animate-fade-in">
-            {/* Latest Chapters Section */}
-            <div id="latest-section" className="section-header">
-              <div className="accent-bar" style={{ background: 'var(--ion-color-secondary)' }}></div>
-              <h2>{getTranslation('home.latest', lang)}</h2>
-            </div>
-            
-
-            {/* Language Filters */}
-          <div className="home-lang-filters">
-            {[
-              { code: 'all', label: '🌎 Mundial' },
-              { code: 'es', label: '🇪🇸 Español' },
-              { code: 'en', label: '🇺🇸 English' },
-              { code: 'pt-br', label: '🇧🇷 Português' },
-              { code: 'fr', label: '🇫🇷 Français' },
-              { code: 'it', label: '🇮🇹 Italiano' },
-              { code: 'de', label: '🇩🇪 Deutsch' },
-              { code: 'ru', label: '🇷🇺 Русский' },
-              { code: 'tr', label: '🇹🇷 Türkçe' },
-              { code: 'vi', label: '🇻🇳 Tiếng Việt' },
-              { code: 'th', label: '🇹🇭 ไทย' }
-            ].map(langCode => (
-              <IonChip 
-                key={langCode.code}
-                outline={latestLang !== langCode.code}
-                color={latestLang === langCode.code ? "primary" : "medium"}
-                onClick={() => setLatestLang(langCode.code as any)}
-              >
-                <IonLabel>{langCode.label}</IonLabel>
-              </IonChip>
-            ))}
-          </div>
-
-          {/* NEW: Type Filters (Global Expansion) */}
-          <div className="home-lang-filters type-filters">
-            {[
-              { id: 'all', label: '✨ Todos' },
-              { id: 'manga', label: '🇯🇵 Manga (JP)' },
-              { id: 'manhwa', label: '🇰🇷 Manhwa (KR)' },
-              { id: 'manhua', label: '🇨🇳 Manhua (CN)' },
-              { id: 'en', label: '🇺🇸 Western (OEL)' },
-              { id: 'fr', label: '🇫🇷 BD Française' }
-            ].map(type => (
-              <IonChip 
-                key={type.id}
-                outline={latestType !== type.id}
-                color={latestType === type.id ? "secondary" : "medium"}
-                onClick={() => setLatestType(type.id)}
-              >
-                <IonLabel>{type.label}</IonLabel>
-              </IonChip>
-            ))}
-          </div>
-
-            {/* Content Logic */}
-            {latest.length > 0 ? (
-              <div className="home-sections-combined">
-                <LatestUpdatesList 
-                  latest={latest} 
-                  onMangaClick={handleLatestClick} 
-                  lang={lang} 
-                />
+        <div className="home-layout-container">
+          {/* LEFT: MAIN CONTENT */}
+          <main className="main-content-column">
+            {loading ? (
+              <div className="animate-fade-in">
+                {[1, 2, 3].map(i => <HausSkeleton key={i} type="list-item" />)}
               </div>
+            ) : latestManga.length === 0 && latestManhwa.length === 0 ? (
+               <EmptyState 
+                emoji="📵"
+                title="Sin conexión"
+                subtitle="No se pudieron cargar novedades."
+                actionLabel="Reintentar"
+                onAction={() => fetchData(true)}
+              />
             ) : (
-              <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.7 }}>
-                <p>No se encontraron capítulos recientes.</p>
-                <IonButton fill="clear" onClick={() => fetchData(true)}>Reintentar</IonButton>
-              </div>
+              <>
+                <HomeSectionGrid 
+                  title="Últimos Mangas  " 
+                  icon={bookOutline}
+                  items={latestManga}
+                  onMangaClick={handleLatestClick}
+                  mangaProvider={mangaProvider}
+                  onViewAll={() => router.push('/search?type=manga')}
+                />
+
+                <HomeSectionGrid 
+                  title="Últimos Manhwas (Corea)  " 
+                  icon={bookOutline}
+                  items={latestManhwa}
+                  onMangaClick={handleLatestClick}
+                  mangaProvider={mangaProvider}
+                  onViewAll={() => router.push('/search?type=manhwa')}
+                />
+
+                <HomeSectionGrid 
+                  title="Últimos Manhuas (China)  " 
+                  icon={bookOutline}
+                  items={latestManhua}
+                  onMangaClick={handleLatestClick}
+                  mangaProvider={mangaProvider}
+                  onViewAll={() => router.push('/search?type=manhua')}
+                />
+              </>
             )}
-          </div>
-        ) : (
-          <EmptyState 
-            emoji="📵"
-            title="Estás fuera de línea"
-            subtitle="No se pudieron cargar novedades. Ve a tu biblioteca para leer tus capítulos descargados."
-            actionLabel="Ir a Descargas"
-            onAction={() => router.push('/library')}
-          />
-        )}
+          </main>
 
-        <IonInfiniteScroll threshold="100px" disabled={isDone} onIonInfinite={loadMoreLatest}>
-          <IonInfiniteScrollContent loadingSpinner="bubbles" loadingText="Cargando más capítulos..." />
-        </IonInfiniteScroll>
+          {/* RIGHT: SIDEBAR */}
+          <aside className="home-sidebar-column">
+            <TrendingGenres 
+              genres={['Acción', 'Aventura', 'Comedia', 'Drama', 'Fantasía', 'Romance', 'Ciencia Ficción', 'Terror']}
+              onGenreClick={(g) => router.push(`/search?genre=${g}`)}
+            />
 
-        <IonToast
-          isOpen={false}
-          message=""
-          duration={3000}
-          position="top"
-          className="custom-toast"
-          color="dark"
-        />
+            <SidebarRankings 
+              rankings={latest.slice(0, 10).map(m => ({
+                id: m.id,
+                title: mangaProvider.getLocalizedTitle(m),
+                cover: mangaProvider.getCoverUrl(m),
+                score: m.attributes?.averageRating || 8.5,
+                views: `${(Math.random() * 200).toFixed(1)}k views`
+              }))}
+              onItemClick={(id) => router.push(`/manga/${id}`)}
+            />
+          </aside>
+        </div>
 
+        {/* Infinite Scroll Removed for Performance - Managed in /search instead */}
       </IonContent>
+
+      <IonToast
+        isOpen={false}
+        message=""
+        duration={3000}
+        position="top"
+        className="custom-toast"
+        color="dark"
+      />
     </IonPage>
   );
 };

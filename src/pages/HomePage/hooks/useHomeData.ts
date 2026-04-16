@@ -44,36 +44,73 @@ export function useHomeData() {
     staleTime: 1000 * 60 * 60 * 6,
   });
 
-  // --- 3. LATEST UPDATES ---
-  const {
-    data: latestData,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading: loadingLatest,
-    refetch: refetchLatest
-  } = useInfiniteQuery({
-    queryKey: ['latest', currentSource, latestLang, latestType, showNSFW],
-    queryFn: ({ pageParam = 0 }) => 
-      mangaProvider.getLatestUpdatedManga(15, pageParam as number, latestLang, latestType, showNSFW),
-    initialPageParam: 0,
-    getNextPageParam: (lastPage: any, allPages: any[]) => {
-      const nextOffset = allPages.length * 15;
-      return lastPage.data?.length >= 10 ? nextOffset : undefined;
-    },
-    staleTime: 1000 * 60 * 5,
-    enabled: true, 
-  });
-
-  const latest = useMemo(() => {
-    const raw = latestData?.pages.flatMap(page => page.data || []) || [];
+  // --- 3. LATEST UPDATES BY CATEGORY (SILOS) ---
+  
+  const extractUnique = (rawList: any[]) => {
     const seen = new Set();
-    return raw.filter((m: any) => {
+    return rawList.filter((m: any) => {
       if (seen.has(m.id)) return false;
       seen.add(m.id);
       return true;
     });
-  }, [latestData]);
+  };
+
+  const {
+    data: rawManga,
+    isLoading: loadingManga,
+    refetch: refetchManga
+  } = useQuery({
+    queryKey: ['latestManga', currentSource, latestLang, showNSFW],
+    queryFn: async () => {
+      const res = await mangaProvider.getLatestUpdatedManga(12, 0, latestLang, 'manga', showNSFW);
+      return res.data || [];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const {
+    data: rawManhwa,
+    isLoading: loadingManhwa,
+    refetch: refetchManhwa
+  } = useQuery({
+    queryKey: ['latestManhwa', currentSource, latestLang, showNSFW],
+    queryFn: async () => {
+      const res = await mangaProvider.getLatestUpdatedManga(12, 0, latestLang, 'manhwa', showNSFW);
+      return res.data || [];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const {
+    data: rawManhua,
+    isLoading: loadingManhua,
+    refetch: refetchManhua
+  } = useQuery({
+    queryKey: ['latestManhua', currentSource, latestLang, showNSFW],
+    queryFn: async () => {
+      const res = await mangaProvider.getLatestUpdatedManga(12, 0, latestLang, 'manhua', showNSFW);
+      return res.data || [];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const latestManga = useMemo(() => extractUnique(rawManga || []), [rawManga]);
+  const latestManhwa = useMemo(() => extractUnique(rawManhwa || []), [rawManhwa]);
+  const latestManhua = useMemo(() => extractUnique(rawManhua || []), [rawManhua]);
+
+  const loadingLatest = loadingManga || loadingManhwa || loadingManhua;
+
+  // Interleave for Hero and Rankings to guarantee variety
+  const latest = useMemo(() => {
+    const mix = [];
+    const maxLen = Math.max(latestManga.length, latestManhwa.length, latestManhua.length);
+    for (let i = 0; i < maxLen; i++) {
+        if (latestManga[i]) mix.push(latestManga[i]);
+        if (latestManhwa[i]) mix.push(latestManhwa[i]);
+        if (latestManhua[i]) mix.push(latestManhua[i]);
+    }
+    return mix;
+  }, [latestManga, latestManhwa, latestManhua]);
 
   // --- HERO MIXED DATA ---
   const [heroItems, setHeroItems] = useState<any[]>([]);
@@ -136,6 +173,7 @@ export function useHomeData() {
                 updatedItem.description = full.description || updatedItem.description;
                 updatedItem.status = full.status || updatedItem.status;
                 updatedItem.image = full.image || updatedItem.image;
+                updatedItem.episodes = full.totalEpisodes;
              }
              const { text: desc, isTranslated } = await translationService.translateToSpanish(updatedItem.description || '');
              updatedItem.description = desc;
@@ -173,24 +211,26 @@ export function useHomeData() {
   const fetchData = useCallback(async (force = false) => {
     if (force) {
       await Promise.all([
-        refetchLatest(),
+        refetchManga(),
+        refetchManhwa(),
+        refetchManhua(),
         queryClient.invalidateQueries({ queryKey: ['trendingAnime'] }),
       ]);
     }
-  }, [refetchLatest, queryClient]);
+  }, [refetchManga, refetchManhwa, refetchManhua, queryClient]);
 
   const changeSource = useCallback((source: MangaSource) => {
     mangaProvider.setSource(source);
     setCurrentSource(source);
-    queryClient.invalidateQueries({ queryKey: ['latest'] });
+    queryClient.invalidateQueries({ queryKey: ['latestManga'] });
+    queryClient.invalidateQueries({ queryKey: ['latestManhwa'] });
+    queryClient.invalidateQueries({ queryKey: ['latestManhua'] });
   }, [queryClient]);
 
   const loadMoreLatest = useCallback(async (e: any) => {
-    if (hasNextPage && !isFetchingNextPage) {
-      await fetchNextPage();
-    }
+    // Disabled in Home. Infinite scroll is delegated to /search
     if (e && e.target) e.target.complete();
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+  }, []);
 
   // Hero rotation
   useEffect(() => {
@@ -237,8 +277,11 @@ export function useHomeData() {
     heroIndex,
     setHeroIndex,
     latest,
+    latestManga,
+    latestManhwa,
+    latestManhua,
     loading: loadingLatest,
-    isDone: !hasNextPage,
+    isDone: true, // Infinite scroll disabled for Home
     unreadNotifications,
     currentUser,
     showLoginHint,

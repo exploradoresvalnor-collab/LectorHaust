@@ -167,6 +167,7 @@ const SearchPage: React.FC = () => {
       </IonHeader>
 
       <IonContent className="ion-padding">
+        <div className="search-layout-container">
         {activeSegment === 'search' && (
           <div className="search-section animate-fade-in">
             <div className="search-header-container">
@@ -282,8 +283,9 @@ const SearchPage: React.FC = () => {
               </div>
             </div>
             
-            {/* Habilitar TrendingStrip en Búsqueda */}
-            <TrendingStrip items={trending} />
+            <div>
+              {/* Habilitar TrendingStrip en Búsqueda */}
+              <TrendingStrip items={trending} />
 
             {loading && offset === 0 ? (
               <LoadingScreen />
@@ -291,13 +293,33 @@ const SearchPage: React.FC = () => {
               <>
                 <IonGrid className="search-results-grid">
                   <IonRow>
-                    {results.map((manga: any) => (
-                      <IonCol size="6" sizeSm="4" sizeMd="3" sizeLg="2" key={manga.id}>
+                    {results.filter((m: any) => (m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber || 1) > 0).map((manga: any) => (
+                      <IonCol size="6" sizeSm="6" sizeMd="4" style={{ flex: '0 0 20%', maxWidth: '20%' }} className="ion-hide-md-down" key={manga.id}>
                         <MangaCard 
                           title={mangaProvider.getLocalizedTitle(manga)}
                           coverUrl={mangaProvider.getCoverUrl(manga)}
                           format={manga.attributes.originalLanguage}
                           sources={manga.sources || []}
+                          status={mangaProvider.getLocalizedStatus(manga)}
+                          chapters={manga.attributes.calculatedTotalChapters || manga.attributes.lastChapter || manga.attributes.latestChapterNumber}
+                          tags={manga.attributes.tags
+                            ?.filter((t: any) => t.attributes?.group === 'genre')
+                            .slice(0, 2)
+                            .map((t: any) => t.attributes?.name?.en || t.attributes?.name?.es || '')}
+                          onClick={() => router.push(`/manga/${manga.id}`)}
+                        />
+                      </IonCol>
+                    ))}
+                    {/* Fallback for MD down using standard Ionic sizes */}
+                    {results.filter((m: any) => (m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber || 1) > 0).map((manga: any) => (
+                      <IonCol size="6" sizeSm="6" sizeMd="4" className="ion-hide-lg-up" key={manga.id + '_mobile'}>
+                        <MangaCard 
+                          title={mangaProvider.getLocalizedTitle(manga)}
+                          coverUrl={mangaProvider.getCoverUrl(manga)}
+                          format={manga.attributes.originalLanguage}
+                          sources={manga.sources || []}
+                          status={mangaProvider.getLocalizedStatus(manga)}
+                          chapters={manga.attributes.calculatedTotalChapters || manga.attributes.lastChapter || manga.attributes.latestChapterNumber}
                           tags={manga.attributes.tags
                             ?.filter((t: any) => t.attributes?.group === 'genre')
                             .slice(0, 2)
@@ -313,6 +335,7 @@ const SearchPage: React.FC = () => {
                 </IonInfiniteScroll>
               </>
             )}
+            </div>
           </div>
         )}
 
@@ -341,7 +364,7 @@ const SearchPage: React.FC = () => {
               <IonGrid className="search-results-grid">
                 <IonRow>
                   {Array.from({ length: 12 }).map((_, i) => (
-                     <IonCol size="6" sizeSm="4" sizeMd="3" key={i}>
+                     <IonCol size="6" sizeSm="6" sizeMd="4" sizeLg="3" key={i}>
                        <div style={{ padding: '0 8px' }}>
                           <IonSkeletonText animated style={{ height: '220px', borderRadius: '15px' }} />
                           <IonSkeletonText animated style={{ width: '80%', height: '14px', marginTop: '8px', borderRadius: '4px' }} />
@@ -355,13 +378,32 @@ const SearchPage: React.FC = () => {
               <>
                 <IonGrid>
                   <IonRow>
-                    {trending.map(m => (
-                      <IonCol size="6" sizeSm="4" sizeMd="3" sizeLg="2" key={m.id}>
+                    {trending.filter((m: any) => (m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber || 1) > 0).map(m => (
+                      <IonCol size="6" sizeSm="6" sizeMd="4" style={{ flex: '0 0 20%', maxWidth: '20%' }} className="ion-hide-md-down" key={m.id}>
                         <MangaCard 
                           title={mangaProvider.getLocalizedTitle(m)}
                           coverUrl={mangaProvider.getCoverUrl(m)}
                           format={m.attributes.originalLanguage}
                           sources={m.sources || []}
+                          status={mangaProvider.getLocalizedStatus(m)}
+                          chapters={m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber}
+                          tags={m.attributes.tags
+                            ?.filter((t: any) => t.attributes?.group === 'genre')
+                            .slice(0, 2)
+                            .map((t: any) => t.attributes?.name?.en || t.attributes?.name?.es || '')}
+                          onClick={() => router.push(`/manga/${m.id}`)}
+                        />
+                      </IonCol>
+                    ))}
+                    {trending.filter((m: any) => (m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber || 1) > 0).map(m => (
+                      <IonCol size="6" sizeSm="6" sizeMd="4" className="ion-hide-lg-up" key={m.id + '_mobile'}>
+                        <MangaCard 
+                          title={mangaProvider.getLocalizedTitle(m)}
+                          coverUrl={mangaProvider.getCoverUrl(m)}
+                          format={m.attributes.originalLanguage}
+                          sources={m.sources || []}
+                          status={mangaProvider.getLocalizedStatus(m)}
+                          chapters={m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber}
                           tags={m.attributes.tags
                             ?.filter((t: any) => t.attributes?.group === 'genre')
                             .slice(0, 2)
@@ -405,13 +447,32 @@ const SearchPage: React.FC = () => {
             ) : (
               <IonGrid>
                 <IonRow>
-                  {suggestions.map((m: any) => (
-                    <IonCol size="6" sizeSm="4" sizeMd="3" sizeLg="2" key={m.id}>
+                  {suggestions.filter((m: any) => (m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber || 1) > 0).map((m: any) => (
+                    <IonCol size="6" sizeSm="6" sizeMd="4" style={{ flex: '0 0 20%', maxWidth: '20%' }} className="ion-hide-md-down" key={m.id}>
                       <MangaCard 
                         title={mangaProvider.getLocalizedTitle(m)}
                         coverUrl={mangaProvider.getCoverUrl(m)}
                         format={m.attributes.originalLanguage}
                         sources={m.sources || []}
+                        status={mangaProvider.getLocalizedStatus(m)}
+                        chapters={m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber}
+                        tags={m.attributes.tags
+                          ?.filter((t: any) => t.attributes?.group === 'genre')
+                          .slice(0, 2)
+                          .map((t: any) => t.attributes?.name?.en || t.attributes?.name?.es || '')}
+                        onClick={() => router.push(`/manga/${m.id}`)}
+                      />
+                    </IonCol>
+                  ))}
+                  {suggestions.filter((m: any) => (m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber || 1) > 0).map((m: any) => (
+                    <IonCol size="6" sizeSm="6" sizeMd="4" className="ion-hide-lg-up" key={m.id + '_mobile'}>
+                      <MangaCard 
+                        title={mangaProvider.getLocalizedTitle(m)}
+                        coverUrl={mangaProvider.getCoverUrl(m)}
+                        format={m.attributes.originalLanguage}
+                        sources={m.sources || []}
+                        status={mangaProvider.getLocalizedStatus(m)}
+                        chapters={m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber}
                         tags={m.attributes.tags
                           ?.filter((t: any) => t.attributes?.group === 'genre')
                           .slice(0, 2)
@@ -511,7 +572,7 @@ const SearchPage: React.FC = () => {
               <IonGrid className="search-results-grid" style={{ marginTop: '15px' }}>
                 <IonRow>
                   {Array.from({ length: 12 }).map((_, i) => (
-                     <IonCol size="6" sizeSm="4" sizeMd="3" sizeLg="2" key={i}>
+                     <IonCol size="6" sizeSm="6" sizeMd="4" sizeLg="3" key={i}>
                        <div className="skeleton-card">
                           <IonSkeletonText animated className="skeleton-img" />
                           <IonSkeletonText animated className="skeleton-text-main" />
@@ -525,14 +586,31 @@ const SearchPage: React.FC = () => {
               <div className="results-container animate-fade-in-up">
                 <IonGrid>
                   <IonRow>
-                    {completedManga.map((manga: any) => (
-                      <IonCol size="6" sizeSm="4" sizeMd="3" sizeLg="2" key={manga.id}>
+                    {completedManga.filter((m: any) => (m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber || 1) > 0).map((manga: any) => (
+                      <IonCol size="6" sizeSm="6" sizeMd="4" style={{ flex: '0 0 20%', maxWidth: '20%' }} className="ion-hide-md-down" key={manga.id}>
                         <div className="card-hover-wrapper">
                           <MangaCard 
                             title={mangaProvider.getLocalizedTitle(manga)}
                             coverUrl={mangaProvider.getCoverUrl(manga)}
                             format={manga.attributes.mangaType || manga.attributes.originalLanguage}
                             sources={manga.sources || []}
+                            status={mangaProvider.getLocalizedStatus(manga)}
+                            chapters={manga.attributes.calculatedTotalChapters || manga.attributes.lastChapter || manga.attributes.latestChapterNumber}
+                            onClick={() => router.push(`/manga/${manga.id}`)}
+                          />
+                        </div>
+                      </IonCol>
+                    ))}
+                    {completedManga.filter((m: any) => (m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber || 1) > 0).map((manga: any) => (
+                      <IonCol size="6" sizeSm="6" sizeMd="4" className="ion-hide-lg-up" key={manga.id + '_mobile'}>
+                        <div className="card-hover-wrapper">
+                          <MangaCard 
+                            title={mangaProvider.getLocalizedTitle(manga)}
+                            coverUrl={mangaProvider.getCoverUrl(manga)}
+                            format={manga.attributes.mangaType || manga.attributes.originalLanguage}
+                            sources={manga.sources || []}
+                            status={mangaProvider.getLocalizedStatus(manga)}
+                            chapters={manga.attributes.calculatedTotalChapters || manga.attributes.lastChapter || manga.attributes.latestChapterNumber}
                             onClick={() => router.push(`/manga/${manga.id}`)}
                           />
                         </div>
@@ -547,6 +625,7 @@ const SearchPage: React.FC = () => {
             )}
           </div>
         )}
+        </div>
       </IonContent>
     </IonPage>
   );

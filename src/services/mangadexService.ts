@@ -560,41 +560,75 @@ export const mangadexService = {
     },
 
     async getLatestUpdatedManga(limit = 12, offset = 0, lang = 'es', type = 'all', allowNSFW = false) {
-        // Mode 1: Manga-first (Best for filtered views like Manhwa/Manhua)
+        // HAUS INTELLIGENCE FIX: Mode 1: Chapter-first (Filtered by origin)
+        // Ensures we actually get the translated chapter number instead of '?'
         if (type !== 'all') {
             const typeValue = type.toLowerCase();
-            // If it's a known mapping key (manga, manhwa, manhua), use the code. 
-            // Otherwise, assume it's already an origin code (ja, ko, zh, fr, etc.)
             const typeMap: Record<string, string> = { 'manga': 'ja', 'manhwa': 'ko', 'manhua': 'zh' };
             const targetOrigin = typeMap[typeValue] || typeValue;
             
-            let url = `/manga?limit=${limit}&offset=${offset}&hasAvailableChapters=true&includes[]=cover_art&includes[]=author&order[latestUploadedChapter]=desc&originalLanguage[]=${targetOrigin}`;
+            const fetchLimit = 100;
+            let url = `/chapter?limit=${fetchLimit}&offset=${offset}&order[readableAt]=desc&includes[]=manga&originalLanguage[]=${targetOrigin}`;
             url += this.getContentRatingParams(allowNSFW);
             
             if (lang === 'all') {
                 // World mode: No language filter
             } else if (lang === 'es') {
-                url += `&availableTranslatedLanguage[]=es&availableTranslatedLanguage[]=es-la`;
+                url += `&translatedLanguage[]=es&translatedLanguage[]=es-la`;
             } else if (lang) {
-                url += `&availableTranslatedLanguage[]=${lang}`;
+                url += `&translatedLanguage[]=${lang}`;
             }
 
             try {
                 const resp = await apiFetch(url);
-                const mangas = resp.data || [];
+                const chapters = resp.data || [];
                 
-                // Add mangaType and placeholder for compatibility
-                return {
-                    data: mangas.map((m: any) => ({
-                        ...m,
-                        attributes: {
-                            ...m.attributes,
-                            mangaType: this.getMangaType(m)
-                        }
-                    }))
-                };
+                const seenMangaIds = new Set<string>();
+                const mangaIdToChapterData: Record<string, { readableAt: string, chapter: string, lang: string }> = {};
+
+                for (const chapter of chapters) {
+                    const mangaRel = chapter.relationships.find((r: any) => r.type === 'manga');
+                    const isExternal = !!chapter.attributes.externalUrl;
+                    
+                    if (!mangaRel || seenMangaIds.has(mangaRel.id) || isExternal) continue;
+
+                    seenMangaIds.add(mangaRel.id);
+                    mangaIdToChapterData[mangaRel.id] = {
+                        readableAt: chapter.attributes.readableAt,
+                        chapter: chapter.attributes.chapter,
+                        lang: chapter.attributes.translatedLanguage
+                    };
+                }
+
+                const uniqueIds = Array.from(seenMangaIds);
+                if (uniqueIds.length === 0) return { data: [] };
+
+                let mangaUrl = `/manga?limit=${Math.min(uniqueIds.length, 50)}&includes[]=cover_art&includes[]=author`;
+                uniqueIds.slice(0, 50).forEach(id => mangaUrl += `&ids[]=${id}`);
+                
+                const mangaResp = await apiFetch(mangaUrl);
+                const fullMangas = mangaResp.data || [];
+
+                const mergedMangas = fullMangas.map((manga: any) => ({
+                    ...manga,
+                    attributes: {
+                        ...manga.attributes,
+                        latestChapterReadableAt: mangaIdToChapterData[manga.id]?.readableAt,
+                        latestChapterNumber: mangaIdToChapterData[manga.id]?.chapter,
+                        latestChapterLang: mangaIdToChapterData[manga.id]?.lang,
+                        mangaType: this.getMangaType(manga)
+                    }
+                }));
+
+                const sorted = mergedMangas.sort((a: any, b: any) => {
+                    const dateA = new Date(a.attributes.latestChapterReadableAt).getTime();
+                    const dateB = new Date(b.attributes.latestChapterReadableAt).getTime();
+                    return dateB - dateA;
+                });
+
+                return { data: sorted.slice(0, limit) };
             } catch (err) {
-                console.error('Error fetching filtered latest manga:', err);
+                console.error('Error fetching filtered chapter-first latest manga:', err);
                 return { data: [] };
             }
         }

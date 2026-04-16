@@ -530,6 +530,12 @@ export const mangaProvider = {
         return titles['en'] || titles['es-la'] || titles['es'] || titles['ja-ro'] || Object.values(titles)[0] || 'Desconocido';
     },
 
+    getLocalizedStatus(manga: any) {
+        if (!manga?.attributes?.status) return 'En emisión';
+        const s = manga.attributes.status;
+        return s === 'completed' || s === 'finalizado' ? 'Finalizado' : 'En emisión';
+    },
+
     getLocalizedDescription(manga: any) {
         if (!manga?.attributes?.description) return '';
         const desc = manga.attributes.description;

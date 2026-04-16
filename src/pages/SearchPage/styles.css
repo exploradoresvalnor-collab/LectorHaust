@@ -661,7 +661,7 @@ ion-segment-button.segment-button-checked {
 
 .search-results-grid {
     padding-bottom: calc(90px + env(safe-area-inset-bottom));
-    --ion-grid-column-padding: 8px; /* More space between columns */
+    --ion-grid-column-padding: 10px; /* Better lateral breathing room */
 }
 
 /* Also ensure regular grids in search results have gaps */
@@ -670,7 +670,7 @@ ion-segment-button.segment-button-checked {
 }
 
 .search-results-grid ion-row {
-    margin: 0 -8px; /* Offset the extra padding */
+    margin: 0 -10px; /* Precise offset for breathing room */
 }
 
 .completed-filters-bar {
@@ -758,3 +758,11 @@ ion-segment-button.segment-button-checked {
     font-size: 1.4rem;
     letter-spacing: -0.5px;
 }
+
+/* Master Layout Constraints */
+.search-layout-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+}
+

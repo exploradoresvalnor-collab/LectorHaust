@@ -1,5 +1,4 @@
 import React from 'react';
-import { IonCard, IonCardContent, IonText } from '@ionic/react';
 import { mangadexService } from '../services/mangadexService';
 import SmartImage from './SmartImage';
 import './MangaCard.css';
@@ -10,61 +9,80 @@ interface MangaCardProps {
   format?: string;
   tags?: string[];
   progressLabel?: string;
-  sources?: string[]; // New: List of sources (MangaDex, WeebCentral, etc.)
+  sources?: string[]; 
   onClick?: () => void;
+  rating?: number;
+  status?: string;
+  chapters?: number | string;
+  mangaType?: string;
 }
 
-const MangaCard: React.FC<MangaCardProps> = ({ title, coverUrl, format, tags = [], progressLabel, sources = [], onClick }) => {
+const MangaCard: React.FC<MangaCardProps> = ({ 
+  title, 
+  coverUrl, 
+  format, 
+  tags = [], 
+  progressLabel, 
+  sources = [], 
+  onClick,
+  rating,
+  status,
+  chapters,
+  mangaType
+}) => {
   const getBadgeInfo = () => {
-    if (!format) return null;
-    const lowerFormat = format.toLowerCase();
-    
-    // Check if it's already a full label from our service
-    if (['webtoon', 'manhwa', 'manhua', 'manga'].includes(lowerFormat)) {
-      return { label: format.toUpperCase(), class: lowerFormat };
+    const lowerType = (mangaType || format || '').toLowerCase();
+    if (['webtoon', 'manhwa', 'manhua', 'manga', 'one-shot'].includes(lowerType)) {
+      return { label: lowerType.toUpperCase(), class: lowerType };
     }
-
-    switch(lowerFormat) {
-      case 'ja': return { label: 'MANGA', class: 'manga' };
-      case 'ko': return { label: 'MANHWA', class: 'manhwa' };
-      case 'zh': return { label: 'MANHUA', class: 'manhua' };
-      case 'en': return { label: 'COMIC', class: 'comic' };
-      default: return null;
-    }
+    return { label: 'MANGA', class: 'manga' };
   };
 
   const badge = getBadgeInfo();
 
   return (
-    <div className="manga-card-pro animate-fade-in" onClick={onClick}>
-      <div className="card-media">
-        <SmartImage 
-          src={coverUrl.includes('res.cloudinary.com') || coverUrl.includes('anilist.co') || coverUrl.includes('s4.anilist.co') || coverUrl.includes('manga-proxy.mchaustman') ? coverUrl : mangadexService.getOptimizedUrl(coverUrl)} 
-          alt={title} 
-          className="card-img" 
-          width={150}
-          height={225}
-        />
-        
-        {/* Omni-Source Indicators (Haus Intel v3) */}
-        {sources.length > 0 && (
-          <div className="card-sources-indicator">
-            {sources.map(src => {
-               const label = src === 'mangadex' ? 'MD' : src === 'weebcentral' ? 'WC' : src === 'mangapill' ? 'MP' : 'MW';
-               return <span key={src} className={`source-pip src-${src}`}>{label}</span>;
-            })}
+    <div className="manga-card-tmo-wrapper" onClick={onClick}>
+      <div className="manga-card-tmo animate-fade-in">
+        <div className="card-thumb-column">
+          <SmartImage 
+            src={coverUrl} 
+            alt={title} 
+            className="thumb-img" 
+            width={110}
+            height={160}
+          />
+          <div className="card-rating-pill">
+            <span className="star-icon">★</span>
+            <span className="rating-num">{(rating as number || 8.5).toFixed(2)}</span>
           </div>
-        )}
-        <div className="card-overlay">
-          <div className="card-content-bottom">
-            <div className="card-tags-container">
-              {badge && <span className={`card-tag ${badge.class}`}>{badge.label}</span>}
-              {progressLabel && <span className="card-tag read">{progressLabel}</span>}
-              {tags.map((tag, i) => (
-                <span key={i} className="card-genre-tag">{tag}</span>
+        </div>
+
+        <div className="card-info-column">
+          <h3 className="card-title-tmo">{title}</h3>
+          
+          <div className="card-metadata-lines">
+            <div className="meta-line">
+              <span className="meta-label">Estado</span>
+              <span className={`meta-value status-badge ${status?.toLowerCase().includes('en emisión') ? 'emision' : 'finalizado'}`}>
+                {status || 'En emisión'}
+              </span>
+            </div>
+            
+            <div className="meta-line">
+              <span className="meta-label">Capítulos</span>
+              <span className="meta-value chapters-count">{chapters || '??'}</span>
+            </div>
+            
+            <div className="meta-genres-row">
+              {tags.slice(0, 3).map((tag, i) => (
+                <span key={i} className="genre-label">{tag}</span>
               ))}
             </div>
-            <h3 className="card-title-pro">{title}</h3>
+          </div>
+
+          <div className="card-footer-tags">
+            <span className="tag-pill category-pill">Shounen</span>
+            <span className={`tag-pill type-pill ${badge.class}`}>{badge.label}</span>
           </div>
         </div>
       </div>

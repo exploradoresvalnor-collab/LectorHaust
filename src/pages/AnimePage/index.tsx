@@ -189,6 +189,7 @@ const AnimePage: React.FC = () => {
           <IonRefresherContent />
         </IonRefresher>
 
+        <div className="search-layout-container">
         {query.length > 2 ? (
            <div className="search-overlay animate-fade-in" style={{ padding: '20px 15px', minHeight: '100vh', background: '#0f1014' }}>
             
@@ -210,7 +211,16 @@ const AnimePage: React.FC = () => {
               <IonGrid className="anime-grid-v">
                 <IonRow className="anime-row-v">
                   {searchResults.map((anime, idx) => (
-                    <IonCol size="6" sizeSm="4" sizeMd="3" key={anime.id} className="anime-col-v">
+                    <IonCol size="6" sizeSm="6" sizeMd="4" style={{ flex: '0 0 20%', maxWidth: '20%' }} className="ion-hide-md-down" key={anime.id}>
+                       <AnimeCardItem 
+                          anime={anime} 
+                          onClick={() => router.push(`/anime/${anime.id}`, 'forward', 'push', { anime } as any)}
+                          index={idx}
+                       />
+                    </IonCol>
+                  ))}
+                  {searchResults.map((anime, idx) => (
+                    <IonCol size="6" sizeSm="6" sizeMd="4" className="ion-hide-lg-up" key={anime.id + '_mobile'}>
                        <AnimeCardItem 
                           anime={anime} 
                           onClick={() => router.push(`/anime/${anime.id}`, 'forward', 'push', { anime } as any)}
@@ -291,7 +301,17 @@ const AnimePage: React.FC = () => {
                     <IonGrid className="anime-grid-v">
                       <IonRow className="anime-row-v">
                         {(activeFilter === 'all' ? latestEpisodes : latinoAnimes).map((ep, idx) => (
-                          <IonCol size="6" sizeSm="4" sizeMd="3" className="anime-col-5 anime-col-v" key={'ep-'+(ep.id || ep.animeId)+idx+'-'+activeFilter}>
+                          <IonCol size="6" sizeSm="6" sizeMd="4" style={{ flex: '0 0 20%', maxWidth: '20%' }} className="ion-hide-md-down" key={'ep-'+(ep.id || ep.animeId)+idx+'-desktop'}>
+                            <AnimeCardItem 
+                              anime={{ ...ep, id: ep.animeId || ep.id, title: ep.animeName || ep.title, image: ep.animePoster || ep.image, hasSub: true }} 
+                              onClick={() => router.push(`/anime/${ep.animeId || ep.id}`, 'forward', 'push', { anime: ep } as any)}
+                              index={idx}
+                              showEpisode={true}
+                            />
+                          </IonCol>
+                        ))}
+                        {(activeFilter === 'all' ? latestEpisodes : latinoAnimes).map((ep, idx) => (
+                          <IonCol size="6" sizeSm="6" sizeMd="4" className="ion-hide-lg-up" key={'ep-'+(ep.id || ep.animeId)+idx+'-mobile'}>
                             <AnimeCardItem 
                               anime={{ ...ep, id: ep.animeId || ep.id, title: ep.animeName || ep.title, image: ep.animePoster || ep.image, hasSub: true }} 
                               onClick={() => router.push(`/anime/${ep.animeId || ep.id}`, 'forward', 'push', { anime: ep } as any)}
@@ -320,6 +340,7 @@ const AnimePage: React.FC = () => {
             </div>
           </>
         )}
+        </div>
       </IonContent>
     </IonPage>
   );
