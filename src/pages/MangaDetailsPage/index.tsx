@@ -130,45 +130,31 @@ const MangaDetailsPage: React.FC = () => {
     const verify = async () => {
       setLoadingRecs(true);
       const edges = aniData.recommendations.edges.slice(0, 10);
-      const results: any[] = [];
-      // Process more in parallel for speed, but keep a small batching to be safe
-      const batchSize = 6; 
-
-      for (let i = 0; i < edges.length; i += batchSize) {
-        const batch = edges.slice(i, i + batchSize);
-        const batchResults = await Promise.all(
-          batch.map(async (edge: any) => {
-            const rec = edge.node.mediaRecommendation;
-            if (!rec) return null;
-            const title = rec.title.english || rec.title.romaji || rec.title.native;
-            try {
-              const verified = await mangaProvider.fetchVerifiedRecommendation(title, showNSFW);
-              if (verified && verified.hasChapters && !cancelled) {
-                return {
-                  aniId: rec.id,
-                  mdId: verified.id,
-                  title: title,
-                  coverImage: rec.coverImage.large,
-                  score: rec.averageScore
-                };
-              }
-            } catch { return null; }
-            return null;
-          })
-        );
-        
-        if (cancelled) return;
-        const filtered = batchResults.filter(Boolean);
-        results.push(...filtered);
-        
-        if (results.length > 0) {
-          setVerifiedRecs([...results]);
-          setLoadingRecs(false);
-        }
-      }
-
+      // ⚠️ PARALLELIZED: Process ALL recommendations in parallel instead of batches
+      const batchResults = await Promise.all(
+        edges.map(async (edge: any) => {
+          const rec = edge.node.mediaRecommendation;
+          if (!rec) return null;
+          const title = rec.title.english || rec.title.romaji || rec.title.native;
+          try {
+            const verified = await mangaProvider.fetchVerifiedRecommendation(title, showNSFW);
+            if (verified && verified.hasChapters && !cancelled) {
+              return {
+                aniId: rec.id,
+                mdId: verified.id,
+                title: title,
+                coverImage: rec.coverImage.large,
+                score: rec.averageScore
+              };
+            }
+          } catch { return null; }
+          return null;
+        })
+      );
+      
+      const filtered = batchResults.filter(Boolean);
       if (!cancelled) {
-        setVerifiedRecs(results);
+        setVerifiedRecs(filtered);
         setLoadingRecs(false);
       }
     };
@@ -193,10 +179,41 @@ const MangaDetailsPage: React.FC = () => {
     }
   }, [chapters, chapterOrder, queryClient]);
 
-  if (loading) {
+  // ✨ PROGRESSIVE LOADING: Mostrar esqueletos en lugar de fullpage spinner
+  if (loading && !initialData) {
     return (
       <IonPage>
         <LoadingScreen />
+      </IonPage>
+    );
+  }
+  
+  // Si tenemos initialData pero aún cargando detalles, mostrar skeleton del hero
+  if (loading && initialData && !manga) {
+    return (
+      <IonPage>
+        <IonHeader className="ion-no-border">
+          <IonToolbar className="glass-effect">
+            <IonButtons slot="start">
+              <IonBackButton defaultHref="/home" />
+            </IonButtons>
+            <IonTitle>Cargando...</IonTitle>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent>
+          <div className="manga-header-bg skeleton-hero-placeholder">
+            <div className="overlay-gradient"></div>
+            <div className="details-header-content">
+              <div style={{ width: '180px', height: '260px', borderRadius: '20px', background: 'rgba(255,255,255,0.1)' }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ height: '20px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', marginBottom: '15px', width: '60%', animation: 'pulse 1.5s infinite' }} />
+                <div style={{ height: '40px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', marginBottom: '15px', animation: 'pulse 1.5s infinite' }} />
+                <div style={{ height: '16px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', marginBottom: '10px', animation: 'pulse 1.5s infinite' }} />
+                <div style={{ height: '16px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', marginBottom: '10px', width: '80%', animation: 'pulse 1.5s infinite' }} />
+              </div>
+            </div>
+          </div>
+        </IonContent>
       </IonPage>
     );
   }
@@ -341,8 +358,8 @@ const MangaDetailsPage: React.FC = () => {
       </IonHeader>
 
       <IonContent>
-        {/* Dynamic Cinematic Header */}
-        <div className="manga-header-bg">
+        {/* Dynamic Cinematic Header - Progressive Loading */}
+        <div className="manga-header-bg" style={{ animation: 'fadeIn 0.3s ease-in' }}>
           {/* Optimized Banner Image for LCP */}
           <img 
             src={mangaProvider.getOptimizedUrl(aniData?.bannerImage || coverUrl)} 
@@ -634,18 +651,18 @@ const MangaDetailsPage: React.FC = () => {
 
           <div className="chapters-container">
             {loadingChapters ? (
-              <IonList className="skeleton-list">
-                {[1, 2, 3, 4, 5].map(i => (
+              <IonList className="skeleton-list" style={{ animation: 'fadeIn 0.3s ease-in' }}>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
                   <IonItem key={i} lines="none" className="skeleton-item">
                     <IonLabel>
-                      <IonSkeletonText animated style={{ width: '80%', height: '20px' }} />
-                      <IonSkeletonText animated style={{ width: '40%', height: '14px' }} />
+                      <IonSkeletonText animated style={{ width: '75%', height: '18px', marginBottom: '8px' }} />
+                      <IonSkeletonText animated style={{ width: '45%', height: '13px' }} />
                     </IonLabel>
                   </IonItem>
                 ))}
               </IonList>
             ) : chapters.length > 0 ? (
-              <div className="chapters-list-view">
+              <div className="chapters-list-view" style={{ animation: 'fadeIn 0.4s ease-in' }}>
                 {chapters.map((chapter: any) => {
                   const scanlationGroupRel = chapter.relationships?.find((r: any) => r.type === 'scanlation_group');
                   const scanlationGroupName = scanlationGroupRel?.attributes?.name;

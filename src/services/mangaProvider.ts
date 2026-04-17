@@ -658,7 +658,7 @@ export const mangaProvider = {
 
                 // Race with a 12s timeout to prevent infinite loading
                 const timeoutPromise = new Promise<any[][]>(resolve => 
-                    setTimeout(() => resolve(searchPromises.map(() => [])), 12000)
+                    setTimeout(() => resolve(searchPromises.map(() => [])), 25000)
                 );
 
                 const results = await Promise.race([
