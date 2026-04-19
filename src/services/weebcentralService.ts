@@ -145,6 +145,29 @@ export const weebcentralService = {
     };
   },
 
+  async getChapter(chapterId: string): Promise<any> {
+    const parts = chapterId.replace('wc:', '').split('$');
+    const id = parts.length > 2 ? parts[2] : parts[0]; 
+    return {
+      data: {
+        id: chapterId,
+        type: 'chapter',
+        attributes: {
+          chapter: parts.length > 2 ? parts[2].split('-')[1] || '1' : '1', 
+          title: `Chapter ${id}`,
+          translatedLanguage: 'en'
+        },
+        relationships: [
+          { 
+            id: `wc:${parts[0]}$${parts[1]}`, 
+            type: 'manga',
+            attributes: { originalLanguage: 'ko' } 
+          }
+        ]
+      }
+    };
+  },
+
   async getChapterPages(fullChapterId: string) {
     const parts = fullChapterId.replace('wc:', '').split('$');
     const id = parts.length > 2 ? parts[2] : parts[0]; 

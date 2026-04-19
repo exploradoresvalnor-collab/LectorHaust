@@ -59,6 +59,7 @@ const AnimeDetailsPage: React.FC = () => {
   const epListRef = useRef<HTMLDivElement>(null);
 
   const [anime, setAnime] = useState<any | null>(null);
+  const [initialData, setInitialData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedEpisode, setSelectedEpisode] = useState<any>(null);
   const [showPlayer, setShowPlayer] = useState(false);
@@ -93,9 +94,11 @@ const AnimeDetailsPage: React.FC = () => {
     
     // Use navigation data as instant preview while fetching fresh data
     if (navData) {
+      setInitialData(navData);  // Store for skeleton display
       setAnime(navData);
-      setLoading(false);
+      setLoading(true);  // Still loading fresh data
     } else {
+      setInitialData(null);
       setAnime(null);
       setLoading(true);
     }
@@ -219,7 +222,42 @@ const AnimeDetailsPage: React.FC = () => {
     setShowPlayer(true);
   };
 
-  if (loading) return <IonPage><LoadingScreen /></IonPage>;
+  // Progressive loading: show full spinner only if NO initial data
+  if (loading && !initialData) {
+    return <IonPage><LoadingScreen /></IonPage>;
+  }
+  
+  // Show skeleton hero while loading details
+  if (loading && initialData && !anime) {
+    return (
+      <IonPage>
+        <IonHeader className="ion-no-border glass-effect-header">
+          <IonToolbar>
+            <IonButtons slot="start">
+              <IonBackButton defaultHref="/anime" style={{ color: 'white' }} />
+            </IonButtons>
+            <IonTitle style={{ color: 'white' }}>Anime</IonTitle>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent fullscreen className="anime-content-bg">
+          <div className="anime-hero-skeleton skeleton-hero-placeholder" style={{ animation: 'pulse 1.5s infinite' }}>
+            <div style={{ width: '100%', height: '300px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px' }} />
+          </div>
+          <div className="anime-episodes-skeleton" style={{ padding: '20px' }}>
+            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+              <div key={i} style={{
+                height: '60px',
+                background: 'rgba(255,255,255,0.05)',
+                borderRadius: '8px',
+                marginBottom: '12px',
+                animation: 'pulse 1.5s infinite'
+              }} />
+            ))}
+          </div>
+        </IonContent>
+      </IonPage>
+    );
+  }
   if (!anime) return <IonPage><IonContent className="anime-content-bg"><div style={{padding:'20px', textAlign:'center', color:'white'}}>Anime no encontrado</div></IonContent></IonPage>;
 
   return (

@@ -228,8 +228,8 @@ export function useMangaReader(chapterId?: string) {
           // Si el progreso existe, pertenece a ESTE MISMO capítulo y es mayor a la página 1
           if (savedProgress && savedProgress.chapterId === chapterId && savedProgress.pageIndex > 1) {
              let targetPage = savedProgress.pageIndex - 1; // Convertir de vuelta a base 0
-             // Evitar errores si la página guardada es mayor al total de páginas
-             if (targetPage >= finalPagesCount) targetPage = finalPagesCount - 1;
+             // Evitar errores si la página guardada es mayor al total de páginas o es negativa
+             if (targetPage >= finalPagesCount) targetPage = Math.max(0, finalPagesCount - 1);
              
              setCurrentMangaPage(targetPage);
              currentPageIndex.current = targetPage;

@@ -56,6 +56,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const episodeNumber = Number(episode.number);
   const episodeId = episode.id;
 
+  // 🛡️ Validar que la URL no sea maliciosa o tenga publicidad
+  const isCleanUrl = (url: string): boolean => {
+    const maliciousDomains = [
+      'ads.', 'advertising.', 'adserver.', 'doubleclick.',
+      'porn', 'xxx', 'adult', 'leaked', '18+',
+      'clickbait', 'redirect', 'malware'
+    ];
+    
+    const lowerUrl = url.toLowerCase();
+    return !maliciousDomains.some(domain => lowerUrl.includes(domain));
+  };
+
   // Helpers for cleaner logic
   const initPlayer = useCallback((url: string) => {
     if (!videoRef.current) return;
@@ -188,7 +200,24 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         if (!data?.sources?.length) throw new Error('Este servidor no devolvió fuentes de video.');
 
         const streamUrl = data.sources[0].url;
-        if (data.sources[0].isIframe || streamUrl.includes('streaming.php') || streamUrl.includes('embed')) {
+        
+        // 🛡️ Verificar que la URL sea limpia
+        if (!isCleanUrl(streamUrl)) {
+          console.warn('[🛡️ URL-FILTER] URL bloqueada por ser potencialmente maliciosa:', streamUrl);
+          // Intentar con siguiente servidor disponible
+          const nextServer = data.sources[1];
+          if (nextServer && isCleanUrl(nextServer.url)) {
+            // Usar siguiente servidor limpio
+            if (nextServer.isIframe || nextServer.url.includes('streaming.php') || nextServer.url.includes('embed')) {
+              setIframeUrl(nextServer.url);
+            } else {
+              setIframeUrl(null);
+              initPlayer(nextServer.url);
+            }
+          } else {
+            throw new Error('Todos los servidores disponibles contienen publicidad invasiva o no son seguros.');
+          }
+        } else if (data.sources[0].isIframe || streamUrl.includes('streaming.php') || streamUrl.includes('embed')) {
           setIframeUrl(streamUrl);
         } else {
           setIframeUrl(null);
@@ -208,6 +237,51 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   useEffect(() => {
     return () => { if (hlsRef.current) hlsRef.current.destroy(); };
+  }, []);
+
+  // 🛡️ ANTI-ADS: Monitor global para eliminar publicidad invasiva
+  useEffect(() => {
+    const adBlockInterval = setInterval(() => {
+      // Buscar modales/pop-ups maliciosos en el DOM
+      const maliciousSelectors = [
+        'div[style*="position: fixed"][style*="z-index"]',
+        '[class*="modal"], [class*="popup"]',
+        '[class*="ad"], [class*="advertisement"]',
+        'div[onmousedown*="ad"]'
+      ];
+
+      maliciousSelectors.forEach(selector => {
+        try {
+          const elements = document.querySelectorAll(selector);
+          elements.forEach((el: any) => {
+            const text = el.textContent?.toLowerCase() || el.innerText?.toLowerCase() || '';
+            const style = el.getAttribute('style') || '';
+            
+            // Detectar contenido malicioso
+            if (text.includes('leaked') || 
+                text.includes('pornographic') || 
+                text.includes('xxx') ||
+                text.includes('adult') ||
+                (text.includes('ad') && el.offsetHeight > 100) ||
+                (text.includes('click here') && style.includes('fixed'))) {
+              console.log('[🛡️ AD-BLOCKER] Removed malicious element:', el.className, text.substring(0, 30));
+              el.style.display = 'none';
+              el.remove();
+              
+              // Si es un modal que bloquea interacción, remover también overlay
+              if (style.includes('z-index: 999') || style.includes('z-index: 9999')) {
+                const parent = el.parentElement;
+                if (parent) parent.remove();
+              }
+            }
+          });
+        } catch (e) {
+          // Algunos selectores pueden fallar, continuar
+        }
+      });
+    }, 500); // Verificar cada 500ms
+
+    return () => clearInterval(adBlockInterval);
   }, []);
 
   // Lógica de Navegación
@@ -276,7 +350,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             allowFullScreen 
             allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
           />
-          <div style={{ position: 'absolute', top: '10px', right: '10px', width: '180px', height: '70px', background: 'rgba(0,0,0,0.01)', zIndex: 50, pointerEvents: 'auto', cursor: 'default' }} />
         </div>
       );
     }

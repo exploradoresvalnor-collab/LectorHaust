@@ -201,15 +201,17 @@ const ReaderPage: React.FC = () => {
               <div className="pages-container manhwa-container" onClick={toggleUi}>
                 {pages.map((page, index) => (
                   <div key={index} className="page-wrapper" data-index={index} style={{ contentVisibility: 'auto' }}>
-                    <LazyLoadImage
-                      src={page.includes('mangadex') ? mangaProvider.getOptimizedUrl(page) : page} 
-                      className="manga-page loaded" 
-                      alt={`Página ${index + 1}`}
-                      visibleByDefault={index < 3}
-                      effect="blur"
-                      wrapperClassName="lazy-react-wrapper"
-                      threshold={800} // Carga la página 800 pixeles antes (aprox 1.5 pantallas del celu)
-                    />
+                    {page ? (
+                      <LazyLoadImage
+                        src={typeof page === 'string' && page.includes('mangadex') ? mangaProvider.getOptimizedUrl(page) : page} 
+                        className="manga-page loaded" 
+                        alt={`Página ${index + 1}`}
+                        visibleByDefault={index < 3}
+                        effect="blur"
+                        wrapperClassName="lazy-react-wrapper"
+                        threshold={800} 
+                      />
+                    ) : null}
                   </div>
                 ))}
                 {renderEndSection()}
@@ -240,27 +242,29 @@ const ReaderPage: React.FC = () => {
                           contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         >
                           <div className={`image-centering-container ${fitMode}`}>
-                            <LazyLoadImage
-                              key={`img-${currentMangaPage}`} 
-                              src={pages[currentMangaPage].includes('mangadex') ? mangaProvider.getOptimizedUrl(pages[currentMangaPage]) : pages[currentMangaPage]} 
-                              className={`manga-page-single loaded page-flip-anim ${fitMode}`} 
-                              alt={`Página ${currentMangaPage + 1}`}
-                              effect="blur"
-                              wrapperClassName="lazy-react-wrapper"
-                              threshold={400}
-                              style={{ pointerEvents: 'none' }} 
-                            />
+                            {pages.length > 0 && pages[currentMangaPage] ? (
+                              <LazyLoadImage
+                                key={`img-${currentMangaPage}`} 
+                                src={typeof pages[currentMangaPage] === 'string' && pages[currentMangaPage].includes('mangadex') ? mangaProvider.getOptimizedUrl(pages[currentMangaPage]) : pages[currentMangaPage]} 
+                                className={`manga-page-single loaded page-flip-anim ${fitMode}`} 
+                                alt={`Página ${currentMangaPage + 1}`}
+                                effect="blur"
+                                wrapperClassName="lazy-react-wrapper"
+                                threshold={400}
+                                style={{ pointerEvents: 'none' }} 
+                              />
+                            ) : null}
                           </div>
                         </TransformComponent>
                       )}
                     </TransformWrapper>
                     
                     {/* Precargador remains outside TransformWrapper for efficiency */}
-                    {currentMangaPage + 1 < pages.length && (
+                    {currentMangaPage + 1 < pages.length && pages[currentMangaPage + 1] && (
                       <link 
                         rel="preload" 
                         as="image" 
-                        href={pages[currentMangaPage + 1].includes('mangadex') ? mangaProvider.getOptimizedUrl(pages[currentMangaPage + 1]) : pages[currentMangaPage + 1]} 
+                        href={typeof pages[currentMangaPage + 1] === 'string' && pages[currentMangaPage + 1].includes('mangadex') ? mangaProvider.getOptimizedUrl(pages[currentMangaPage + 1]) : pages[currentMangaPage + 1]} 
                         fetchPriority="high"
                       />
                     )}
