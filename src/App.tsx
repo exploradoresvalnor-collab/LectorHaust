@@ -334,7 +334,7 @@ const AppContent: React.FC = () => {
       <IonToast
         isOpen={showToast}
         onDidDismiss={() => setShowToast(false)}
-        message={`¡Nuevo: ${updateInfo?.mangaId ? (updateInfo.mangaTitle.length > 20 ? updateInfo.mangaTitle.substring(0, 18) + '...' : updateInfo.mangaTitle) : 'Manga'}! Cap. ${updateInfo?.chapterTitle}`}
+        message={`¡Nuevo: ${updateInfo?.mangaId ? ((updateInfo.mangaTitle || '').length > 20 ? (updateInfo?.mangaTitle || '').substring(0, 18) + '...' : (updateInfo?.mangaTitle || '')) : 'Manga'}! Cap. ${updateInfo?.chapterTitle}`}
         duration={5000}
         position="top"
         color="dark"
