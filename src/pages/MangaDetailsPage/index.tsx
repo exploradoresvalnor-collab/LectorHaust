@@ -243,8 +243,8 @@ const MangaDetailsPage: React.FC = () => {
     );
   }
   const title = mangaProvider.getLocalizedTitle(manga);
-  const aniListCover = aniData?.coverImage?.extraLarge || aniData?.coverImage?.large;
-  const coverUrl = mangaProvider.getCoverUrl(manga, '512', aniListCover);
+  // Se fija la portada nativa para evitar que 'SmartImage' cambie el DOM violéntamente al recibir la portada de AniList
+  const coverUrl = mangaProvider.getCoverUrl(manga, '512');
   const bestDescription = manga?.attributes?.translatedDescription 
     ? sanitizeDescription(manga.attributes.translatedDescription) 
     : mangaProvider.getLocalizedDescription(manga);
@@ -358,16 +358,26 @@ const MangaDetailsPage: React.FC = () => {
       </IonHeader>
 
       <IonContent>
-        {/* Dynamic Cinematic Header - Progressive Loading */}
+        {/* Dynamic Cinematic Header - Progressive Loading & Zero-Flicker Architecture */}
         <div className="manga-header-bg" style={{ animation: 'fadeIn 0.3s ease-in' }}>
-          {/* Optimized Banner Image for LCP */}
+          {/* Capa Base: Portada original (Para evitar pantallazo negro si el banner es lento) */}
           <img 
-            src={mangaProvider.getOptimizedUrl(aniData?.bannerImage || coverUrl)} 
-            alt="Banner"
+            src={mangaProvider.getOptimizedUrl(coverUrl)} 
+            alt="Banner Base"
             className="banner-img-layer"
             loading="eager"
             onError={(e) => (e.currentTarget.style.display = 'none')}
           />
+          {/* Capa Superior: Banner HD (Se superpone y desvanece suavemente sobre la base) */}
+          {aniData?.bannerImage && (
+            <img 
+              src={mangaProvider.getOptimizedUrl(aniData.bannerImage)} 
+              alt="Banner HD"
+              className="banner-img-layer animate-fade-in"
+              style={{ zIndex: 1 }}
+              loading="lazy"
+            />
+          )}
           <div className="overlay-gradient"></div>
           <div className="details-header-content animate-fade-in">
             <SmartImage 
