@@ -35,11 +35,12 @@ const SmartImage: React.FC<SmartImageProps> = ({
   const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
-    setStatus('loading');
+    // If the image is already loaded in the DOM with this exact src, skip shimmer
     if (imgRef.current?.complete && imgRef.current?.naturalWidth > 0) {
       setStatus('loaded');
       return;
     }
+    setStatus('loading');
     const timer = setTimeout(() => {
       setStatus(prev => prev === 'loading' ? 'error' : prev);
     }, timeout);

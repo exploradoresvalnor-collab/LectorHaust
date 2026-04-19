@@ -101,7 +101,7 @@ const LibraryPage: React.FC = () => {
   );
 
   const filteredFollowed = followedManga.filter(m => 
-    (m.attributes.title.en || Object.values(m.attributes.title)[0] as string).toLowerCase().includes(searchTerm.toLowerCase())
+    (mangaProvider.getLocalizedTitle(m) as string).toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (

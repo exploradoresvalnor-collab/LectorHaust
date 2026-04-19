@@ -58,7 +58,7 @@ const TrendingStrip: React.FC<{ items: any[] }> = ({ items }) => {
     <div className="trending-strip-container">
       <div className="trending-strip-scroll">
         {items.map((item, i) => {
-          const title = item.attributes.title.en || Object.values(item.attributes.title)[0];
+          const title = mangaProvider.getLocalizedTitle(item);
           const cover = mangaProvider.getCoverUrl(item, '256');
           return (
             <button 
