@@ -211,13 +211,7 @@ const AnimeDirectoryPage: React.FC = () => {
 
           <div className="horizontal-filters-outer">
             <div className="horizontal-filters-scroll">
-              <div className="filter-select-inline">
-                <span className="filter-label">Idioma</span>
-                <IonSelect value={language} interface="popover" onIonChange={e => { setLanguage(e.detail.value); setProvider('default'); }} className="custom-select-inline">
-                   <IonSelectOption value="sub-es">Sub Español</IonSelectOption>
-                   <IonSelectOption value="latino">Latino</IonSelectOption>
-                </IonSelect>
-              </div>
+
 
               <div className="filter-select-inline">
                 <span className="filter-label">Servidor</span>
