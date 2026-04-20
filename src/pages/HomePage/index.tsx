@@ -23,7 +23,9 @@ import {
   closeOutline
 } from 'ionicons/icons';
 import EmptyState from '../../components/EmptyState';
+import LoadingScreen from '../../components/LoadingScreen';
 import { useHomeData } from './hooks/useHomeData';
+import { useReadingMood } from '../../hooks/useReadingMood';
 import { hapticsService } from '../../services/hapticsService';
 import { getTranslation } from '../../utils/translations';
 import { useLanguageStore } from '../../store/useLanguageStore';
@@ -32,12 +34,14 @@ import HeroGrid from './subcomponents/HeroGrid';
 import HomeSectionGrid from './subcomponents/HomeSectionGrid';
 import SidebarRankings from './subcomponents/SidebarRankings';
 import TrendingGenres from './subcomponents/TrendingGenres';
+import { RecommendationGrid } from './subcomponents/RecommendationGrid';
 import { mangaProvider } from '../../services/mangaProvider';
 import './styles.css';
 
 const HomePage: React.FC = () => {
   const router = useIonRouter();
   const { lang } = useLanguageStore();
+  const { mood, getMoodBasedRecommendations } = useReadingMood();
   
   const {
     latest,
@@ -67,6 +71,10 @@ const HomePage: React.FC = () => {
   const handleProfileClick = async () => {
     router.push('/profile');
   };
+
+  if (loading && latestManga.length === 0 && heroItems.length === 0) {
+    return <IonPage><LoadingScreen /></IonPage>;
+  }
 
   return (
     <IonPage className="home-page-container">
@@ -179,6 +187,18 @@ const HomePage: React.FC = () => {
                 }}
               />
             )}
+          </div>
+        )}
+
+        {/* --- HAUS INTELLIGENCE: PERSONALIZED RECOMMENDATIONS --- */}
+        {!loading && latestManga.length > 0 && (
+          <div className="home-recommendations-section">
+            <RecommendationGrid 
+              allManga={latestManga.concat(latestManhwa).concat(latestManhua)}
+              onMangaClick={handleLatestClick}
+              limit={12}
+              mood={mood}
+            />
           </div>
         )}
 

@@ -250,7 +250,7 @@ export const mangaProvider = {
      * 2. WeebCentral (Manhwas/Manhuas y alta disponibilidad)
      * 3. MangaPill (Manga rápido y capítulos actualizados)
      */
-    async searchManga(query: string, filters: any = {}, limit = 20, offset = 0, order?: any, allowNSFW = false) {
+    async searchManga(query: string, filters: any = {}, limit = 20, offset = 0, order?: any, allowNSFW = false, isBackground = false) {
         try {
             console.log(`[Search] Cascade for: "${query}" | Filters:`, filters);
             
@@ -274,13 +274,13 @@ export const mangaProvider = {
             const hasQuery = query && query.trim().length > 1;
 
             // 🔄 HAUS INTELLIGENT SEARCH PROACTIVE (v3):
-            // Lógica de detección proactiva: Si el usuario busca algo que parece un título específico
-            // o ha seleccionado orígenes tipo Manhwa/Manhua, disparamos TODO en paralelo inmediatamente.
-            const isSpecificSearch = hasQuery && query.trim().split(' ').length > 0;
-            const isManhwaSearch = filters.origin === 'ko';
-            const isManhuaSearch = filters.origin === 'zh';
+            // Lógica de detección proactiva: Solo disparar para títulos específicos (varias palabras)
+            // para evitar saturar la red en búsquedas genéricas o de una sola palabra.
+            // SI ES BACKGROUND (ej: recomendaciones), la desactivamos totalmente para no saturar.
+            const isSpecificSearch = hasQuery && query.trim().split(/\s+/).length >= 3;
+            const isDeepSearch = filters.deep || false;
             
-            if (isSpecificSearch && !hasStrictFilters) {
+            if (!isBackground && (isSpecificSearch || isDeepSearch) && !hasStrictFilters) {
                 console.log(`[Search] Haus Intelligence v3: Proactive Parallel Search Activated for "${query}"`);
                 
                 const proactivePromises = [
@@ -321,7 +321,7 @@ export const mangaProvider = {
      */
     async fetchVerifiedRecommendation(title: string, allowNSFW = false): Promise<any | null> {
         try {
-            const results = await this.searchManga(title, {}, 1, 0, undefined, allowNSFW);
+            const results = await this.searchManga(title, {}, 1, 0, undefined, allowNSFW, true);
             if (!results.data || results.data.length === 0) return null;
 
             const best = results.data[0];

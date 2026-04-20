@@ -22,17 +22,22 @@ async function rateLimitedFetch(query: string, variables: any): Promise<any> {
       hash |= 0;
     }
     const cacheKey = `anilist_${hash}`;
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-        const { data, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < CACHE_TTL) return data;
+    
+    try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            const { data, timestamp } = JSON.parse(cached);
+            if (Date.now() - timestamp < CACHE_TTL) return data;
+        }
+    } catch (e) {
+        // Almacenamiento bloqueado por el navegador (Tracking Prevention)
     }
 
-    // 2. Queue & Throttle (Strict 800ms spacing to avoid 429)
+    // 2. Queue & Throttle (Strict 1500ms spacing to avoid 429)
     const fetchPromise = requestQueue.then(async () => {
         const elapsed = Date.now() - lastRequestTime;
-        if (elapsed < 800) {
-            await new Promise(r => setTimeout(r, 800 - elapsed));
+        if (elapsed < 1500) {
+            await new Promise(r => setTimeout(r, 1500 - elapsed));
         }
         
         // Update time BEFORE fetch, preventing concurrent queues from skipping the wait if they somehow leak
@@ -40,12 +45,14 @@ async function rateLimitedFetch(query: string, variables: any): Promise<any> {
         
         try {
             const response = await postGraphQL(BASE_URL, query, variables);
-            if (response?.data) {
-                localStorage.setItem(cacheKey, JSON.stringify({ data: response, timestamp: Date.now() }));
-            }
+            try {
+                if (response?.data) {
+                    localStorage.setItem(cacheKey, JSON.stringify({ data: response, timestamp: Date.now() }));
+                }
+            } catch (e) { /* Storage blocked */ }
             return response;
         } catch (err) {
-            // El error es esperado si Cloudflare o AniList rechazan la IP/proxy. Silenciado para no asustar al log.
+            // El error es esperado si Cloudflare o AniList rechazan la IP/proxy.
             throw err;
         }
     });

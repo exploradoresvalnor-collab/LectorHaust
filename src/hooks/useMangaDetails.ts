@@ -51,7 +51,12 @@ export function useMangaDetails(id?: string, initialData?: any) {
 
   useEffect(() => {
     const fetchMangaDetails = async () => {
-      if (!id) return;
+      if (!id) {
+        console.warn(`[Details] No ID provided, skipping fetch`);
+        return;
+      }
+      
+      console.log(`[Details] 🔷 useEffect triggered for manga: ${id}, lang: ${chapterLang}`);
       
       const cacheKey = `${id}_${chapterLang}_${chapterOrder}`;
       if (detailsMemoryCache.has(cacheKey)) {
@@ -80,25 +85,68 @@ export function useMangaDetails(id?: string, initialData?: any) {
       setLoading(true);
       externalFallbackId.current = null; // Reset fallback on each load
 
-      // --- PROVIDER FETCH ---
+      // GLOBAL TIMEOUT: Prevent infinite loading state
+      const globalTimeoutMs = 12000; // 12 seconds (reduced from 20s for better UX)
+      let globalTimeout: NodeJS.Timeout | null = null;
+      
+      // FALLBACK SEARCH LIMIT: Max 3 attempts to prevent infinite loops
+      let externalSearchAttempts = 0;
+      const MAX_EXTERNAL_SEARCH_ATTEMPTS = 3;
+
       try {
         // Essential: Fetch MangaDex details and First Page of Chapters in parallel
         // If we have initialData, we only fetch chapters and extras.
-        const [mdDetails, firstChapters] = await Promise.all([
+        
+        console.log(`[Details] START: Fetching manga ${id} (timeout: ${globalTimeoutMs}ms)`);
+        const fetchStartTime = performance.now();
+        
+        // Wrap in global timeout promise
+        const mainFetch = Promise.all([
           !initialData ? mangaProvider.getMangaDetails(id, showNSFW) : Promise.resolve({ data: initialData }),
           mangaProvider.getMangaChapters(id, chapterLang, 20, 0, chapterOrder, showNSFW)
         ]);
+        
+        const timeoutPromise = new Promise((_, reject) => {
+          globalTimeout = setTimeout(() => {
+            reject(new Error(`[Details] Global timeout (${globalTimeoutMs}ms) exceeded while fetching ${id}`));
+          }, globalTimeoutMs);
+        });
+        
+        console.log(`[Details] Awaiting main fetch with timeout...`);
+        const [mdDetails, firstChapters] = await Promise.race([mainFetch, timeoutPromise]) as any;
+        const fetchDuration = performance.now() - fetchStartTime;
+        if (globalTimeout) clearTimeout(globalTimeout);
+        console.log(`[Details] ✅ Main fetch completed in ${fetchDuration.toFixed(0)}ms`);
         
         if (!isMounted.current) return;
 
         const mangaObj = mdDetails.data;
         if (!mangaObj) throw new Error('Manga not found');
         
-        // Translate description immediately
+        console.log(`[Details] Translating description...`);
+        
+        // Translate description immediately (with timeout to prevent hanging)
         const rawDesc = mangaProvider.getLocalizedDescription(mangaObj);
-        const { text: translatedDesc, isTranslated: wasTr } = await translationService.translateToSpanish(rawDesc);
+        let translatedDesc = rawDesc;
+        let wasTr = false;
+        
+        try {
+          const translationTimeout = new Promise<any>((_, reject) =>
+            setTimeout(() => reject(new Error('Translation timeout')), 3000)
+          );
+          const translationPromise = translationService.translateToSpanish(rawDesc);
+          const result = await Promise.race([translationPromise, translationTimeout]);
+          translatedDesc = result.text;
+          wasTr = result.isTranslated;
+          console.log(`[Details] ✅ Translation completed`);
+        } catch (tranErr) {
+          console.warn(`[Details] ⚠️ Translation failed (using original):`, tranErr);
+          translatedDesc = rawDesc;
+          wasTr = false;
+        }
         
         if (isMounted.current) {
+          console.log(`[Details] Setting manga state...`);
           setIsTranslated(wasTr);
           setManga({
             ...mangaObj,
@@ -180,10 +228,16 @@ export function useMangaDetails(id?: string, initialData?: any) {
 
           if (isManhwaOrManhua && title && !mangaProvider.isExternalId(id)) {
             console.log(`[Details] 🇰🇷🇨🇳 Manhwa/Manhua detected: "${title}". Trying external Spanish sources FIRST...`);
-            try {
-              const candidates = await mangaProvider.findBestExternalSources(mangaObj);
-              
-              if (candidates && candidates.length > 0) {
+            
+            // PREVENT INFINITE LOOPS: Limit external search attempts
+            if (externalSearchAttempts >= MAX_EXTERNAL_SEARCH_ATTEMPTS) {
+              console.warn(`[Details] ⚠️ Max external search attempts (${MAX_EXTERNAL_SEARCH_ATTEMPTS}) reached. Skipping external search.`);
+            } else {
+              externalSearchAttempts++;
+              try {
+                const candidates = await mangaProvider.findBestExternalSources(mangaObj);
+                
+                if (candidates && candidates.length > 0) {
                 // Prioritize ManhwaWeb (Spanish) over other sources
                 const sorted = [...candidates].sort((a, b) => {
                   if (a.source === 'manhwaweb' && b.source !== 'manhwaweb') return -1;
@@ -234,6 +288,7 @@ export function useMangaDetails(id?: string, initialData?: any) {
             } catch (err) {
               console.warn('[Details] Haus v3 manhwa external search failed:', err);
             }
+            } // End of external search attempt limit
           }
 
           // If external source worked, skip MangaDex fallback logic
@@ -263,25 +318,30 @@ export function useMangaDetails(id?: string, initialData?: any) {
               );
 
               if (needsExternalFallback) {
-                console.log(`[Details] MangaDex has 0 chapters globally for "${title}". Trying Haus Intelligence...`);
-                try {
-                  const candidates = await mangaProvider.findBestExternalSources(mangaObj);
-                  
-                  if (candidates && candidates.length > 0) {
-                    let foundValidSource = false;
+                // PREVENT INFINITE LOOPS: Limit external search attempts
+                if (externalSearchAttempts >= MAX_EXTERNAL_SEARCH_ATTEMPTS) {
+                  console.warn(`[Details] ⚠️ Max external search attempts (${MAX_EXTERNAL_SEARCH_ATTEMPTS}) reached. Cannot find chapters.`);
+                } else {
+                  externalSearchAttempts++;
+                  console.log(`[Details] MangaDex has 0 chapters globally for "${title}". Trying Haus Intelligence (attempt ${externalSearchAttempts}/${MAX_EXTERNAL_SEARCH_ATTEMPTS})...`);
+                  try {
+                    const candidates = await mangaProvider.findBestExternalSources(mangaObj);
                     
-                    for (const bestSource of candidates) {
-                      if (!isMounted.current) break;
-                      const fullId = bestSource.id; 
-                      console.log(`[Details] Testing candidate: ${bestSource.source} (${fullId})...`);
+                    if (candidates && candidates.length > 0) {
+                      let foundValidSource = false;
                       
-                      try {
-                        const extChaptersData = await mangaProvider.getMangaChapters(fullId);
+                      for (const bestSource of candidates) {
+                        if (!isMounted.current) break;
+                        const fullId = bestSource.id; 
+                        console.log(`[Details] Testing candidate: ${bestSource.source} (${fullId})...`);
                         
-                        if (extChaptersData.data && extChaptersData.data.length > 0) {
-                          externalFallbackId.current = fullId;
-                          const isManhwaWeb = bestSource.source === 'manhwaweb';
-                          const fallbackLang = isManhwaWeb ? 'es' : 'en';
+                        try {
+                          const extChaptersData = await mangaProvider.getMangaChapters(fullId);
+                          
+                          if (extChaptersData.data && extChaptersData.data.length > 0) {
+                            externalFallbackId.current = fullId;
+                            const isManhwaWeb = bestSource.source === 'manhwaweb';
+                            const fallbackLang = isManhwaWeb ? 'es' : 'en';
                           
                           chaptersData = {
                             data: extChaptersData.data.map((c: any) => ({
@@ -319,6 +379,7 @@ export function useMangaDetails(id?: string, initialData?: any) {
                 } catch (err) {
                   console.warn('[Details] Haus Intelligence fallback failed:', err);
                 }
+                } // End of external search attempt limit
               }
             }
           }
@@ -326,17 +387,24 @@ export function useMangaDetails(id?: string, initialData?: any) {
 
         if (isMounted.current) {
           const newChapters = deduplicateChapters(chaptersData.data || []);
+          console.log(`[Details] Deduplicating ${chaptersData.data?.length || 0} chapters -> ${newChapters.length}`);
           setTotalChapters(chaptersData.total || 0);
           setTotalPages(Math.ceil((chaptersData.total || 0) / 20));
           setChapters(newChapters);
           setHasMoreChapters((chaptersData.data || []).length >= 20);
+          console.log(`[Details] ✅ All state updated: ${newChapters.length} chapters, ${chaptersData.total} total`);
         }
 
       } catch (error: any) {
-        console.error('Error fetching manga details:', error);
-        if (isMounted.current) setManga(null);
-      } finally {
+        console.error('[Details] ❌ Error fetching manga details:', error?.message || error);
+        console.error('[Details] Stack:', error?.stack);
         if (isMounted.current) {
+          setManga(null);
+        }
+      } finally {
+        if (globalTimeout) clearTimeout(globalTimeout);
+        if (isMounted.current) {
+          console.log(`[Details] ✅ FINAL: Setting loading=false, chapters: ${chapters.length}, manga loaded: ${manga ? 'YES' : 'NO'}`);
           setLoading(false);
           setLoadingChapters(false);
         }

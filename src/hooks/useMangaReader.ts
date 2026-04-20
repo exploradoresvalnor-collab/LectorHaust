@@ -88,6 +88,7 @@ export function useMangaReader(chapterId?: string) {
   // Cargar datos del capítulo (offline first)
   useEffect(() => {
     let isMounted = true;
+    let globalFetchTimeout: NodeJS.Timeout | null = null;
 
     const fetchPages = async () => {
       if (!chapterId || (lastLoadedId.current === chapterId && retryCount === 0)) return;
@@ -97,6 +98,16 @@ export function useMangaReader(chapterId?: string) {
       setCurrentMangaPage(0);
       setShowEndSection(false);
       setShowUi(true);
+      
+      // GLOBAL TIMEOUT: Prevent infinite loading state in reader
+      const READER_TIMEOUT_MS = 25000; // 25 seconds max
+      globalFetchTimeout = setTimeout(() => {
+        if (isMounted) {
+          console.error(`[Reader] CRITICAL: Global timeout (${READER_TIMEOUT_MS}ms) exceeded for chapter ${chapterId}`);
+          setError('Tiempo de espera agotado. Intenta de nuevo.');
+          setLoading(false);
+        }
+      }, READER_TIMEOUT_MS);
       
       try {
         lastLoadedId.current = chapterId;
@@ -108,7 +119,7 @@ export function useMangaReader(chapterId?: string) {
         try {
           // 🔌 OFFLINE FIRST: Check if chapter is downloaded locally
           // Added 2s timeout to prevent local hangs in dev environment
-          console.log(`[Reader] Checking offline status for: ${chapterId}`);
+          console.log(`[Reader] START: Checking offline status for: ${chapterId}`);
           
           const timeout = new Promise<boolean>((_, reject) => 
             setTimeout(() => reject(new Error('Offline check timeout')), 2000)
@@ -137,8 +148,8 @@ export function useMangaReader(chapterId?: string) {
           console.warn('[Reader] ⚠️ Offline storage access blocked or failed:', storageErr);
         }
 
-        // Enforce hard 15-second timeout on network fetch to prevent silent UI hangs
-        const withTimeout = <T = any>(promise: Promise<T>, ms = 15000): Promise<T> => 
+        // Enforce hard 10-second timeout on network fetch to prevent silent UI hangs
+        const withTimeout = <T = any>(promise: Promise<T>, ms = 10000): Promise<T> => 
           Promise.race([
             promise, 
             new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Network timeout')), ms))
@@ -147,13 +158,24 @@ export function useMangaReader(chapterId?: string) {
         // If no offline pages, fetch from network
         if (!pagesLoaded) {
           console.log('[Reader] Fetching pages from network...');
-          const data = await withTimeout(mangaProvider.getChapterPages(chapterId, dataSaverMode ? 'data-saver' : 'data'));
-          if (!isMounted) return;
-          if (data && data.pages) {
-            setPages(data.pages);
-            finalPagesCount = data.pages.length;
-            markAsRead(chapterId);
-            if (auth.currentUser) userStatsService.awardChapterXP(auth.currentUser.uid);
+          try {
+            console.log(`[Reader] Calling getChapterPages(${chapterId}, quality=${dataSaverMode ? 'data-saver' : 'data'})...`);
+            const data = await withTimeout(mangaProvider.getChapterPages(chapterId, dataSaverMode ? 'data-saver' : 'data'));
+            console.log(`[Reader] ✅ getChapterPages returned: ${data?.pages?.length || 0} pages`);
+            
+            if (!isMounted) return;
+            if (data && data.pages) {
+              console.log(`[Reader] Setting pages state with ${data.pages.length} pages`);
+              setPages(data.pages);
+              finalPagesCount = data.pages.length;
+              markAsRead(chapterId);
+              if (auth.currentUser) userStatsService.awardChapterXP(auth.currentUser.uid);
+              pagesLoaded = true;
+            } else {
+              console.error('[Reader] ❌ getChapterPages returned empty or null:', data);
+            }
+          } catch (pagesErr) {
+            console.warn('[Reader] ❌ Pages fetch failed or timed out:', pagesErr instanceof Error ? pagesErr.message : pagesErr);
           }
         }
 
@@ -166,8 +188,9 @@ export function useMangaReader(chapterId?: string) {
             (async () => {
                if (!downloaded && auth.currentUser) userStatsService.awardChapterXP(auth.currentUser.uid);
             })()
-          ]));
+          ]), 8000); // 8s for metadata as it's less critical than pages
           chapterInfo = ci;
+          console.log('[Reader] ✅ Metadata fetched successfully, parsing relationships...');
         } catch (networkErr: any) {
           console.warn('[Reader] Network fetch for metadata failed:', networkErr.message || networkErr);
           if (downloaded) {
@@ -193,10 +216,12 @@ export function useMangaReader(chapterId?: string) {
 
         if (!isMounted) return;
 
+        console.log('[Reader] Setting chapter number and finding manga relationship...');
         setChapterNum(chapterInfo.data.attributes.chapter || '1');
         
         const mangaRel = chapterInfo.data.relationships?.find((r: any) => r.type === 'manga');
         if (mangaRel) {
+          console.log(`[Reader] Found manga relationship: ${mangaRel.id}, fetching manga data...`);
           setMangaId(mangaRel.id);
           const format = mangaRel.attributes?.originalLanguage;
           const tags = mangaRel.attributes?.tags || [];
@@ -211,7 +236,7 @@ export function useMangaReader(chapterId?: string) {
           const isKnownManhwaSource = chapterId.startsWith('mweb:') || chapterId.startsWith('wc:');
           const webtoonStatus = format === 'ko' || format === 'zh' || hasWebtoonTag || isKnownManhwaSource;
           
-          console.log(`[Reader] Format: ${format}, WebtoonTag: ${hasWebtoonTag} -> Mode: ${webtoonStatus ? 'Scroll' : 'Pages'}`);
+          console.log(`[Reader] Format: ${format}, WebtoonTag: ${hasWebtoonTag}, ManhwaSource: ${isKnownManhwaSource} -> Mode: ${webtoonStatus ? 'Scroll' : 'Pages'}`);
           setIsWebtoon(webtoonStatus);
           
           // Auto-detect reading direction if not webtoon
@@ -242,6 +267,7 @@ export function useMangaReader(chapterId?: string) {
           // ------------------------------------------------
 
           // Parallelize manga info and chapters scan
+          console.log('[Reader] Starting parallel fetches for manga data and chapters...');
           Promise.all([
             // Manga details (for title/cover)
             mangaProvider.getMangaById(mangaRel.id).then((mangaData: any) => {
@@ -266,18 +292,29 @@ export function useMangaReader(chapterId?: string) {
                 setNextChapterId(currentIdx < sorted.length - 1 ? sorted[currentIdx + 1].id : null);
               }
             })
-          ]).catch(err => console.warn('Reader background tasks failed', err));
+          ]).catch(err => {
+            console.warn('[Reader] ⚠️ Background tasks failed (this is OK if offline):', err.message || err);
+          });
+        } else {
+          console.warn('[Reader] ⚠️ No manga relationship found in chapter data');
         }
       } catch (err: any) {
-        console.error('[Reader] Fatal fetch error:', err);
+        console.error('[Reader] Fatal fetch error:', err.message || err);
         if (isMounted) setError(err.message || 'Error al cargar las páginas o timeout excedido.');
       } finally {
-        if (isMounted) setLoading(false);
+        if (globalFetchTimeout) clearTimeout(globalFetchTimeout);
+        if (isMounted) {
+          console.log('[Reader] Marking loading as complete');
+          setLoading(false);
+        }
       }
     };
     fetchPages();
 
-    return () => { isMounted = false; };
+    return () => { 
+      isMounted = false;
+      if (globalFetchTimeout) clearTimeout(globalFetchTimeout);
+    };
   }, [chapterId, dataSaverMode, markAsRead, getProgress, retryCount]);
   
   const retry = () => {

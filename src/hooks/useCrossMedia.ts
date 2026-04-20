@@ -16,9 +16,18 @@ interface CrossMediaResult {
 
 export function useCrossMedia(title: string | null | undefined, currentType: 'MANGA' | 'ANIME') {
   const [crossMedia, setCrossMedia] = useState<CrossMediaResult | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
 
+  // DISABLED: Cross-Media search causes excessive AniList rate-limiting
+  // This feature is non-essential and was causing cascading searches
+  // Re-enable after implementing proper request deduplication and caching
+  
   useEffect(() => {
+    if (true) { // DISABLED FLAG
+      setLoading(false);
+      return;
+    }
+    
     let active = true;
     
     const fetchCrossMedia = async () => {

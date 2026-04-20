@@ -114,6 +114,7 @@ export function useHomeData() {
 
   // --- HERO MIXED DATA ---
   const [heroItems, setHeroItems] = useState<any[]>([]);
+  const [isHeroReady, setIsHeroReady] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -202,7 +203,10 @@ export function useHomeData() {
           }
         } catch (e) {}
       }));
+      if (mounted) setIsHeroReady(true);
     };
+    
+    setIsHeroReady(false);
     buildHero();
     return () => { mounted = false; };
   }, [latest, trendingAnime]);
@@ -280,7 +284,7 @@ export function useHomeData() {
     latestManga,
     latestManhwa,
     latestManhua,
-    loading: loadingLatest,
+    loading: loadingLatest || !isHeroReady,
     isDone: true, // Infinite scroll disabled for Home
     unreadNotifications,
     currentUser,

@@ -64,6 +64,8 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { firebaseAuthService } from '../../services/firebaseAuthService';
 import { userStatsService } from '../../services/userStatsService';
 import SmartImage from '../../components/SmartImage';
+import { AdaptationTimelineWidget } from './subcomponents/AdaptationTimelineWidget';
+import { CharacterDexWidget } from './subcomponents/CharacterDexWidget';
 import '../../theme/CinematicHero.css';
 import './styles.css';
 
@@ -130,31 +132,34 @@ const MangaDetailsPage: React.FC = () => {
     const verify = async () => {
       setLoadingRecs(true);
       const edges = aniData.recommendations.edges.slice(0, 10);
-      // ⚠️ PARALLELIZED: Process ALL recommendations in parallel instead of batches
-      const batchResults = await Promise.all(
-        edges.map(async (edge: any) => {
-          const rec = edge.node.mediaRecommendation;
-          if (!rec) return null;
-          const title = rec.title.english || rec.title.romaji || rec.title.native;
-          try {
-            const verified = await mangaProvider.fetchVerifiedRecommendation(title, showNSFW);
-            if (verified && verified.hasChapters && !cancelled) {
-              return {
-                aniId: rec.id,
-                mdId: verified.id,
-                title: title,
-                coverImage: rec.coverImage.large,
-                score: rec.averageScore
-              };
-            }
-          } catch { return null; }
-          return null;
-        })
-      );
+      const results: any[] = [];
+
+      // 🛑 DE-CONGESTION: Process recommendations SEQUENTIALLY to free up network for the Reader
+      for (const edge of edges) {
+        if (cancelled) break;
+        const rec = edge.node.mediaRecommendation;
+        if (!rec) continue;
+        
+        const title = rec.title.english || rec.title.romaji || rec.title.native;
+        try {
+          const verified = await mangaProvider.fetchVerifiedRecommendation(title, showNSFW);
+          if (verified && verified.hasChapters && !cancelled) {
+            results.push({
+              aniId: rec.id,
+              mdId: verified.id,
+              title: title,
+              coverImage: rec.coverImage.large,
+              score: rec.averageScore
+            });
+            // Update UI progressively as we find verified recs
+            setVerifiedRecs([...results]);
+          }
+        } catch (err) {
+          console.warn(`[Recs] Verify failed for: ${title}`, err);
+        }
+      }
       
-      const filtered = batchResults.filter(Boolean);
       if (!cancelled) {
-        setVerifiedRecs(filtered);
         setLoadingRecs(false);
       }
     };
@@ -188,32 +193,10 @@ const MangaDetailsPage: React.FC = () => {
     );
   }
   
-  // Si tenemos initialData pero aún cargando detalles, mostrar skeleton del hero
-  if (loading && initialData && !manga) {
+  if (loading && !manga) {
     return (
       <IonPage>
-        <IonHeader className="ion-no-border">
-          <IonToolbar className="glass-effect">
-            <IonButtons slot="start">
-              <IonBackButton defaultHref="/home" />
-            </IonButtons>
-            <IonTitle>Cargando...</IonTitle>
-          </IonToolbar>
-        </IonHeader>
-        <IonContent>
-          <div className="manga-header-bg skeleton-hero-placeholder">
-            <div className="overlay-gradient"></div>
-            <div className="details-header-content">
-              <div style={{ width: '180px', height: '260px', borderRadius: '20px', background: 'rgba(255,255,255,0.1)' }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ height: '20px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', marginBottom: '15px', width: '60%', animation: 'pulse 1.5s infinite' }} />
-                <div style={{ height: '40px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', marginBottom: '15px', animation: 'pulse 1.5s infinite' }} />
-                <div style={{ height: '16px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', marginBottom: '10px', animation: 'pulse 1.5s infinite' }} />
-                <div style={{ height: '16px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', marginBottom: '10px', width: '80%', animation: 'pulse 1.5s infinite' }} />
-              </div>
-            </div>
-          </div>
-        </IonContent>
+        <LoadingScreen />
       </IonPage>
     );
   }
@@ -798,6 +781,12 @@ const MangaDetailsPage: React.FC = () => {
               )}
             </div>
           )}
+
+          {/* Adaptation Timeline Widget */}
+          {id && <AdaptationTimelineWidget mangaId={id} />}
+
+          {/* Character Dex Widget */}
+          {id && <CharacterDexWidget mangaId={id} mangaTitle={title || 'Manga'} />}
 
           {/* Universal Engagement & Comments */}
           {id && <UniversalEngagementBar contentId={id} title={title as string || 'Manga'} type="manga" coverUrl={coverUrl} />}

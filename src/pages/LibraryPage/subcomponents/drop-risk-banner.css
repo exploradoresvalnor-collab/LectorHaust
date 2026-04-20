@@ -1,0 +1,357 @@
+/* Drop Risk Banner Styles */
+
+.drop-risk-banner {
+  background: linear-gradient(135deg, #FFF5F5 0%, #FFFAF0 100%);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(244, 67, 54, 0.1);
+  margin: 16px 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.drop-risk-banner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, transparent 48%, rgba(244, 67, 54, 0.03) 49%, rgba(244, 67, 54, 0.03) 51%, transparent 52%);
+  pointer-events: none;
+}
+
+.drop-risk-content {
+  position: relative;
+  padding: 16px;
+}
+
+.drop-risk-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.drop-risk-title-section {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+}
+
+.drop-risk-icon-large {
+  font-size: 32px;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+.drop-risk-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.drop-risk-subtitle {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: #7f8c8d;
+}
+
+.drop-risk-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 60px;
+}
+
+.drop-risk-percentage {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.drop-risk-label {
+  font-size: 11px;
+  color: #7f8c8d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.drop-risk-chip {
+  margin: 0 !important;
+}
+
+.drop-risk-timeline {
+  background: rgba(255, 152, 0, 0.1);
+  border-left: 3px solid #FF9800;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin: 12px 0;
+}
+
+.drop-risk-timeline-text {
+  font-size: 13px;
+  color: #E65100;
+  font-weight: 500;
+}
+
+.drop-risk-indicators {
+  margin: 12px 0;
+}
+
+.drop-risk-indicators-title,
+.drop-risk-recommendations-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.drop-risk-indicators-list,
+.drop-risk-recommendations-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.drop-risk-indicator-item,
+.drop-risk-recommendation-item {
+  font-size: 13px;
+  color: #555;
+  margin: 6px 0 6px 18px;
+  position: relative;
+}
+
+.drop-risk-indicator-item::before {
+  content: '⚠️';
+  position: absolute;
+  left: -16px;
+}
+
+.drop-risk-recommendation-item::before {
+  content: '💡';
+  position: absolute;
+  left: -16px;
+}
+
+.drop-risk-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.drop-risk-action-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.continue-btn {
+  background: linear-gradient(135deg, #FF5722 0%, #F44336 100%);
+  color: white;
+}
+
+.continue-btn:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 4px rgba(244, 67, 54, 0.3);
+}
+
+.remind-btn {
+  background: white;
+  color: #F44336;
+  border: 2px solid #F44336;
+}
+
+.remind-btn:active {
+  background: #FFEBEE;
+}
+
+/* Compact version */
+.drop-risk-banner-compact {
+  background: white;
+  border-left: 4px solid #FF5722;
+  padding: 12px;
+  border-radius: 6px;
+  margin: 8px 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.drop-risk-compact-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.drop-risk-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.drop-risk-compact-title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+/* Alert overlay */
+.drop-risk-alert-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.drop-risk-alert-container {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 90vw;
+  width: 380px;
+  text-align: center;
+  position: relative;
+  animation: slideUp 0.3s ease;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.drop-risk-alert-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #999;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drop-risk-alert-close:hover {
+  color: #333;
+}
+
+.drop-risk-alert-icon {
+  margin: 16px 0;
+}
+
+.drop-risk-alert-icon-large {
+  font-size: 64px;
+  color: #FF5722;
+}
+
+.drop-risk-alert-title {
+  margin: 16px 0 8px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.drop-risk-alert-message {
+  margin: 12px 0 24px 0;
+  font-size: 14px;
+  color: #666;
+  line-height: 1.5;
+}
+
+.drop-risk-alert-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.drop-risk-alert-primary,
+.drop-risk-alert-secondary {
+  padding: 14px 20px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.drop-risk-alert-primary {
+  background: linear-gradient(135deg, #FF5722 0%, #F44336 100%);
+  color: white;
+}
+
+.drop-risk-alert-primary:active {
+  transform: scale(0.98);
+}
+
+.drop-risk-alert-secondary {
+  background: #F5F5F5;
+  color: #2c3e50;
+}
+
+.drop-risk-alert-secondary:active {
+  background: #E0E0E0;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 640px) {
+  .drop-risk-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .drop-risk-score {
+    align-self: flex-start;
+  }
+
+  .drop-risk-actions {
+    flex-direction: column;
+  }
+
+  .drop-risk-action-btn {
+    width: 100%;
+  }
+
+  .drop-risk-alert-container {
+    width: 85vw;
+    margin: 16px;
+  }
+}

@@ -27,6 +27,9 @@ import { useLibraryStore } from '../../store/useLibraryStore';
 import { hapticsService } from '../../services/hapticsService';
 import EmptyState from '../../components/EmptyState';
 import { offlineService, DownloadedChapter } from '../../services/offlineService';
+import { HausLibraryIntegration } from './subcomponents/HausLibraryIntegration';
+import { useDropPredictor } from '../../hooks/useDropPredictor';
+import { DropRiskBanner, DropRiskAlert } from './subcomponents/DropRiskBanner';
 import './styles.css';
 
 const LibraryPage: React.FC = () => {
@@ -38,9 +41,11 @@ const LibraryPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [downloadedMangas, setDownloadedMangas] = useState<Record<string, { title: string; cover?: string; chapters: DownloadedChapter[] }>>({});
   const [storageInfo, setStorageInfo] = useState({ totalMB: '0', chapterCount: 0 });
+  const [showDropAlert, setShowDropAlert] = useState<string | null>(null);
   
   const router = useIonRouter();
   const { favorites, history } = useLibraryStore();
+  const { criticalRisk, highRisk, getInterventionStrategy } = useDropPredictor();
 
   // Get history entries sorted by most recent
   const historyEntries = Object.entries(history)
@@ -155,7 +160,33 @@ const LibraryPage: React.FC = () => {
               <p style={{ margin: 0, fontSize: '0.9rem', color: 'gray' }}>{favorites.length} guardados · {followedManga.length} suscritos</p>
             </div>
         </div>
-        {/* --- HERO: Continuar Leyendo (Pro Look) --- */}
+        {/* --- HAUS INTELLIGENCE: Drop Risk Alerts --- */}
+        {criticalRisk.length > 0 && (
+          <div className="library-drop-alerts animate-fade-in" style={{ marginBottom: '20px' }}>
+            <div className="section-header">
+              <div className="accent-bar" style={{ background: '#FF5722' }}></div>
+              <h2>Series en Riesgo</h2>
+              <IonBadge color="danger" style={{ marginLeft: '10px' }}>
+                {criticalRisk.length}
+              </IonBadge>
+            </div>
+            {criticalRisk.map((prediction) => (
+              <DropRiskBanner
+                key={prediction.mangaId}
+                prediction={prediction}
+                onAction={(mangaId, action) => {
+                  if (action === 'continue') {
+                    router.push(`/manga/${mangaId}`);
+                  } else if (action === 'remind') {
+                    setShowDropAlert(null);
+                  }
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* --- HAUS INTELLIGENCE: Continuar Leyendo (Pro Look) --- */}
         {historyEntries.length > 0 && (
           <div className="library-hero-history animate-fade-in">
             <div className="section-header">
@@ -442,6 +473,11 @@ const LibraryPage: React.FC = () => {
             onAction={() => router.push('/search')}
           />
         )}
+
+        {/* HAUS INTELLIGENCE: Continue Reading & Reading Stats */}
+        <HausLibraryIntegration 
+          onMangaClick={(mangaId: string) => router.push(`/manga/${mangaId}`)}
+        />
       </IonContent>
     </IonPage>
   );

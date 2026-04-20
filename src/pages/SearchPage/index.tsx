@@ -48,6 +48,7 @@ import {
 import { hapticsService } from '../../services/hapticsService';
 import { getTranslation, Language } from '../../utils/translations';
 import SmartImage from '../../components/SmartImage';
+import { SemanticSearchResults } from './subcomponents/SemanticSearchResults';
 import './styles.css';
 
 const TrendingStrip: React.FC<{ items: any[] }> = ({ items }) => {
@@ -333,6 +334,18 @@ const SearchPage: React.FC = () => {
                 <IonInfiniteScroll threshold="100px" disabled={isDone} onIonInfinite={loadMore}>
                   <IonInfiniteScrollContent loadingSpinner="bubbles" />
                 </IonInfiniteScroll>
+                
+                {/* HAUS INTELLIGENCE: Fallback to Semantic Search */}
+                {results.length === 0 && query && !loading && (
+                  <div className="semantic-search-fallback">
+                    <SemanticSearchResults 
+                      allManga={results.length === 0 ? trending : results}
+                      query={query}
+                      onResultClick={(manga: any) => router.push(`/manga/${manga.id}`)}
+                      showAdvancedHints={true}
+                    />
+                  </div>
+                )}
               </>
             )}
             </div>

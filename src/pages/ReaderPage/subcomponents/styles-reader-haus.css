@@ -1,0 +1,349 @@
+/* ========================================
+   READER PAGE HAUS STYLES
+   ======================================== */
+
+/* Progress Widget */
+.reading-progress-widget {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-top: 1px solid #e0e0e0;
+  padding: 8px 12px;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+  z-index: 100;
+}
+
+.reading-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: #e0e0e0;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.reading-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  border-radius: 3px;
+  transition: width 0.2s ease-out;
+}
+
+.reading-progress-text {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+}
+
+.reading-page-current {
+  color: #667eea;
+  font-weight: 700;
+}
+
+.reading-page-sep {
+  margin: 0 2px;
+}
+
+.reading-page-percent {
+  margin-left: auto;
+  color: #667eea;
+  font-weight: 700;
+}
+
+/* Session Info */
+.reading-session-info {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  padding: 12px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.02));
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.session-info-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.session-info-label {
+  font-size: 11px;
+  color: #999;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.session-info-value {
+  font-size: 14px;
+  color: #667eea;
+  font-weight: 700;
+}
+
+/* Complete Button */
+.complete-chapter-btn {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 110;
+}
+
+.complete-chapter-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+.complete-chapter-btn:active {
+  transform: scale(0.95);
+}
+
+.complete-chapter-btn.completed {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  animation: completeAnimation 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.complete-label {
+  position: absolute;
+  bottom: -20px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: #4CAF50;
+}
+
+/* Rating Overlay */
+.chapter-rating-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.chapter-rating-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 320px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chapter-rating-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.chapter-rating-header h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #222;
+  margin: 0 0 4px 0;
+}
+
+.chapter-rating-subtitle {
+  font-size: 13px;
+  color: #999;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Stars */
+.chapter-rating-stars {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.chapter-rating-star {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 36px;
+  color: #ddd;
+  transition: all 0.2s ease-out;
+}
+
+.chapter-rating-star:hover {
+  transform: scale(1.2);
+  color: #ffc107;
+}
+
+.chapter-rating-star.active {
+  color: #ffc107;
+  animation: starPop 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chapter-rating-label {
+  text-align: center;
+  font-size: 14px;
+  color: #667eea;
+  font-weight: 600;
+  margin: 0 0 24px 0;
+  min-height: 20px;
+}
+
+/* Actions */
+.chapter-rating-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.chapter-rating-skip,
+.chapter-rating-submit {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.chapter-rating-skip {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.chapter-rating-skip:hover {
+  background: #e8e8e8;
+}
+
+.chapter-rating-skip:active {
+  transform: scale(0.98);
+}
+
+.chapter-rating-submit {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+}
+
+.chapter-rating-submit:hover {
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+  transform: translateY(-2px);
+}
+
+.chapter-rating-submit:active {
+  transform: scale(0.98);
+}
+
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes starPop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes completeAnimation {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+  }
+  50% {
+    transform: scale(1.15);
+    box-shadow: 0 8px 24px rgba(76, 175, 80, 0.5);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+  }
+}
+
+/* Mobile Responsive */
+@media (max-width: 480px) {
+  .chapter-rating-card {
+    padding: 20px;
+    border-radius: 12px;
+  }
+
+  .chapter-rating-header h3 {
+    font-size: 18px;
+  }
+
+  .chapter-rating-stars {
+    gap: 6px;
+  }
+
+  .chapter-rating-star {
+    font-size: 32px;
+  }
+
+  .reading-session-info {
+    gap: 12px;
+    padding: 10px;
+  }
+
+  .complete-chapter-btn {
+    bottom: 70px;
+    right: 16px;
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
+  }
+}

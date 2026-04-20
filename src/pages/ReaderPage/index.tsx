@@ -22,7 +22,7 @@ import {
 } from 'ionicons/icons';
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { useParams } from 'react-router-dom';
-import { LazyLoadImage } from 'react-lazy-load-image-component';
+import { ReaderImage } from '../../components/ReaderImage';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import { mangaProvider } from '../../services/mangaProvider';
 import CommentSection from '../../components/CommentSection';
@@ -30,6 +30,8 @@ import UniversalEngagementBar from '../../components/UniversalEngagementBar';
 import { useMangaReader } from '../../hooks/useMangaReader';
 import { hapticsService } from '../../services/hapticsService';
 import { useSettingsStore } from '../../store/useSettingsStore';
+import { ReaderHausIntegration } from './subcomponents/ReaderHausIntegration';
+import { ChronoSyncReader } from './subcomponents/ChronoSyncReader';
 import './styles.css';
 
 
@@ -202,7 +204,7 @@ const ReaderPage: React.FC = () => {
                 {pages.map((page, index) => (
                   <div key={index} className="page-wrapper" data-index={index} style={{ contentVisibility: 'auto' }}>
                     {page ? (
-                      <LazyLoadImage
+                      <ReaderImage
                         src={typeof page === 'string' && page.includes('mangadex') ? mangaProvider.getOptimizedUrl(page) : page} 
                         className="manga-page loaded" 
                         alt={`Página ${index + 1}`}
@@ -243,8 +245,7 @@ const ReaderPage: React.FC = () => {
                         >
                           <div className={`image-centering-container ${fitMode}`}>
                             {pages.length > 0 && pages[currentMangaPage] ? (
-                              <LazyLoadImage
-                                key={`img-${currentMangaPage}`} 
+                              <ReaderImage
                                 src={typeof pages[currentMangaPage] === 'string' && pages[currentMangaPage].includes('mangadex') ? mangaProvider.getOptimizedUrl(pages[currentMangaPage]) : pages[currentMangaPage]} 
                                 className={`manga-page-single loaded page-flip-anim ${fitMode}`} 
                                 alt={`Página ${currentMangaPage + 1}`}
@@ -308,6 +309,29 @@ const ReaderPage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* HAUS INTELLIGENCE: Reading Tracker Integration */}
+      {!loading && !error && mangaId && pages.length > 0 && (
+        <ReaderHausIntegration 
+          mangaId={mangaId}
+          mangaTitle={mangaId} // Usando mangaId como fallback
+          chapterId={chapterId}
+          chapterNumber={chapterNum}
+          totalPages={pages.length}
+          onPageChange={setCurrentMangaPage}
+        />
+      )}
+
+      {/* ChronoSync: Lectura colaborativa en tiempo real */}
+      {!loading && !error && mangaId && chapterId && pages.length > 0 && (
+        <ChronoSyncReader 
+          mangaId={mangaId}
+          chapterId={chapterId}
+          userId="current-user-id"
+          userName="Lector"
+          totalPages={pages.length}
+        />
       )}
     </IonPage>
   );

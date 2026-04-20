@@ -52,6 +52,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     animeflv: true, 
     tioanime: false
   });
+  const [isPseudoFullscreen, setIsPseudoFullscreen] = useState(false);
 
   const episodeNumber = Number(episode.number);
   const episodeId = episode.id;
@@ -303,7 +304,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   const exitFullscreen = async () => {
-    if (document.exitFullscreen) {
+    setIsPseudoFullscreen(false);
+    if (document.exitFullscreen && document.fullscreenElement) {
       await document.exitFullscreen();
     }
     if (Capacitor.isNativePlatform()) {
@@ -313,11 +315,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const toggleFullscreen = async () => {
     try {
-      const isCurrentlyFullscreen = !!(document.fullscreenElement || (document as any).webkitFullscreenElement);
-      if (!isCurrentlyFullscreen && containerRef.current) await setFullscreen(containerRef.current);
+      const isCurrentlyFullscreen = !!(document.fullscreenElement || (document as any).webkitFullscreenElement) || isPseudoFullscreen;
+      if (!isCurrentlyFullscreen && containerRef.current) {
+         try {
+           await setFullscreen(containerRef.current);
+         } catch(e) {
+           setIsPseudoFullscreen(true); // Fallback if API is blocked
+         }
+      }
       else await exitFullscreen();
     } catch (err) {
       console.warn('Error toggling fullscreen:', err);
+      setIsPseudoFullscreen(!isPseudoFullscreen);
     }
   };
 
@@ -371,7 +380,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
          ))}
       </div>
 
-      <div ref={containerRef} style={{ width: '100%', maxWidth: '1000px', aspectRatio: '16 / 9', margin: '0 auto', background: '#000', position: 'relative' }}>
+      <div ref={containerRef} style={isPseudoFullscreen ? { position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 99999, background: '#000' } : { width: '100%', maxWidth: '1000px', aspectRatio: '16 / 9', margin: '0 auto', background: '#000', position: 'relative' }}>
         {loading && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, background: 'rgba(0,0,0,0.6)' }}><IonSpinner name="crescent" color="primary" /></div>}
         {renderVideoPlayerArea()}
       </div>
@@ -422,7 +431,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           ))}
         </div>
 
-        <div style={{ marginTop: '30px', paddingBottom: '60px' }}>
+        <div style={{ marginTop: '30px', paddingBottom: '140px' }}>
             <CommentSection mangaId={animeId} chapterId={episodeId} title={`Muro del Episodio ${episodeNumber}`} />
         </div>
       </div>

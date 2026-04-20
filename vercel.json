@@ -5,6 +5,10 @@
       "destination": "https://api.mangadex.org/:match*"
     },
     {
+      "source": "/uploads-md/:match*",
+      "destination": "https://uploads.mangadex.org/:match*"
+    },
+    {
       "source": "/assets/:path*",
       "destination": "/assets/:path*"
     },
@@ -61,13 +65,30 @@
       ]
     },
     {
-      "source": "/assets/(.*)",
+      "source": "/uploads-md/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
+          "value": "public, max-age=2592000, immutable"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
         }
       ]
-    }
+    },
+    {
+      "source": "/api-md/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
+        }
+      ]
+    },
   ]
 }

@@ -222,41 +222,8 @@ const AnimeDetailsPage: React.FC = () => {
     setShowPlayer(true);
   };
 
-  // Progressive loading: show full spinner only if NO initial data
-  if (loading && !initialData) {
+  if (loading && !anime) {
     return <IonPage><LoadingScreen /></IonPage>;
-  }
-  
-  // Show skeleton hero while loading details
-  if (loading && initialData && !anime) {
-    return (
-      <IonPage>
-        <IonHeader className="ion-no-border glass-effect-header">
-          <IonToolbar>
-            <IonButtons slot="start">
-              <IonBackButton defaultHref="/anime" style={{ color: 'white' }} />
-            </IonButtons>
-            <IonTitle style={{ color: 'white' }}>Anime</IonTitle>
-          </IonToolbar>
-        </IonHeader>
-        <IonContent fullscreen className="anime-content-bg">
-          <div className="anime-hero-skeleton skeleton-hero-placeholder" style={{ animation: 'pulse 1.5s infinite' }}>
-            <div style={{ width: '100%', height: '300px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px' }} />
-          </div>
-          <div className="anime-episodes-skeleton" style={{ padding: '20px' }}>
-            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-              <div key={i} style={{
-                height: '60px',
-                background: 'rgba(255,255,255,0.05)',
-                borderRadius: '8px',
-                marginBottom: '12px',
-                animation: 'pulse 1.5s infinite'
-              }} />
-            ))}
-          </div>
-        </IonContent>
-      </IonPage>
-    );
   }
   if (!anime) return <IonPage><IonContent className="anime-content-bg"><div style={{padding:'20px', textAlign:'center', color:'white'}}>Anime no encontrado</div></IonContent></IonPage>;
 

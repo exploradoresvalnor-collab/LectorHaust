@@ -14,18 +14,27 @@ const UPLOADS_URL = 'https://uploads.mangadex.org';
 const CLOUDINARY_CLOUD_NAME = 'djzak5yb2';
 
 /**
- * Simple rate limiter: ensures minimum 100ms between requests (≤10 req/s)
- * Updated to 100ms for more professional responsiveness while staying safe.
+ * 1. Queue Controller (Rate Limiter)
+ * Only manages spacing requests by 200ms, WITHOUT blocking the network.
  */
 let lastRequestTime = 0;
-async function rateLimitedFetch(url: string, options?: RequestInit): Promise<Response> {
-    const now = Date.now();
-    const elapsed = now - lastRequestTime;
-    if (elapsed < 100) {
-        await new Promise(r => setTimeout(r, 100 - elapsed));
-    }
-    lastRequestTime = Date.now();
-    return fetch(url, options);
+let requestQueue = Promise.resolve();
+
+async function waitForTurn(): Promise<void> {
+    let darLuzVerde: () => void;
+    const miTurno = new Promise<void>(resolve => { darLuzVerde = resolve; });
+    
+    requestQueue = requestQueue.then(async () => {
+        const now = Date.now();
+        const elapsed = now - lastRequestTime;
+        if (elapsed < 200) {
+            await new Promise(r => setTimeout(r, 200 - elapsed));
+        }
+        lastRequestTime = Date.now();
+        darLuzVerde();
+    }).catch(() => darLuzVerde());
+
+    return miTurno;
 }
 
 /**
@@ -50,52 +59,100 @@ function getProxyUrl(endpoint: string) {
 }
 
 /**
- * Helper to fetch from MangaDex using proxy with automatic retry for 500 errors and ECONNRESET
+ * 2. Main Fetcher with Timeout Fixed
+ * The 12-15s timeout NOW STARTS AFTER the request is dispatched (not during queue wait)
  */
 async function apiFetch(endpoint: string, retries = 3, delay = 1500): Promise<any> {
     const proxiedUrl = getProxyUrl(endpoint);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 35000); // 35s timeout
-
+    
+    // IMPORTANT: Shorter timeout in localhost (15s) vs production (25s)
+    const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+    const timeoutMs = isDev ? 15000 : 25000;
+    
+    console.log(`[apiFetch] START: ${endpoint} (${isDev ? 'DEV' : 'PROD'}, timeout=${timeoutMs}ms)`);
+    
     try {
-        const response = await rateLimitedFetch(proxiedUrl, { signal: controller.signal });
+        // WAIT IN QUEUE: No timers running, infinite patience
+        console.log(`[apiFetch] ⏳ Waiting for turn...`);
+        await waitForTurn();
+        
+        // ✅ IT'S OUR TURN! Now we start the timer
+        console.log(`[apiFetch] CALLING: ${proxiedUrl}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            console.error(`[apiFetch] ⏱️ TIMEOUT after ${timeoutMs}ms: ${endpoint}`);
+            controller.abort();
+        }, timeoutMs);
+
+        const startTime = Date.now();
+        const response = await fetch(proxiedUrl, { signal: controller.signal });
         clearTimeout(timeoutId);
         
+        const duration = Date.now() - startTime;
+        console.log(`[apiFetch] GOT RESPONSE: ${response.status} for ${endpoint} (${duration}ms)`);
+        
         if (!response.ok) {
+            console.warn(`[apiFetch] HTTP ${response.status} from ${endpoint}`);
             // Si el error es 403, 404 o 500 y estamos en Web, lanzamos error para que el CATCH intente el FALLBACK
             if (!isNative && (response.status === 403 || response.status === 404 || response.status >= 500)) {
                 throw new Error(`Primary Proxy Error: ${response.status}`);
             }
 
             if ((response.status >= 500 || response.status === 429) && retries > 0) {
-                console.warn(`[MangaDex] API ${response.status} Error. Retrying in ${delay}ms... (${retries} left)`);
+                console.warn(`[apiFetch] Retry #${4 - retries}: Waiting ${delay}ms before retry...`);
                 await new Promise(res => setTimeout(res, delay));
                 return apiFetch(endpoint, retries - 1, delay * 2);
             }
             throw new Error(`MangaDex API Error: ${response.status}`);
         }
-        return await response.json();
+        
+        console.log(`[apiFetch] PARSING JSON for ${endpoint}`);
+        const data = await response.json();
+        console.log(`[apiFetch] ✅ SUCCESS: ${endpoint} (${JSON.stringify(data).length} bytes)`);
+        
+        // VALIDATION: Check if response is empty/corrupted
+        if (!data || typeof data !== 'object') {
+            throw new Error('Empty or invalid API response');
+        }
+        
+        return data;
     } catch (err: any) {
-        clearTimeout(timeoutId);
+        console.error(`[apiFetch] CATCH ERROR: ${err instanceof Error ? err.message : err}`);
 
         // --- FALLBACK AL WORKER DE CLOUDFLARE ---
         // Si falla el proxy primario o devuelve un error bloqueable en Web, intentamos por el túnel del Worker
-        if (!isNative) {
-            console.warn(`[MangaDex] Primary Proxy Issue. Attempting Worker Fallback for: ${endpoint}`);
+        if (!isNative && !isLocalhost) {
+            console.warn(`[apiFetch] 🔄 Attempting Worker Fallback for: ${endpoint}`);
             try {
                 const MANGADEX_API_BASE = 'https://api.mangadex.org';
                 const WORKER_PROXY_BASE = 'https://manga-proxy.mchaustman.workers.dev/?url=';
                 const fallbackUrl = `${WORKER_PROXY_BASE}${encodeURIComponent(MANGADEX_API_BASE + endpoint)}`;
                 
-                const fallbackResponse = await fetch(fallbackUrl);
+                console.log(`[apiFetch] Worker URL: ${fallbackUrl.substring(0, 100)}...`);
+                
+                // Worker fallback also has timeout (10s to fail fast)
+                const workerController = new AbortController();
+                const workerTimeoutId = setTimeout(() => {
+                    console.error(`[apiFetch] ⏱️ Worker timeout after 10s`);
+                    workerController.abort();
+                }, 10000);
+                
+                const fallbackResponse = await fetch(fallbackUrl, { signal: workerController.signal });
+                clearTimeout(workerTimeoutId);
+                
+                console.log(`[apiFetch] Worker returned: ${fallbackResponse.status}`);
+                
                 if (fallbackResponse.ok) {
-                    return await fallbackResponse.json();
+                    const data = await fallbackResponse.json();
+                    if (data && typeof data === 'object') {
+                        console.log('[apiFetch] ✅ Worker Fallback succeeded');
+                        return data;
+                    }
                 }
-                console.warn(`[MangaDex] Worker Fallback also returned: ${fallbackResponse.status}`);
-                throw new Error(`Worker Fallback failed with ${fallbackResponse.status}`);
+                throw new Error(`Worker Fallback returned ${fallbackResponse.status}`);
             } catch (fallbackErr) {
-                console.error('[MangaDex] Critical: Worker Fallback failed execution:', fallbackErr);
-                throw fallbackErr; // Abortar rápido para evitar cuellos de botella en la página inicial
+                console.error('[apiFetch] ❌ Worker Fallback failed:', fallbackErr instanceof Error ? fallbackErr.message : fallbackErr);
+                // Don't rethrow immediately - try retries first
             }
         }
 
@@ -104,16 +161,19 @@ async function apiFetch(endpoint: string, retries = 3, delay = 1500): Promise<an
             const isAborted = err.name === 'AbortError' || err.message?.includes('aborted');
             const isReset = err.message?.includes('reset') || err.message?.includes('ECONNRESET');
             
-            // Si el worker falló por 429, no vale la pena reintentar recursivamente, el límite no se quitará en 3 segundos.
+            // Si el worker falló por 429, no vale la pena reintentar recursivamente
             if (err.message?.includes('Worker Fallback')) {
                throw err;
             }
             
-            console.warn(`[MangaDex] ${isAborted ? 'Timeout' : (isReset ? 'Connection Reset' : 'Network Error')}. Retrying in ${delay}ms... (${retries} left)`);
+            const reason = isAborted ? 'Timeout' : (isReset ? 'Connection Reset' : 'Network Error');
+            console.warn(`[apiFetch] ${reason}. Retry #${4 - retries} in ${delay}ms... (${retries} left)`);
             
             await new Promise(res => setTimeout(res, delay));
             return apiFetch(endpoint, retries - 1, delay * 2);
         }
+        
+        console.error(`[apiFetch] ❌ FATAL ERROR after all retries: ${endpoint}`);
         throw err;
     }
 }
