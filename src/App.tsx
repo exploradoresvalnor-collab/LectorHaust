@@ -1,5 +1,5 @@
-import React, { Suspense } from 'react';
-import { Redirect, Route } from 'react-router-dom';
+import React, { Suspense, useState, useEffect } from 'react';
+import { Redirect, Route, useLocation } from 'react-router-dom';
 import {
   IonApp,
   IonIcon,
@@ -9,43 +9,48 @@ import {
   IonTabButton,
   IonTabs,
   setupIonicReact,
+  IonBadge,
   useIonRouter,
-  useIonToast,
-  IonToast,
-  useIonViewWillEnter,
-  IonBadge
+  IonButton
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
-import { useLocation } from 'react-router-dom';
-import { Capacitor } from '@capacitor/core';
-import { home, search, library, chatbubbles, tvOutline } from 'ionicons/icons';
-import { getTranslation, Language, getDefaultLanguage } from './utils/translations';
-import HomePage from './pages/HomePage';
+import { 
+  home, 
+  search, 
+  library, 
+  chatbubbles, 
+  tvOutline 
+} from 'ionicons/icons';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// Providers and Contexts
+import { GlobalLoadingProvider } from './contexts/GlobalLoadingContext';
+import GlobalLoadingOverlay from './components/GlobalLoadingOverlay';
+import PageLoadingFallback from './components/PageLoadingFallback';
+
+// Pages - Lazy loaded for performance
+const HomePage = React.lazy(() => import('./pages/HomePage'));
 const SearchPage = React.lazy(() => import('./pages/SearchPage'));
 const LibraryPage = React.lazy(() => import('./pages/LibraryPage'));
 const MangaDetailsPage = React.lazy(() => import('./pages/MangaDetailsPage'));
 const ReaderPage = React.lazy(() => import('./pages/ReaderPage'));
-const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
-const ChatPage = React.lazy(() => import('./pages/ChatPage'));
-const PrivateChatPage = React.lazy(() => import('./pages/PrivateChatPage'));
 const SocialPage = React.lazy(() => import('./pages/SocialPage'));
+const ChatPage = React.lazy(() => import('./pages/ChatPage'));
+const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
 const AnimePage = React.lazy(() => import('./pages/AnimePage'));
 const AnimeDetailsPage = React.lazy(() => import('./pages/AnimeDetailsPage'));
 const AnimeDirectoryPage = React.lazy(() => import('./pages/AnimeDirectoryPage'));
-import { useState, useEffect, useRef } from 'react';
-import { GlobalLoadingProvider } from './contexts/GlobalLoadingContext';
-import PageLoadingFallback from './components/PageLoadingFallback';
-import GlobalLoadingOverlay from './components/GlobalLoadingOverlay';
-import { useRouteTransition } from './hooks/useRouteTransition';
-import { useLibraryStore } from './store/useLibraryStore';
-import { checkUpdatesForLibrary, MangaUpdate } from './services/updateService';
+const PrivateChatPage = React.lazy(() => import('./pages/PrivateChatPage'));
+
+// Services and Utilities
+import { useLanguageStore } from './store/useLanguageStore';
+import { getTranslation, getDefaultLanguage } from './utils/translations';
 import { hapticsService } from './services/hapticsService';
-import { db } from './services/firebase';
-import { collection, query, orderBy, limit, onSnapshot, doc, getDoc, setDoc, where, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { checkUpdatesForLibrary } from './services/updateService';
 import { firebaseAuthService } from './services/firebaseAuthService';
-import { socialService } from './services/socialService';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { useLibraryStore } from './store/useLibraryStore';
+import { db } from './services/firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 /* Core CSS required for Ionic components to work properly */
 import '@ionic/react/css/core.css';
@@ -69,141 +74,93 @@ import '@ionic/react/css/display.css';
  * For more info, please see:
  * https://ionicframework.com/docs/theming/dark-mode
  */
-
-/* import '@ionic/react/css/palettes/dark.always.css'; */
-/* import '@ionic/react/css/palettes/dark.class.css'; */
-import '@ionic/react/css/palettes/dark.system.css';
-
-/* Theme variables */
 import './theme/variables.css';
 import './theme/global.css';
 
 setupIonicReact();
 
-import OfflineBanner from './components/OfflineBanner';
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const AppContent: React.FC = () => {
   const { favorites } = useLibraryStore();
-  const [showToast, setShowToast] = useState(false);
-  const [updateInfo, setUpdateInfo] = useState<MangaUpdate | null>(null);
-  const [hasUnreadChat, setHasUnreadChat] = useState(false);
-  const [currentLang, setCurrentLang] = useState<Language>(getDefaultLanguage());
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentLang, setCurrentLang] = useState(getDefaultLanguage());
   const [pendingRequests, setPendingRequests] = useState(0);
   const [totalUnread, setTotalUnread] = useState(0);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [showUpdateToast, setShowUpdateToast] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<{ mangaId: string; mangaTitle: string; chapterTitle: string } | null>(null);
+  
   const router = useIonRouter();
   const location = useLocation();
-  const [presentToast] = useIonToast();
-  const lastPendingRef = useRef(0);
+  
+  const shouldHideTabs = ['/manga/', '/reader/', '/chat/', '/anime/'].some(path => location.pathname.includes(path));
 
-  // Detectar transiciones de ruta y mostrar loading
-  // DISABLED: Was causing black screen on navigation back from detail pages
-  // Each page handles its own loading state
-  // useRouteTransition();
-
-  // Paths where we want to HIDE the bottom tab bar
-  const shouldHideTabs = 
-    location.pathname === '/anime' ||
-    location.pathname === '/browse-anime' ||
-    location.pathname.startsWith('/manga/') || 
-    location.pathname.startsWith('/anime/') || 
-    location.pathname.startsWith('/reader/') ||
-    location.pathname.startsWith('/chat') ||
-    location.pathname.startsWith('/social') ||
-    location.pathname.startsWith('/profile') ||
-    location.pathname === '/search';
-
+  // Sync translation store with local language state
   useEffect(() => {
-    // Check for updates every 5 minutes - ONLY for authenticated users
-    // Skip polling in guest/anonymous mode to reduce background requests
-    if (!currentUser || currentUser.isAnonymous) {
-      return;
-    }
+    const handleStorage = () => {
+      const newLang = getDefaultLanguage();
+      setCurrentLang(newLang);
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
-    const interval = setInterval(async () => {
-      const updates = await checkUpdatesForLibrary(favorites);
-      if (updates.length > 0) {
-        setUpdateInfo(updates[0]);
-        setShowToast(true);
+  // Update check logic
+  useEffect(() => {
+    if (!currentUser || currentUser.isAnonymous) return;
+    
+    const pollUpdates = async () => {
+      try {
+        const updates = await checkUpdatesForLibrary(favorites);
+        if (updates && updates.length > 0) {
+          setUpdateInfo(updates[0]);
+          setShowUpdateToast(true);
+        }
+      } catch (e) {
+        console.warn("Update check failed", e);
       }
-    }, 300000);
+    };
 
+    pollUpdates();
+    const interval = setInterval(pollUpdates, 300000); // 5 min
     return () => clearInterval(interval);
   }, [favorites, currentUser]);
 
-  // Social & Private Chat Notifications
+  // Auth and Social Subscriptions
   useEffect(() => {
-    let unsubReq: (() => void) | null = null;
-    let unsubPriv: (() => void) | null = null;
+    let unsubSocial: (() => void) | null = null;
+    let unsubPrivate: (() => void) | null = null;
 
     const unsubscribeAuth = firebaseAuthService.subscribe(async (user) => {
       setCurrentUser(user);
-      if (unsubReq) unsubReq();
-      if (unsubPriv) unsubPriv();
+      
+      // Cleanup previous social subs
+      if (unsubSocial) unsubSocial();
+      if (unsubPrivate) unsubPrivate();
 
-      if (user) {
-        // --- INITIALIZE USER DOC IF MISSING ---
-        const userRef = doc(db, 'users', user.uid);
-        try {
-          const snap = await getDoc(userRef);
-          if (!snap.exists()) {
-            const defaultName = user.displayName || `Explorador_${user.uid.substring(0, 4)}`;
-            await setDoc(userRef, {
-              uid: user.uid,
-              name: defaultName,
-              displayName: defaultName, // For compatibility
-              avatar: user.photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${user.uid}`,
-              avatarUrl: user.photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${user.uid}`, // For compatibility
-              email: user.email || '',
-              friends: [],
-              blockedUsers: [],
-              lastActive: Date.now(),
-              createdAt: serverTimestamp()
-            });
-          } else {
-            await socialService.updateUserPresence(user.uid);
-          }
-        } catch (err) { console.warn("User init failed", err); }
+      if (user && !user.isAnonymous) {
+        // Subscribe to Friend Requests
+        const qReq = query(collection(db, `users/${user.uid}/friendRequests`), where('status', '==', 'pending'));
+        unsubSocial = onSnapshot(qReq, (snap) => {
+          setPendingRequests(snap.size);
+        });
 
-        if (!user.isAnonymous) {
-          unsubReq = socialService.subscribeToFriendRequests(user.uid, (reqs) => {
-            setPendingRequests(reqs.length);
+        // Subscribe to Total Private Unread Messages
+        const qPriv = collection(db, `users/${user.uid}/privateChats`);
+        unsubPrivate = onSnapshot(qPriv, (snap) => {
+          let total = 0;
+          snap.forEach(doc => {
+            total += (doc.data().unreadCount || 0);
           });
-          unsubPriv = socialService.subscribeToAllUnreadCount(user.uid, (total) => {
-            setTotalUnread(total);
-          });
-          // Presence Update Interval (Every 2 minutes)
-          const interval = setInterval(() => socialService.updateUserPresence(user.uid), 120000);
-
-          // Monitor general notifications (Friendships, etc)
-          const unsubNotif = onSnapshot(
-            query(collection(db, 'notifications'), where('userId', '==', user.uid), where('read', '==', false)),
-            (snapshot) => {
-              snapshot.docChanges().forEach(async (change) => {
-                if (change.type === 'added') {
-                  const n = change.doc.data();
-                  if (n.type === 'friend_accepted') {
-                    const fSnap = await getDoc(doc(db, 'users', n.fromId));
-                    const fName = fSnap.exists() ? (fSnap.data().name || fSnap.data().displayName) : 'Un Nakama';
-                    presentToast({
-                      message: `¡${fName} aceptó tu solicitud! 🎉`,
-                      duration: 4000, color: 'success', position: 'top',
-                      buttons: [{ text: 'Chat', handler: () => router.push(`/chat/${n.fromId}`) }]
-                    });
-                    await updateDoc(doc(db, 'notifications', change.doc.id), { read: true });
-                  }
-                }
-              });
-            }
-          );
-          // Chain cleanup (Updated to include interval)
-          const oldUnsubReq = unsubReq;
-          unsubReq = () => { 
-            if (oldUnsubReq) oldUnsubReq(); 
-            unsubNotif(); 
-            clearInterval(interval); 
-          };
-        }
+          setTotalUnread(total);
+        });
       } else {
         setPendingRequests(0);
         setTotalUnread(0);
@@ -212,264 +169,126 @@ const AppContent: React.FC = () => {
 
     return () => {
       unsubscribeAuth();
-      if (unsubReq) unsubReq();
-      if (unsubPriv) unsubPriv();
+      if (unsubSocial) unsubSocial();
+      if (unsubPrivate) unsubPrivate();
     };
   }, []);
 
-  // Listen for language changes from storage
-  useEffect(() => {
-    const checkLang = () => {
-      const newLang = getDefaultLanguage();
-      setCurrentLang(newLang);
-      
-      // Notify user of language change (Premium Feedback)
-      presentToast({
-        message: getTranslation('home.languageChanged', newLang),
-        duration: 2500,
-        position: 'bottom',
-        color: 'dark',
-        cssClass: 'premium-toast-pill',
-        buttons: [{ text: 'OK', role: 'cancel' }]
-      });
-    };
-
-    window.addEventListener('storage', checkLang);
-    return () => window.removeEventListener('storage', checkLang);
-  }, [presentToast]);
-
-  // Global Chat Notifications Logic
-  useEffect(() => {
-    if (pendingRequests > lastPendingRef.current) {
-      if (Capacitor.isNativePlatform()) {
-        hapticsService.lightImpact();
-      }
-      presentToast({
-        message: '¡Tienes una nueva solicitud de Nakama! 🤝',
-        duration: 3000,
-        position: 'top',
-        color: 'primary',
-        buttons: [{ text: 'Ver', handler: () => router.push('/social') }]
-      });
-    }
-    lastPendingRef.current = pendingRequests;
-
-  }, [pendingRequests, presentToast, router]);
-
-  useEffect(() => {
-    const chatRef = collection(db, 'global_chat');
-    const q = query(chatRef, orderBy('timestamp', 'desc'), limit(1));
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty && location.pathname !== '/chat') {
-        const lastMsg = snapshot.docs[0].data();
-        const lastMsgTime = lastMsg.timestamp?.toMillis() || Date.now();
-        const lastRead = Number(localStorage.getItem('lastReadChat') || 0);
-
-        if (lastMsgTime > lastRead) {
-          setHasUnreadChat(true);
-        }
-      }
-    }, (error) => {
-      console.warn('Firebase: Chat listener issue (ignoring)', error.message);
-    });
-
-    return () => unsubscribe();
-  }, [location.pathname]);
-
-  // Clear badge when entering chat
-  useEffect(() => {
-    if (location.pathname === '/chat') {
-      setHasUnreadChat(false);
-      localStorage.setItem('lastReadChat', Date.now().toString());
-    }
-  }, [location.pathname]);
-
-  // FIX: aria-hidden focus collision during navigation
-  useEffect(() => {
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
-  }, [location.pathname]);
+  const totalBadges = pendingRequests + totalUnread;
 
   return (
-    <>
-      <OfflineBanner />
-      <IonTabs>
-        <IonRouterOutlet>
+    <IonTabs>
+      <IonRouterOutlet>
+        <Suspense fallback={<PageLoadingFallback message="Preparando aventura..." />}>
           <Route exact path="/home" component={HomePage} />
-          <Route 
-            exact 
-            path="/manga/:id"
-            component={() => (
-              <Suspense fallback={<PageLoadingFallback message="Cargando manga..." />}>
-                <MangaDetailsPage />
-              </Suspense>
-            )} 
-          />
-          <Route 
-            exact 
-            path="/reader/:chapterId"
-            component={() => (
-              <Suspense fallback={<PageLoadingFallback message="Preparando lector..." />}>
-                <ReaderPage />
-              </Suspense>
-            )} 
-          />
-          <Route 
-            exact 
-            path="/search"
-            component={() => (
-              <Suspense fallback={<PageLoadingFallback message="Cargando búsqueda..." />}>
-                <SearchPage />
-              </Suspense>
-            )} 
-          />
-          <Route 
-            path="/library"
-            component={() => (
-              <Suspense fallback={<PageLoadingFallback message="Cargando biblioteca..." />}>
-                <LibraryPage />
-              </Suspense>
-            )} 
-          />
-          <Route 
-            exact 
-            path="/profile"
-            component={() => (
-              <Suspense fallback={<PageLoadingFallback message="Cargando perfil..." />}>
-                <ProfilePage />
-              </Suspense>
-            )} 
-          />
-          <Route 
-            exact 
-            path="/chat"
-            component={() => (
-              <Suspense fallback={<PageLoadingFallback message="Cargando chat..." />}>
-                <ChatPage />
-              </Suspense>
-            )} 
-          />
-          <Route 
-            exact 
-            path="/chat/:friendId"
-            component={() => (
-              <Suspense fallback={<PageLoadingFallback message="Abriendo conversación..." />}>
-                <PrivateChatPage />
-              </Suspense>
-            )} 
-          />
-          <Route 
-            exact 
-            path="/social"
-            component={() => (
-              <Suspense fallback={<PageLoadingFallback message="Cargando comunidad..." />}>
-                <SocialPage />
-              </Suspense>
-            )} 
-          />
-          <Route 
-            exact 
-            path="/anime"
-            component={() => (
-              <Suspense fallback={<PageLoadingFallback message="Cargando anime..." />}>
-                <AnimePage />
-              </Suspense>
-            )} 
-          />
-          <Route 
-            exact 
-            path="/browse-anime"
-            component={() => (
-              <Suspense fallback={<PageLoadingFallback message="Cargando directorio..." />}>
-                <AnimeDirectoryPage />
-              </Suspense>
-            )} 
-          />
-          <Route 
-            exact 
-            path="/anime/:id"
-            component={() => (
-              <Suspense fallback={<PageLoadingFallback message="Cargando anime..." />}>
-                <AnimeDetailsPage />
-              </Suspense>
-            )} 
-          />
+          <Route exact path="/search" component={SearchPage} />
+          <Route exact path="/library" component={LibraryPage} />
+          <Route exact path="/manga/:id" component={MangaDetailsPage} />
+          <Route exact path="/reader/:chapterId" component={ReaderPage} />
+          <Route exact path="/social" component={SocialPage} />
+          <Route exact path="/chat" component={ChatPage} />
+          <Route exact path="/chat/:friendId" component={PrivateChatPage} />
+          <Route exact path="/profile" component={ProfilePage} />
+          <Route exact path="/anime" component={AnimePage} />
+          <Route exact path="/anime/:id" component={AnimeDetailsPage} />
+          <Route exact path="/browse-anime" component={AnimeDirectoryPage} />
           <Route exact path="/">
             <Redirect to="/home" />
           </Route>
-        </IonRouterOutlet>
-        <IonTabBar 
-          slot="bottom" 
-          className={shouldHideTabs ? 'tab-bar-hidden' : ''}
-        >
-          <IonTabButton tab="home" href="/home" onClick={() => hapticsService.lightImpact()}>
-            <IonIcon aria-hidden="true" icon={home} />
-            <IonLabel>{getTranslation('tabs.home', currentLang)}</IonLabel>
-          </IonTabButton>
-          <IonTabButton tab="search" href="/search" onClick={() => hapticsService.lightImpact()}>
-            <IonIcon aria-hidden="true" icon={search} />
-            <IonLabel>{getTranslation('tabs.explore', currentLang)}</IonLabel>
-          </IonTabButton>
-          <IonTabButton tab="anime" href="/anime" onClick={() => hapticsService.lightImpact()}>
-            <IonIcon aria-hidden="true" icon={tvOutline} />
-            <IonLabel>{getTranslation('tabs.anime', currentLang)}</IonLabel>
-          </IonTabButton>
-          <IonTabButton tab="chat" href="/social" onClick={() => hapticsService.lightImpact()}>
-            <IonIcon aria-hidden="true" icon={chatbubbles} />
-            {(pendingRequests > 0 || totalUnread > 0 || hasUnreadChat) && (
-              <IonBadge color="danger" className="tab-badge">
-                {(pendingRequests + totalUnread) > 0 ? (pendingRequests + totalUnread) : ' '}
-              </IonBadge>
-            )}
-            <IonLabel>{getTranslation('tabs.chat', currentLang)}</IonLabel>
-          </IonTabButton>
-          <IonTabButton tab="library" href="/library" onClick={() => hapticsService.lightImpact()}>
-            <IonIcon aria-hidden="true" icon={library} />
-            <IonLabel>{getTranslation('tabs.library', currentLang)}</IonLabel>
-          </IonTabButton>
-        </IonTabBar>
-      </IonTabs>
+        </Suspense>
+      </IonRouterOutlet>
 
-      <IonToast
-        isOpen={showToast}
-        onDidDismiss={() => setShowToast(false)}
-        message={`¡Nuevo: ${updateInfo?.mangaId ? ((updateInfo.mangaTitle || '').length > 20 ? (updateInfo?.mangaTitle || '').substring(0, 18) + '...' : (updateInfo?.mangaTitle || '')) : 'Manga'}! Cap. ${updateInfo?.chapterTitle}`}
-        duration={5000}
-        position="top"
-        color="dark"
-        cssClass="localized-update-toast"
-        buttons={[
-          {
-            side: 'end',
-            text: 'LEER',
-            role: 'info',
-            handler: () => {
-              if (updateInfo) router.push(`/manga/${updateInfo.mangaId}`);
-            }
-          }
-        ]}
-      />
-    </>
+      <IonTabBar slot="bottom" className={`main-tab-bar ${shouldHideTabs ? 'tab-bar-hidden' : ''}`}>
+        <IonTabButton tab="home" href="/home" onClick={() => hapticsService.lightImpact()}>
+          <IonIcon aria-hidden="true" icon={home} />
+          <IonLabel>{getTranslation('tabs.home', currentLang)}</IonLabel>
+        </IonTabButton>
+
+        <IonTabButton tab="search" href="/search" onClick={() => hapticsService.lightImpact()}>
+          <IonIcon aria-hidden="true" icon={search} />
+          <IonLabel>{getTranslation('tabs.search', currentLang)}</IonLabel>
+        </IonTabButton>
+
+        <IonTabButton tab="anime" href="/anime" onClick={() => hapticsService.lightImpact()}>
+          <IonIcon aria-hidden="true" icon={tvOutline} />
+          <IonLabel>Anime</IonLabel>
+        </IonTabButton>
+
+        <IonTabButton tab="chat" href="/social" onClick={() => hapticsService.lightImpact()}>
+          <IonIcon aria-hidden="true" icon={chatbubbles} />
+          {totalBadges > 0 && (
+            <IonBadge color="danger" className="tab-badge-custom">{totalBadges}</IonBadge>
+          )}
+          <IonLabel>{getTranslation('tabs.chat', currentLang)}</IonLabel>
+        </IonTabButton>
+
+        <IonTabButton tab="library" href="/library" onClick={() => hapticsService.lightImpact()}>
+          <IonIcon aria-hidden="true" icon={library} />
+          {favorites.length > 0 && (
+            <IonBadge color="primary" mode="ios">{favorites.length}</IonBadge>
+          )}
+          <IonLabel>{getTranslation('tabs.library', currentLang)}</IonLabel>
+        </IonTabButton>
+      </IonTabBar>
+
+      {/* Standard Update Toast Notification */}
+      {showUpdateToast && (
+        <div 
+          style={{
+            position: 'fixed',
+            bottom: '80px',
+            left: '20px',
+            right: '20px',
+            background: 'rgba(20, 20, 30, 0.95)',
+            backdropFilter: 'blur(10px)',
+            borderRadius: '16px',
+            padding: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '15px',
+            zIndex: 1000,
+            border: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+            animation: 'slideUp 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28)'
+          }}
+        >
+          <div style={{ flex: 1 }}>
+            <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', fontWeight: 800 }}>¡Nuevo capítulo!</h4>
+            <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>
+              {updateInfo?.mangaTitle}: Cap. {updateInfo?.chapterTitle}
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <IonButton 
+              size="small" 
+              fill="clear" 
+              onClick={() => setShowUpdateToast(false)}
+              style={{ '--color': 'rgba(255,255,255,0.4)' }}
+            >
+              Ignorar
+            </IonButton>
+            <IonButton 
+              size="small" 
+              color="primary" 
+              onClick={() => {
+                setShowUpdateToast(false);
+                router.push(`/manga/${updateInfo?.mangaId}`);
+              }}
+            >
+              Leer
+            </IonButton>
+          </div>
+        </div>
+      )}
+    </IonTabs>
   );
 };
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 30, // 30 minutes
-      retry: 2,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
 
 const App: React.FC = () => (
   <QueryClientProvider client={queryClient}>
     <GlobalLoadingProvider>
       <IonApp>
+        <GlobalLoadingOverlay />
         <IonReactRouter>
           <Suspense fallback={<PageLoadingFallback message="Iniciando aplicación..." />}>
             <AppContent />
