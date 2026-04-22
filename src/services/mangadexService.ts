@@ -887,7 +887,7 @@ export const mangadexService = {
         if (!title) return null;
         try {
             // Clean title for better matching
-            const cleanTitle = title.replaceAll(/[^\w\s]/gi, '').trim();
+            const cleanTitle = title.replace(/[^\w\s]/gi, '').trim();
             const url = `/manga?title=${encodeURIComponent(cleanTitle)}&limit=1&order[relevance]=desc`;
             const data = await apiFetch(url);
             if (data.data && data.data.length > 0) {

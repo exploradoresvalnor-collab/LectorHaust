@@ -272,3 +272,66 @@ ion-content {
   /* 65px (pill height) + 15px (margin) + 25px (extra breathing room) */
   --padding-bottom: calc(105px + env(safe-area-inset-bottom));
 }
+
+/* Premium Update Banner */
+.premium-update-banner {
+  position: fixed;
+  bottom: calc(85px + env(safe-area-inset-bottom));
+  left: 15px;
+  right: 15px;
+  background: rgba(20, 20, 30, 0.9);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 2000;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.banner-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.banner-icon {
+  font-size: 1.5rem;
+}
+
+.banner-text h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.banner-text p {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.banner-actions {
+  display: flex;
+  gap: 8px;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.fade-in-up {
+  animation: slideUp 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+}
+
