@@ -104,7 +104,7 @@ const AnimeDetailsPage: React.FC = () => {
     }
   }, [id]);
 
-  // Monitor player close to scroll back
+  // Sync global loading state with anime details page loading states
   useEffect(() => {
     if (!showPlayer && selectedEpisode && epListRef.current) {
         setTimeout(() => {

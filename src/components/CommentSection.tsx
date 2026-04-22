@@ -25,6 +25,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import { userStatsService } from '../services/userStatsService';
+import UserAvatar from './UserAvatar';
 import './CommentSection.css';
 
 interface Comment {
@@ -189,13 +190,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ mangaId, chapterId, tit
           {comments.map((comment) => (
             <IonItem key={comment.id} lines="none" className="comment-item animate-pop-in">
               <IonAvatar slot="start" className="comment-avatar">
-                {comment.userAvatar ? (
-                  <img src={comment.userAvatar} alt="user" />
-                ) : (
-                  <div className="mascot-avatar-small">
-                    <img src="/Buho.webp" alt="pro" />
-                  </div>
-                )}
+                <UserAvatar uid={comment.userId} fallbackSrc={comment.userAvatar || undefined} size={40} />
               </IonAvatar>
               <IonLabel className="comment-content">
                 <div className="comment-user-row">

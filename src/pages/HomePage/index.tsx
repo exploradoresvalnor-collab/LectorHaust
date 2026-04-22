@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { 
   IonContent, 
   IonHeader, 
@@ -24,6 +24,7 @@ import {
 } from 'ionicons/icons';
 import EmptyState from '../../components/EmptyState';
 import LoadingScreen from '../../components/LoadingScreen';
+import UserAvatar from '../../components/UserAvatar';
 import { useHomeData } from './hooks/useHomeData';
 import { useReadingMood } from '../../hooks/useReadingMood';
 import { hapticsService } from '../../services/hapticsService';
@@ -72,9 +73,7 @@ const HomePage: React.FC = () => {
     router.push('/profile');
   };
 
-  if (loading && latestManga.length === 0 && heroItems.length === 0) {
-    return <IonPage><LoadingScreen /></IonPage>;
-  }
+
 
   return (
     <IonPage className="home-page-container">
@@ -121,17 +120,7 @@ const HomePage: React.FC = () => {
             <div className="header-actions">
               {currentUser ? (
                 <div className="profile-btn" onClick={handleProfileClick}>
-                   <div className="profile-avatar-wrapper">
-                    {currentUser.photoURL ? (
-                      <div className="user-avatar-small">
-                        <img src={currentUser.photoURL} alt="user avatar" width="32" height="32" />
-                      </div>
-                    ) : (
-                      <div className="user-icon-blank">
-                        <IonIcon icon={personOutline} />
-                      </div>
-                    )}
-                  </div>
+                  <UserAvatar user={currentUser} size={32} className="profile-avatar-wrapper" />
                 </div>
               ) : (
                 <button className="login-btn-tmo" onClick={() => router.push('/profile')}>

@@ -31,7 +31,7 @@ export const RecommendationGrid: React.FC<RecommendationGridProps> = ({
   mood = null
 }) => {
   const { recommendations, loading } = usePersonalizedRecommendations(allManga, limit, mood);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   if (loading) {
     return (

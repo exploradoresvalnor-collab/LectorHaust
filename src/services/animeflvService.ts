@@ -21,9 +21,7 @@ async function fetchHtml(url: string) {
         try {
             const directResp = await fetch(url);
             if (directResp.ok) return await directResp.text();
-        } catch (e) {
-            console.warn(`[AnimeFLV] Direct fetch failed on native, trying proxy...`);
-        }
+        } catch (e) {}
     }
 
     // ALWAYS use the proxy to bypass CORS on Web and as fallback on Native
@@ -82,7 +80,6 @@ export const animeflvService = {
       }
       return results;
     } catch (err) {
-      console.error("[S-P] Error fetching trending:", err);
       return [];
     }
   },
@@ -114,7 +111,7 @@ export const animeflvService = {
         });
       }
       return results;
-    } catch (e) { console.error(e); return []; }
+    } catch (e) { return []; }
   },
 
   async search(query: string = '', genres: string[] = [], page: number = 1, type: string = '', year: string = '', order: string = 'default'): Promise<any[]> {

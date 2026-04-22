@@ -34,6 +34,7 @@ import { userStatsService, UserStats } from '../../services/userStatsService';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import ArtPickerModal from '../../components/ArtPickerModal';
+import UserAvatar from '../../components/UserAvatar';
 import DonationsModal from './subcomponents/DonationsModal';
 import { useLanguageStore } from '../../store/useLanguageStore';
 import './styles.css';
@@ -360,11 +361,7 @@ const ProfilePage: React.FC = () => {
           {/* LEFT SIDEBAR (Sticky on PC) */}
           <div className="profile-sidebar">
             <div className="avatar-container animate-fade-in">
-              {user.photoURL ? (
-                <img src={user.photoURL} alt="avatar" className="main-avatar" />
-              ) : (
-                <IonIcon icon={personCircleOutline} className="user-icon-golden main-avatar-icon" />
-              )}
+              <UserAvatar user={user} size={110} className="main-avatar" />
               <button 
                 className="avatar-edit-overlay" 
                 onClick={() => setShowArtPicker(true)}

@@ -121,7 +121,7 @@ const MangaDetailsPage: React.FC = () => {
   const parsedTitle = manga ? mangaProvider.getLocalizedTitle(manga) : null;
   const { crossMedia, loadingCrossMedia } = useCrossMedia(parsedTitle as string, 'MANGA');
 
-  // Verify recommendations have chapters on MangaDex
+  // Sync global loading state with manga details page loading states
   useEffect(() => {
     if (!aniData?.recommendations?.edges?.length) {
       setVerifiedRecs([]);

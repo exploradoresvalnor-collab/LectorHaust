@@ -37,6 +37,7 @@ import { socialService, FriendRequest } from '../../services/socialService';
 import { firebaseAuthService } from '../../services/firebaseAuthService';
 import { db } from '../../services/firebase';
 import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
+import UserAvatar from '../../components/UserAvatar';
 import './styles.css';
 
 const formatLastActive = (timestamp: number) => {
@@ -253,7 +254,7 @@ const SocialPage: React.FC = () => {
                         style={{ background: 'transparent', border: 'none', padding: 0 }}
                         aria-label={`Chatear con ${friend.name || friend.displayName || 'Lector'}`}
                       >
-                        <img src={friend.avatarUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${friend.id}`} alt="" aria-hidden="true" />
+                        <UserAvatar uid={friend.id} fallbackSrc={friend.avatarUrl} size={40} />
                         {friend.isOnline && <div className="online-dot-badge"></div>}
                       </button>
                     </IonAvatar>
@@ -312,7 +313,7 @@ const SocialPage: React.FC = () => {
                 {requests.map(req => (
                   <IonItem key={req.id} className="social-item">
                     <IonAvatar slot="start">
-                      <img src={req.userData?.avatarUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${req.fromId}`} alt="avatar" />
+                      <UserAvatar uid={req.fromId} fallbackSrc={req.userData?.avatarUrl} size={40} />
                     </IonAvatar>
                     <IonLabel>
                       <h2>{req.userData?.name || req.userData?.displayName || 'Lector'}</h2>

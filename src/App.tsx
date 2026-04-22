@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import {
   IonApp,
@@ -33,6 +33,10 @@ const AnimePage = React.lazy(() => import('./pages/AnimePage'));
 const AnimeDetailsPage = React.lazy(() => import('./pages/AnimeDetailsPage'));
 const AnimeDirectoryPage = React.lazy(() => import('./pages/AnimeDirectoryPage'));
 import { useState, useEffect, useRef } from 'react';
+import { GlobalLoadingProvider } from './contexts/GlobalLoadingContext';
+import PageLoadingFallback from './components/PageLoadingFallback';
+import GlobalLoadingOverlay from './components/GlobalLoadingOverlay';
+import { useRouteTransition } from './hooks/useRouteTransition';
 import { useLibraryStore } from './store/useLibraryStore';
 import { checkUpdatesForLibrary, MangaUpdate } from './services/updateService';
 import { hapticsService } from './services/hapticsService';
@@ -86,10 +90,16 @@ const AppContent: React.FC = () => {
   const [currentLang, setCurrentLang] = useState<Language>(getDefaultLanguage());
   const [pendingRequests, setPendingRequests] = useState(0);
   const [totalUnread, setTotalUnread] = useState(0);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const router = useIonRouter();
   const location = useLocation();
   const [presentToast] = useIonToast();
   const lastPendingRef = useRef(0);
+
+  // Detectar transiciones de ruta y mostrar loading
+  // DISABLED: Was causing black screen on navigation back from detail pages
+  // Each page handles its own loading state
+  // useRouteTransition();
 
   // Paths where we want to HIDE the bottom tab bar
   const shouldHideTabs = 
@@ -104,7 +114,12 @@ const AppContent: React.FC = () => {
     location.pathname === '/search';
 
   useEffect(() => {
-    // Check for updates every 5 minutes
+    // Check for updates every 5 minutes - ONLY for authenticated users
+    // Skip polling in guest/anonymous mode to reduce background requests
+    if (!currentUser || currentUser.isAnonymous) {
+      return;
+    }
+
     const interval = setInterval(async () => {
       const updates = await checkUpdatesForLibrary(favorites);
       if (updates.length > 0) {
@@ -114,7 +129,7 @@ const AppContent: React.FC = () => {
     }, 300000);
 
     return () => clearInterval(interval);
-  }, [favorites]);
+  }, [favorites, currentUser]);
 
   // Social & Private Chat Notifications
   useEffect(() => {
@@ -122,6 +137,7 @@ const AppContent: React.FC = () => {
     let unsubPriv: (() => void) | null = null;
 
     const unsubscribeAuth = firebaseAuthService.subscribe(async (user) => {
+      setCurrentUser(user);
       if (unsubReq) unsubReq();
       if (unsubPriv) unsubPriv();
 
@@ -282,19 +298,104 @@ const AppContent: React.FC = () => {
       <IonTabs>
         <IonRouterOutlet>
           <Route exact path="/home" component={HomePage} />
-          <Route exact path="/manga/:id" component={MangaDetailsPage} />
-          <Route exact path="/reader/:chapterId" component={ReaderPage} />
-          <Route exact path="/search" component={SearchPage} />
-          <Route path="/library" component={LibraryPage} />
-          <Route exact path="/profile" component={ProfilePage} />
-          <Route exact path="/chat">
-            <ChatPage />
-          </Route>
-          <Route exact path="/chat/:friendId" component={PrivateChatPage} />
-          <Route exact path="/social" component={SocialPage} />
-          <Route exact path="/anime" component={AnimePage} />
-          <Route exact path="/browse-anime" component={AnimeDirectoryPage} />
-          <Route exact path="/anime/:id" component={AnimeDetailsPage} />
+          <Route 
+            exact 
+            path="/manga/:id"
+            component={() => (
+              <Suspense fallback={<PageLoadingFallback message="Cargando manga..." />}>
+                <MangaDetailsPage />
+              </Suspense>
+            )} 
+          />
+          <Route 
+            exact 
+            path="/reader/:chapterId"
+            component={() => (
+              <Suspense fallback={<PageLoadingFallback message="Preparando lector..." />}>
+                <ReaderPage />
+              </Suspense>
+            )} 
+          />
+          <Route 
+            exact 
+            path="/search"
+            component={() => (
+              <Suspense fallback={<PageLoadingFallback message="Cargando búsqueda..." />}>
+                <SearchPage />
+              </Suspense>
+            )} 
+          />
+          <Route 
+            path="/library"
+            component={() => (
+              <Suspense fallback={<PageLoadingFallback message="Cargando biblioteca..." />}>
+                <LibraryPage />
+              </Suspense>
+            )} 
+          />
+          <Route 
+            exact 
+            path="/profile"
+            component={() => (
+              <Suspense fallback={<PageLoadingFallback message="Cargando perfil..." />}>
+                <ProfilePage />
+              </Suspense>
+            )} 
+          />
+          <Route 
+            exact 
+            path="/chat"
+            component={() => (
+              <Suspense fallback={<PageLoadingFallback message="Cargando chat..." />}>
+                <ChatPage />
+              </Suspense>
+            )} 
+          />
+          <Route 
+            exact 
+            path="/chat/:friendId"
+            component={() => (
+              <Suspense fallback={<PageLoadingFallback message="Abriendo conversación..." />}>
+                <PrivateChatPage />
+              </Suspense>
+            )} 
+          />
+          <Route 
+            exact 
+            path="/social"
+            component={() => (
+              <Suspense fallback={<PageLoadingFallback message="Cargando comunidad..." />}>
+                <SocialPage />
+              </Suspense>
+            )} 
+          />
+          <Route 
+            exact 
+            path="/anime"
+            component={() => (
+              <Suspense fallback={<PageLoadingFallback message="Cargando anime..." />}>
+                <AnimePage />
+              </Suspense>
+            )} 
+          />
+          <Route 
+            exact 
+            path="/browse-anime"
+            component={() => (
+              <Suspense fallback={<PageLoadingFallback message="Cargando directorio..." />}>
+                <AnimeDirectoryPage />
+              </Suspense>
+            )} 
+          />
+          <Route 
+            exact 
+            path="/anime/:id"
+            component={() => (
+              <Suspense fallback={<PageLoadingFallback message="Cargando anime..." />}>
+                <AnimeDetailsPage />
+              </Suspense>
+            )} 
+          />
           <Route exact path="/">
             <Redirect to="/home" />
           </Route>
@@ -367,17 +468,15 @@ const queryClient = new QueryClient({
 
 const App: React.FC = () => (
   <QueryClientProvider client={queryClient}>
-    <IonApp>
-      <IonReactRouter>
-        <React.Suspense fallback={
-          <div style={{ height: '100vh', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src="/logolh.webp" width="64" height="64" style={{ filter: 'drop-shadow(0 0 15px rgba(var(--ion-color-primary-rgb), 0.5))' }} />
-          </div>
-        }>
-          <AppContent />
-        </React.Suspense>
-      </IonReactRouter>
-    </IonApp>
+    <GlobalLoadingProvider>
+      <IonApp>
+        <IonReactRouter>
+          <Suspense fallback={<PageLoadingFallback message="Iniciando aplicación..." />}>
+            <AppContent />
+          </Suspense>
+        </IonReactRouter>
+      </IonApp>
+    </GlobalLoadingProvider>
   </QueryClientProvider>
 );
 

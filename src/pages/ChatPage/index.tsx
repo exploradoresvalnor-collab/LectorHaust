@@ -34,7 +34,9 @@ import {
   alertCircleOutline,
   bookOutline,
   trophyOutline,
-  starOutline
+  starOutline,
+  chevronDownOutline,
+  sparklesOutline
 } from 'ionicons/icons';
 import { Capacitor } from '@capacitor/core';
 import { Keyboard } from '@capacitor/keyboard';
@@ -126,6 +128,7 @@ const ChatPage: React.FC = () => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isStatsLoading, setIsStatsLoading] = useState(false);
   const [friendshipStatus, setFriendshipStatus] = useState<'friends' | 'pending_sent' | 'pending_received' | 'none' | 'loading'>('loading');
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
 
   useEffect(() => {
     // 1. Subscribe to auth state (and handle Ghost Mode login)
@@ -227,8 +230,10 @@ const ChatPage: React.FC = () => {
   });
 
   const scrollToBottom = (speed = 300) => {
-    if (contentRef.current) {
-      contentRef.current.scrollToBottom(speed);
+    // Usamos el contenedor de scroll propio de la ventana
+    const scrollEl = document.querySelector('.chat-scroll-area');
+    if (scrollEl) {
+      scrollEl.scrollTo({ top: scrollEl.scrollHeight, behavior: speed > 0 ? 'smooth' : 'auto' });
     }
   };
 
@@ -380,30 +385,54 @@ const ChatPage: React.FC = () => {
 
   return (
     <IonPage className="chat-page">
-      <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonBackButton defaultHref="/home" />
-          </IonButtons>
-          <IonTitle>Chat Global
-            <div className="online-indicator">
-              <span className="dot"></span> Online
+      <IonContent ref={contentRef} className="chat-content" scrollY={false}>
+        <div className="chat-viewport">
+          <div className="chat-window">
+            
+            {/* Window Header (Fixed) */}
+            <div className={`chat-window-header ${!isHeaderVisible ? 'collapsed' : ''}`}>
+              <div className="window-header-actions">
+                <IonButton fill="clear" onClick={() => setIsHeaderVisible(!isHeaderVisible)} className="window-toggle-btn">
+                  <IonIcon icon={isHeaderVisible ? chevronDownOutline : sparklesOutline} />
+                </IonButton>
+                <IonButton fill="clear" onClick={() => router.back()} className="window-back-btn">
+                  <IonIcon icon={close} />
+                </IonButton>
+              </div>
+
+              {isHeaderVisible && (
+                <>
+                  <div className="chat-window-avatar-area">
+                    <img src="/logolh.webp" alt="Lector Haus" className="window-header-logo" />
+                    <div className="window-status-badge">
+                      <span className="dot"></span> Global
+                    </div>
+                  </div>
+                  <div className="chat-window-info">
+                    <h1 className="window-title">Chat de la Comunidad</h1>
+                    <p className="window-subtitle">Conéctate con otros Nakamas en tiempo real</p>
+                  </div>
+                </>
+              )}
+              
+              {!isHeaderVisible && (
+                <div className="collapsed-header-info">
+                   <img src="/logolh.webp" alt="LH" className="mini-logo" />
+                   <span>Chat Global Online</span>
+                </div>
+              )}
             </div>
-          </IonTitle>
-        </IonToolbar>
-      </IonHeader>
 
-      <IonContent ref={contentRef} className="chat-content ion-padding">
-        {/* We no longer show the login prompt because Ghost Mode logs them in silently! */}
-        
-        <IonInfiniteScroll position="top" onIonInfinite={(e) => {
-          setLimitCount(prev => prev + 30);
-          setTimeout(() => e.target.complete(), 500);
-        }}>
-          <IonInfiniteScrollContent loadingSpinner="bubbles" loadingText="Cargando más mensajes..."></IonInfiniteScrollContent>
-        </IonInfiniteScroll>
+            {/* Scrollable Message Area */}
+            <div className="chat-scroll-area">
+              <IonInfiniteScroll position="top" onIonInfinite={(e) => {
+                setLimitCount(prev => prev + 30);
+                setTimeout(() => e.target.complete(), 500);
+              }}>
+                <IonInfiniteScrollContent loadingSpinner="bubbles" loadingText="Cargando historia..."></IonInfiniteScrollContent>
+              </IonInfiniteScroll>
 
-        <div className="messages-container">
+              <div className="messages-container">
           {messages
             .filter(msg => !blockedUsers.includes(msg.userId))
             .map((msg, index) => {
@@ -422,7 +451,13 @@ const ChatPage: React.FC = () => {
                       className="chat-avatar clickable" 
                       onClick={() => openPublicProfile(msg)}
                     >
-                      <img src={msg.userAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${msg.userId}`} alt="Avatar" />
+                      <img 
+                        src={msg.userAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${msg.userId}`} 
+                        alt="Avatar" 
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/identicon/svg?seed=${msg.userId}`;
+                        }}
+                      />
                     </IonAvatar>
                     <span 
                       className="sender-name" 
@@ -505,59 +540,52 @@ const ChatPage: React.FC = () => {
               </div>
             </div>
           )}
-        </div>
-      </IonContent>
-      <IonFooter className={`chat-footer ion-no-border ${isKeyboardOpen ? 'keyboard-open' : ''}`}>
-        <IonToolbar className="chat-input-toolbar">
-          <div className="input-container">
-            <div className="text-input-wrapper">
-              <IonIcon 
-                icon={happyOutline} 
-                className="action-icon" 
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
-              />
-              <IonInput
-                className="chat-input"
-                placeholder="Escribe un mensaje..."
-                value={newMessage}
-                onIonInput={handleTyping}
-                onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
-                onFocus={() => setShowEmojiPicker(false)}
-              />
-              <IonIcon icon={attachOutline} className="action-icon" />
+              </div>
             </div>
-            
-            <div 
-              className="send-btn-circle" 
-              onClick={handleSendMessage}
-              role="button"
-              tabIndex={0}
-              aria-label="Enviar mensaje"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  handleSendMessage();
-                }
-              }}
-            >
-              <IonIcon icon={send} style={{ color: 'white', marginLeft: '3px' }} />
+
+            {/* Fixed Footer (Matching Reference) */}
+            <div className="chat-window-footer-fixed">
+              <div className="chat-input-centered-wrapper">
+                <div className="chat-input-glass">
+                  <IonIcon 
+                    icon={happyOutline} 
+                    className="chat-glass-icon" 
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
+                  />
+                  <IonInput
+                    className="chat-glass-input"
+                    placeholder="Introduce el mensaje..."
+                    value={newMessage}
+                    onIonInput={handleTyping}
+                    onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+                    onFocus={() => setShowEmojiPicker(false)}
+                  />
+                  <div className="chat-glass-actions">
+                    <IonIcon icon={attachOutline} className="chat-glass-icon" />
+                    <button className="chat-send-pill" onClick={handleSendMessage}>
+                      <IonIcon icon={send} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className={`emoji-picker-container ${showEmojiPicker ? 'emoji-visible' : 'emoji-hidden'}`}>
+                <EmojiPicker
+                  theme={EmojiTheme.DARK}
+                  onEmojiClick={(emojiData) => {
+                    setNewMessage(prev => prev + emojiData.emoji);
+                  }}
+                  width="100%"
+                  height={300}
+                  skinTonesDisabled
+                  searchDisabled
+                  previewConfig={{ showPreview: false }}
+                />
+              </div>
             </div>
           </div>
-        </IonToolbar>
-
-        <div className={`emoji-picker-container ${showEmojiPicker ? 'emoji-visible' : 'emoji-hidden'}`}>
-          <EmojiPicker
-            theme={EmojiTheme.DARK}
-            onEmojiClick={(emojiData) => {
-              setNewMessage(prev => prev + emojiData.emoji);
-            }}
-            width="100%"
-            height={350}
-            skinTonesDisabled
-            searchDisabled
-            previewConfig={{ showPreview: false }}
-          />
         </div>
-      </IonFooter>
+      </IonContent>
 
       {/* Profile Modal - Redesigned as "Player Card" */}
       <IonModal

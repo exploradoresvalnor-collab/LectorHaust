@@ -33,11 +33,11 @@ async function rateLimitedFetch(query: string, variables: any): Promise<any> {
         // Almacenamiento bloqueado por el navegador (Tracking Prevention)
     }
 
-    // 2. Queue & Throttle (Strict 1500ms spacing to avoid 429)
+    // 2. Queue & Throttle (Strict 800ms spacing to avoid 429 - optimized for LectorHaus)
     const fetchPromise = requestQueue.then(async () => {
         const elapsed = Date.now() - lastRequestTime;
-        if (elapsed < 1500) {
-            await new Promise(r => setTimeout(r, 1500 - elapsed));
+        if (elapsed < 800) {
+            await new Promise(r => setTimeout(r, 800 - elapsed));
         }
         
         // Update time BEFORE fetch, preventing concurrent queues from skipping the wait if they somehow leak

@@ -61,14 +61,15 @@ const AnimePage: React.FC = () => {
     try {
       const cached = localStorage.getItem(HERO_CACHE_KEY);
       if (cached) {
-        const { data, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < HERO_CACHE_TTL && data?.length > 0) {
-          setSpotlightAnimes(data);
-          setLoadingPrimary(false);
-          console.log('[Hero Cache] Loaded from cache, age:', Math.round((Date.now() - globalThis.Date.now() - timestamp) / 60000), 'min');
-        }
+        try {
+          const { data, timestamp } = JSON.parse(cached);
+          if (Date.now() - timestamp < HERO_CACHE_TTL && data?.length > 0) {
+            setSpotlightAnimes(data);
+            setLoadingPrimary(false);
+          }
+        } catch (e) {}
       }
-    } catch { /* cache read error - ignore */ }
+    } catch (e) {}
 
     try {
       let [flvTrending, flvRecent] = await Promise.all([
@@ -114,7 +115,6 @@ const AnimePage: React.FC = () => {
       } catch { /* Latino es opcional */ }
       setLoadingTertiary(false);
     } catch (err) {
-      console.error("Fetch anime error", err);
       setLoadingPrimary(false);
       setLoadingSecondary(false);
       setLoadingTertiary(false);

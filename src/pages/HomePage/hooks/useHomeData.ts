@@ -21,6 +21,15 @@ export function useHomeData() {
   const [currentSource, setCurrentSource] = useState<MangaSource>(mangaProvider.getSource());
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const showNSFW = useLibraryStore(state => state.showNSFW);
+  
+  // Carga paralela habilitada por defecto para máxima velocidad
+  const [enableManhwaLoading, setEnableManhwaLoading] = useState(true);
+  const [enableManhuaLoading, setEnableManhuaLoading] = useState(true);
+  const [enableAnimeLoading, setEnableAnimeLoading] = useState(true);
+  
+  const HERO_CACHE_KEY = 'haus_manga_hero_cache';
+  const LISTS_CACHE_KEY = 'haus_manga_lists_cache';
+  const HERO_CACHE_TTL = 12 * 60 * 60 * 1000; // 12 hours
 
   const heroTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -33,16 +42,9 @@ export function useHomeData() {
     return () => window.removeEventListener('storage', syncLang);
   }, []);
 
-  // --- 2. TRENDING ANIME ---
-  const {
-    data: trendingAnime,
-  } = useQuery({
-    queryKey: ['trendingAnime'],
-    queryFn: async () => {
-      return await animeflvService.getTrendingAnime();
-    },
-    staleTime: 1000 * 60 * 60 * 6,
-  });
+  // --- 2. TRENDING ANIME (DISABLED - Carga después en background) ---
+  // Deshabilitado para mejorar performance: trendingAnime se cargará en background después
+  const trendingAnime: any = null;
 
   // --- 3. LATEST UPDATES BY CATEGORY (SILOS) ---
   
@@ -62,7 +64,7 @@ export function useHomeData() {
   } = useQuery({
     queryKey: ['latestManga', currentSource, latestLang, showNSFW],
     queryFn: async () => {
-      const res = await mangaProvider.getLatestUpdatedManga(12, 0, latestLang, 'manga', showNSFW);
+      const res = await mangaProvider.getLatestUpdatedManga(6, 0, latestLang, 'manga', showNSFW);
       return res.data || [];
     },
     staleTime: 1000 * 60 * 5,
@@ -75,30 +77,53 @@ export function useHomeData() {
   } = useQuery({
     queryKey: ['latestManhwa', currentSource, latestLang, showNSFW],
     queryFn: async () => {
-      const res = await mangaProvider.getLatestUpdatedManga(12, 0, latestLang, 'manhwa', showNSFW);
+      const res = await mangaProvider.getLatestUpdatedManga(6, 0, latestLang, 'manhwa', showNSFW);
       return res.data || [];
     },
     staleTime: 1000 * 60 * 5,
+    enabled: enableManhwaLoading, 
   });
 
   const {
     data: rawManhua,
-    isLoading: loadingManhua,
+    isLoading: loadingManhuaQuery,
     refetch: refetchManhua
   } = useQuery({
     queryKey: ['latestManhua', currentSource, latestLang, showNSFW],
     queryFn: async () => {
-      const res = await mangaProvider.getLatestUpdatedManga(12, 0, latestLang, 'manhua', showNSFW);
+      const res = await mangaProvider.getLatestUpdatedManga(6, 0, latestLang, 'manhua', showNSFW);
       return res.data || [];
     },
     staleTime: 1000 * 60 * 5,
+    enabled: enableManhuaLoading, 
   });
 
-  const latestManga = useMemo(() => extractUnique(rawManga || []), [rawManga]);
-  const latestManhwa = useMemo(() => extractUnique(rawManhwa || []), [rawManhwa]);
-  const latestManhua = useMemo(() => extractUnique(rawManhua || []), [rawManhua]);
+  // --- LÓGICA DE PERSISTENCIA PARA LISTAS ---
+  const [cachedLists, setCachedLists] = useState<any>({ manga: [], manhwa: [], manhua: [] });
 
-  const loadingLatest = loadingManga || loadingManhwa || loadingManhua;
+  useEffect(() => {
+    const saved = localStorage.getItem(LISTS_CACHE_KEY);
+    if (saved) {
+      try {
+        setCachedLists(JSON.parse(saved).data);
+      } catch (e) {}
+    }
+  }, []);
+
+  const latestManga = useMemo(() => extractUnique(rawManga || cachedLists.manga || []), [rawManga, cachedLists.manga]);
+  const latestManhwa = useMemo(() => extractUnique(rawManhwa || cachedLists.manhwa || []), [rawManhwa, cachedLists.manhwa]);
+  const latestManhua = useMemo(() => extractUnique(rawManhua || cachedLists.manhua || []), [rawManhua, cachedLists.manhua]);
+
+  useEffect(() => {
+    if (rawManga && rawManhwa && rawManhua) {
+      localStorage.setItem(LISTS_CACHE_KEY, JSON.stringify({
+        data: { manga: rawManga, manhwa: rawManhwa, manhua: rawManhua },
+        timestamp: Date.now()
+      }));
+    }
+  }, [rawManga, rawManhwa, rawManhua]);
+
+  const loadingLatest = loadingManga || loadingManhwa || loadingManhuaQuery;
 
   // Interleave for Hero and Rankings to guarantee variety
   const latest = useMemo(() => {
@@ -161,7 +186,11 @@ export function useHomeData() {
       }
       
       finalItems = finalItems.slice(0, 8);
-      if (mounted) setHeroItems([...finalItems]);
+      if (mounted) {
+         setHeroItems([...finalItems]);
+         // Si ya tenemos items base, marcamos como ready para quitar el LoadingScreen
+         if (finalItems.length > 0) setIsHeroReady(true);
+      }
 
       // Parallel Enrichment of Hero Items
       await Promise.all(finalItems.map(async (item) => {
@@ -203,10 +232,33 @@ export function useHomeData() {
           }
         } catch (e) {}
       }));
-      if (mounted) setIsHeroReady(true);
+      
+      if (mounted) {
+        setIsHeroReady(true);
+        // Persistir en caché para evitar pantalla negra en el futuro
+        try {
+           localStorage.setItem(HERO_CACHE_KEY, JSON.stringify({
+              data: finalItems,
+              timestamp: Date.now()
+           }));
+        } catch(e) {}
+      }
     };
     
-    setIsHeroReady(false);
+    // Solo mostramos loading total si NO hay caché
+    const cachedHero = localStorage.getItem(HERO_CACHE_KEY);
+    if (cachedHero) {
+       try {
+          const { data, timestamp } = JSON.parse(cachedHero);
+          if (Date.now() - timestamp < HERO_CACHE_TTL) {
+             setHeroItems(data);
+             setIsHeroReady(true);
+          }
+       } catch(e) {}
+    } else {
+       setIsHeroReady(false);
+    }
+    
     buildHero();
     return () => { mounted = false; };
   }, [latest, trendingAnime]);

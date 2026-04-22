@@ -168,10 +168,53 @@
   .ani-stats {
     justify-content: center;
   }
-  
-  .details-body {
+    .details-body {
     padding-top: 20px;
   }
+}
+
+/* Action Buttons */
+.action-buttons-container {
+  display: flex;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.read-now-btn, .continue-reading-btn {
+  flex: 1;
+  --background: var(--ion-color-primary);
+  --color: #fff;
+  --border-radius: 12px;
+  font-weight: 800;
+  height: 54px;
+  font-size: 1rem;
+  box-shadow: 0 10px 30px rgba(var(--ion-color-primary-rgb), 0.3);
+}
+
+.fav-action-btn, .share-action-btn {
+  width: 54px;
+  height: 54px;
+  --border-radius: 12px;
+  --border-width: 1px;
+  --border-color: rgba(255,255,255,0.1);
+  --background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(10px);
+  margin: 0;
+}
+
+.fav-action-btn ion-icon, .share-action-btn ion-icon {
+  font-size: 24px;
+}
+
+.language-status-badge {
+  margin: 15px 0 25px;
+}
+
+.language-status-badge ion-badge {
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 0.75rem;
 }
 
 /* Expansion & Read More */
@@ -263,14 +306,12 @@
   box-shadow: 0 4px 15px rgba(0,0,0,0.3);
 }
 
-.character-card SmartImage {
+.character-card .smart-image-wrapper {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  transition: transform 0.3s ease;
 }
 
-.character-card:hover .character-card SmartImage {
+.character-card:hover .smart-image-wrapper img {
   transform: scale(1.1);
 }
 
@@ -377,7 +418,7 @@
   animation: fadeIn 0.4s ease-in;
 }
 
-.recommendation-cover-wrapper SmartImage {
+.recommendation-cover-wrapper .smart-image-wrapper {
   width: 100%;
   height: 100%;
   object-fit: cover;

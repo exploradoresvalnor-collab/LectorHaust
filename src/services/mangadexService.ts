@@ -64,116 +64,65 @@ function getProxyUrl(endpoint: string) {
  */
 async function apiFetch(endpoint: string, retries = 3, delay = 1500): Promise<any> {
     const proxiedUrl = getProxyUrl(endpoint);
-    
-    // IMPORTANT: Shorter timeout in localhost (15s) vs production (25s)
     const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
     const timeoutMs = isDev ? 15000 : 25000;
     
-    console.log(`[apiFetch] START: ${endpoint} (${isDev ? 'DEV' : 'PROD'}, timeout=${timeoutMs}ms)`);
-    
     try {
-        // WAIT IN QUEUE: No timers running, infinite patience
-        console.log(`[apiFetch] ⏳ Waiting for turn...`);
         await waitForTurn();
         
-        // ✅ IT'S OUR TURN! Now we start the timer
-        console.log(`[apiFetch] CALLING: ${proxiedUrl}`);
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
-            console.error(`[apiFetch] ⏱️ TIMEOUT after ${timeoutMs}ms: ${endpoint}`);
             controller.abort();
         }, timeoutMs);
 
-        const startTime = Date.now();
         const response = await fetch(proxiedUrl, { signal: controller.signal });
         clearTimeout(timeoutId);
         
-        const duration = Date.now() - startTime;
-        console.log(`[apiFetch] GOT RESPONSE: ${response.status} for ${endpoint} (${duration}ms)`);
-        
         if (!response.ok) {
-            console.warn(`[apiFetch] HTTP ${response.status} from ${endpoint}`);
-            // Si el error es 403, 404 o 500 y estamos en Web, lanzamos error para que el CATCH intente el FALLBACK
             if (!isNative && (response.status === 403 || response.status === 404 || response.status >= 500)) {
                 throw new Error(`Primary Proxy Error: ${response.status}`);
             }
 
             if ((response.status >= 500 || response.status === 429) && retries > 0) {
-                console.warn(`[apiFetch] Retry #${4 - retries}: Waiting ${delay}ms before retry...`);
                 await new Promise(res => setTimeout(res, delay));
                 return apiFetch(endpoint, retries - 1, delay * 2);
             }
             throw new Error(`MangaDex API Error: ${response.status}`);
         }
         
-        console.log(`[apiFetch] PARSING JSON for ${endpoint}`);
         const data = await response.json();
-        console.log(`[apiFetch] ✅ SUCCESS: ${endpoint} (${JSON.stringify(data).length} bytes)`);
-        
-        // VALIDATION: Check if response is empty/corrupted
         if (!data || typeof data !== 'object') {
             throw new Error('Empty or invalid API response');
         }
-        
         return data;
     } catch (err: any) {
-        console.error(`[apiFetch] CATCH ERROR: ${err instanceof Error ? err.message : err}`);
-
-        // --- FALLBACK AL WORKER DE CLOUDFLARE ---
-        // Si falla el proxy primario o devuelve un error bloqueable en Web, intentamos por el túnel del Worker
         if (!isNative && !isLocalhost) {
-            console.warn(`[apiFetch] 🔄 Attempting Worker Fallback for: ${endpoint}`);
             try {
                 const MANGADEX_API_BASE = 'https://api.mangadex.org';
                 const WORKER_PROXY_BASE = 'https://manga-proxy.mchaustman.workers.dev/?url=';
                 const fallbackUrl = `${WORKER_PROXY_BASE}${encodeURIComponent(MANGADEX_API_BASE + endpoint)}`;
                 
-                console.log(`[apiFetch] Worker URL: ${fallbackUrl.substring(0, 100)}...`);
-                
-                // Worker fallback also has timeout (10s to fail fast)
                 const workerController = new AbortController();
                 const workerTimeoutId = setTimeout(() => {
-                    console.error(`[apiFetch] ⏱️ Worker timeout after 10s`);
                     workerController.abort();
                 }, 10000);
                 
                 const fallbackResponse = await fetch(fallbackUrl, { signal: workerController.signal });
                 clearTimeout(workerTimeoutId);
                 
-                console.log(`[apiFetch] Worker returned: ${fallbackResponse.status}`);
-                
                 if (fallbackResponse.ok) {
                     const data = await fallbackResponse.json();
                     if (data && typeof data === 'object') {
-                        console.log('[apiFetch] ✅ Worker Fallback succeeded');
                         return data;
                     }
                 }
-                throw new Error(`Worker Fallback returned ${fallbackResponse.status}`);
-            } catch (fallbackErr) {
-                console.error('[apiFetch] ❌ Worker Fallback failed:', fallbackErr instanceof Error ? fallbackErr.message : fallbackErr);
-                // Don't rethrow immediately - try retries first
-            }
+            } catch (fallbackErr) {}
         }
 
-        // Manejo de errores de red (ECONNRESET, Timeouts, etc.) con reintentos
         if (retries > 0) {
-            const isAborted = err.name === 'AbortError' || err.message?.includes('aborted');
-            const isReset = err.message?.includes('reset') || err.message?.includes('ECONNRESET');
-            
-            // Si el worker falló por 429, no vale la pena reintentar recursivamente
-            if (err.message?.includes('Worker Fallback')) {
-               throw err;
-            }
-            
-            const reason = isAborted ? 'Timeout' : (isReset ? 'Connection Reset' : 'Network Error');
-            console.warn(`[apiFetch] ${reason}. Retry #${4 - retries} in ${delay}ms... (${retries} left)`);
-            
             await new Promise(res => setTimeout(res, delay));
             return apiFetch(endpoint, retries - 1, delay * 2);
         }
-        
-        console.error(`[apiFetch] ❌ FATAL ERROR after all retries: ${endpoint}`);
         throw err;
     }
 }
@@ -627,7 +576,7 @@ export const mangadexService = {
             const typeMap: Record<string, string> = { 'manga': 'ja', 'manhwa': 'ko', 'manhua': 'zh' };
             const targetOrigin = typeMap[typeValue] || typeValue;
             
-            const fetchLimit = 100;
+            const fetchLimit = 25;
             let url = `/chapter?limit=${fetchLimit}&offset=${offset}&order[readableAt]=desc&includes[]=manga&originalLanguage[]=${targetOrigin}`;
             url += this.getContentRatingParams(allowNSFW);
             
@@ -663,8 +612,8 @@ export const mangadexService = {
                 const uniqueIds = Array.from(seenMangaIds);
                 if (uniqueIds.length === 0) return { data: [] };
 
-                let mangaUrl = `/manga?limit=${Math.min(uniqueIds.length, 50)}&includes[]=cover_art&includes[]=author`;
-                uniqueIds.slice(0, 50).forEach(id => mangaUrl += `&ids[]=${id}`);
+                let mangaUrl = `/manga?limit=${Math.min(uniqueIds.length, 12)}&includes[]=cover_art&includes[]=author`;
+                uniqueIds.slice(0, 12).forEach(id => mangaUrl += `&ids[]=${id}`);
                 
                 const mangaResp = await apiFetch(mangaUrl);
                 const fullMangas = mangaResp.data || [];
@@ -695,7 +644,7 @@ export const mangadexService = {
 
         // Mode 2: Chapter-first (Best for the "All" view with maximum variety)
         // Fetch more chapters to ensure we find enough UNIQUE manga (even with bulk uploads)
-        const fetchLimit = 100; 
+        const fetchLimit = 25; 
         let url = `/chapter?limit=${fetchLimit}&offset=${offset}&order[readableAt]=desc&includes[]=manga`;
         url += this.getContentRatingParams(allowNSFW);
         
@@ -733,8 +682,8 @@ export const mangadexService = {
             const uniqueIds = Array.from(seenMangaIds);
             if (uniqueIds.length === 0) return { data: [] };
 
-            let mangaUrl = `/manga?limit=${Math.min(uniqueIds.length, 50)}&includes[]=cover_art&includes[]=author`;
-            uniqueIds.slice(0, 50).forEach(id => mangaUrl += `&ids[]=${id}`);
+            let mangaUrl = `/manga?limit=${Math.min(uniqueIds.length, 12)}&includes[]=cover_art&includes[]=author`;
+            uniqueIds.slice(0, 12).forEach(id => mangaUrl += `&ids[]=${id}`);
             
             const mangaResp = await apiFetch(mangaUrl);
             const fullMangas = mangaResp.data || [];
