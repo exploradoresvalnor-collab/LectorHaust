@@ -7,7 +7,7 @@ import { mangaProvider, MangaSource } from '../../../services/mangaProvider';
 import { useLibraryStore } from '../../../store/useLibraryStore';
 import { getDefaultLanguage } from '../../../utils/translations';
 import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import { animeflvService } from '../../../services/animeflvService';
+import { tioanimeService as animeflvService } from '../../../services/tioanimeService';
 import { translationService } from '../../../services/translationService';
 import { anilistService } from '../../../services/anilistService';
 

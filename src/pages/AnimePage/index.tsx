@@ -27,7 +27,7 @@ import {
   informationCircleOutline,
   optionsOutline
 } from 'ionicons/icons';
-import { animeflvService } from '../../services/animeflvService';
+// import removed
 import { tioanimeService } from '../../services/tioanimeService';
 import { anilistService } from '../../services/anilistService';
 import { hapticsService } from '../../services/hapticsService';
@@ -73,8 +73,8 @@ const AnimePage: React.FC = () => {
 
     try {
       let [flvTrending, flvRecent] = await Promise.all([
-          animeflvService.getTrendingAnime(),
-          animeflvService.getRecentEpisodes()
+          tioanimeService.getLatestAnimes(),
+          tioanimeService.getLatestEpisodes()
       ]);
       
       const topTrending = (flvTrending || []).slice(0, 5);
@@ -138,7 +138,7 @@ const AnimePage: React.FC = () => {
       setSpotlightAnimes(trending.slice(0, 5));
       setLoadingPrimary(false);
       setSearchLoading(true);
-      const results = await animeflvService.search(val);
+      const results = await tioanimeService.search(val);
       setSearchResults(results);
       setSearchLoading(false);
     } else {

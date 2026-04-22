@@ -6,7 +6,7 @@ import {
   IonChip, IonLabel
 } from '@ionic/react';
 import { filterOutline, searchOutline, chevronBackOutline, chevronForwardOutline } from 'ionicons/icons';
-import { animeflvService } from '../../services/animeflvService';
+// removed
 import { tioanimeService } from '../../services/tioanimeService';
 import AnimeCardItem from '../../components/AnimeCardItem';
 import './styles.css';
@@ -28,7 +28,7 @@ const AnimeDirectoryPage: React.FC = () => {
   const [year, setYear] = useState('all');
   const [sort, setSort] = useState('default');
   const [language, setLanguage] = useState<'sub-es' | 'latino'>('sub-es');
-  const [provider, setProvider] = useState<'default' | 'tioanime' | 'animeflv'>('default');
+  const [provider, setProvider] = useState<'default' | 'tioanime'>('default');
   
   const years = Array.from({ length: 56 }, (_, i) => (2025 - i).toString());
 
@@ -57,54 +57,9 @@ const AnimeDirectoryPage: React.FC = () => {
       let newItems: any[] = [];
       let flvResults: any = null;
       
-      if (provider === 'tioanime') {
+      if (true) {
           newItems = await tioanimeService.search(query);
-      } else if (provider === 'animeflv') {
-          flvResults = await animeflvService.search(query, [genre], targetPage, type, year, sort);
-          newItems = flvResults;
-      } else {
-          // OMNI-SEARCH START (Intelligent Merging)
-          const [fRes, tioResults] = await Promise.all([
-             animeflvService.search(query, [genre], targetPage, type, year, sort),
-             tioanimeService.search(query)
-          ]);
-          
-          flvResults = fRes; 
-
-          const mergeMap = new Map();
-
-          // Phase 1: Populate with High Quality Source (FLV)
-          flvResults.forEach((item: any) => {
-             const cleanKey = item.title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
-             mergeMap.set(cleanKey, { ...item });
-          });
-
-          // Phase 2: Merge or Appeand TioAnime (LAT Dub priority)
-          tioResults.forEach((tItem: any) => {
-             const cleanKey = tItem.title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
-             if (mergeMap.has(cleanKey)) {
-                // Collision: Merge Props (Inject LAT tag into FLV Base Array)
-                const existing = mergeMap.get(cleanKey);
-                if (!existing.sources) existing.sources = existing.source ? [existing.source] : ['FL'];
-                if (!existing.sources.includes('TI')) existing.sources.push('TI');
-                existing.hasDub = true;
-             } else {
-                // Unique to TioAnime, Add safely
-                mergeMap.set(cleanKey, { ...tItem });
-             }
-          });
-
-          newItems = Array.from(mergeMap.values()).map(item => ({
-              ...item,
-              year: year !== 'all' ? year : item.year,
-              language: language === 'latino' ? 'latino' : 'sub-es',
-              hasDub: language === 'latino' || item.hasDub
-          }));
-          
-          if (flvResults && (flvResults as any).totalCount) {
-             (newItems as any).totalCount = (flvResults as any).totalCount;
-          }
-      }
+      } 
 
       // If specific provider, also inject metadata for consistent UI
       if (provider !== 'default') {
@@ -217,7 +172,6 @@ const AnimeDirectoryPage: React.FC = () => {
                 <span className="filter-label">Servidor</span>
                 <IonSelect value={provider} interface="popover" onIonChange={e => setProvider(e.detail.value)} className="custom-select-inline">
                    <IonSelectOption value="default">TODOS</IonSelectOption>
-                   <IonSelectOption value="animeflv">AnimeFLV</IonSelectOption>
                    <IonSelectOption value="tioanime">TioAnime</IonSelectOption>
                 </IonSelect>
               </div>

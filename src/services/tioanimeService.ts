@@ -63,8 +63,8 @@ export const tioanimeService = {
         const epId = match[1]; // e.g. "mayonaka-heart-tune-12"
         const fullTitle = match[4].trim(); // e.g. "Mayonaka Heart Tune 12"
         
-        // Use Photon proxy for faster image delivery
-        const proxiedImg = `https://i0.wp.com/${imgUrl.replaceAll(/^https?:\/\//g, '')}`;
+        // Use direct URL - img tags are not subject to CORS
+        const proxiedImg = imgUrl;
         
         // Extract episode number from end of title
         const numMatch = fullTitle.match(/\d+$/);
@@ -101,7 +101,7 @@ export const tioanimeService = {
       while ((match = regex.exec(html)) !== null && results.length < 20) {
         let imgUrl = match[2];
         if (imgUrl.startsWith('/')) imgUrl = `${BASE_URL}${imgUrl}`;
-        const proxiedImg = `https://i0.wp.com/${imgUrl.replace(/^https?:\/\//, '')}`;
+        const proxiedImg = imgUrl;
         
         results.push({
           id: match[1],
@@ -132,8 +132,7 @@ export const tioanimeService = {
       while ((match = regex.exec(html)) !== null) {
         let imgUrl = match[2];
         if (imgUrl.startsWith('/')) imgUrl = `${BASE_URL}${imgUrl}`;
-        // Proxied image for high performance
-        const proxiedImg = `https://i0.wp.com/${imgUrl.replace(/^https?:\/\//, '')}`;
+        const proxiedImg = imgUrl;
         
         results.push({
           id: match[1],
@@ -165,8 +164,6 @@ export const tioanimeService = {
       if (imgMatch) {
          image = imgMatch[1];
          if (image.startsWith('/')) image = `${BASE_URL}${image}`;
-         // Proxy for details view as well
-         image = `https://i0.wp.com/${image.replace(/^https?:\/\//, '')}`;
       }
 
       let description = 'Sin descripción';

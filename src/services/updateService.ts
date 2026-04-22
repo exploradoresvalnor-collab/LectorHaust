@@ -1,5 +1,5 @@
 import { mangadexService } from './mangadexService';
-import { animeflvService } from './animeflvService';
+import { tioanimeService } from './tioanimeService';
 
 export interface MangaUpdate {
   mangaId: string;
@@ -50,7 +50,7 @@ export const checkUpdatesForLibrary = async (favorites: any[], hours = 24): Prom
 
   // 2. CHECK ANIME UPDATES (AnimeFLV)
   try {
-    const recentEps = await animeflvService.getRecentEpisodes();
+    const recentEps = await tioanimeService.getLatestEpisodes();
     const favAnimes = favorites.filter(f => f.format === 'Anime');
     
     for (const ep of recentEps) {

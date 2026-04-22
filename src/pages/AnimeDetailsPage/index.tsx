@@ -28,7 +28,7 @@ import {
   swapVerticalOutline
 } from 'ionicons/icons';
 import { useParams } from 'react-router-dom';
-import { animeflvService } from '../../services/animeflvService';
+// removed
 import { anilistService } from '../../services/anilistService';
 import LoadingScreen from '../../components/LoadingScreen';
 import SmartImage from '../../components/SmartImage';
@@ -69,8 +69,8 @@ const AnimeDetailsPage: React.FC = () => {
   const [isTranslated, setIsTranslated] = useState(false);
   
   // Initialize with detected prefix provider to avoid ghost proxy fetches on mount
-  const initialProvider = urlPrefixProvider as any || 'animeflv';
-  const [sourceProvider, setSourceProvider] = useState<'animeflv' | 'tioanime'>(initialProvider);
+  const initialProvider = urlPrefixProvider as any || 'tioanime';
+  const [sourceProvider, setSourceProvider] = useState<'tioanime'>('tioanime');
   
   const [selectedSeason, setSelectedSeason] = useState<string>('all');
   const { toggleFavorite, isFavorite } = useLibraryStore();
@@ -89,7 +89,7 @@ const AnimeDetailsPage: React.FC = () => {
     // Smart source detection
     const navSource = (navData?.source || navData?.preferredProvider) as string | undefined;
     const urlProvider = new URLSearchParams(window.location.search).get('provider');
-    const detected = urlPrefixProvider || urlProvider || (navSource === 'tioanime' ? 'tioanime' : 'animeflv');
+    const detected = urlPrefixProvider || urlProvider || 'tioanime';
     setSourceProvider(detected as any);
     
     // Use navigation data as instant preview while fetching fresh data
@@ -118,11 +118,10 @@ const AnimeDetailsPage: React.FC = () => {
       if (!id) return;
       
       try {
-        const providerMap: any = {
-          'tioanime': tioanimeService,
-          'animeflv': animeflvService
+         const providerMap: any = {
+          'tioanime': tioanimeService
         };
-        const provider = providerMap[sourceProvider] || animeflvService;
+        const provider = tioanimeService;
         
         const currentTitle = anime?.title || anime?.name;
         
@@ -130,18 +129,6 @@ const AnimeDetailsPage: React.FC = () => {
            provider.getAnimeInfo(actualId),
            currentTitle ? anilistService.getAnimeDetailsByName(currentTitle) : Promise.resolve(null)
          ]);
-
-         // AUTO-FALLBACK: If primary provider yielded 0 episodes, try AnimeFLV
-         if ((!data || (data.episodes && data.episodes.length === 0)) && sourceProvider !== 'animeflv') {
-             console.warn(`[Fallback] ${sourceProvider} returned no episodes, trying animeflv...`);
-             const fallbackData = await animeflvService.search(currentTitle || actualId);
-             if (fallbackData && fallbackData.length > 0) {
-                 const fallbackInfo = await animeflvService.getAnimeInfo(fallbackData[0].id);
-                 if (fallbackInfo && fallbackInfo.episodes && fallbackInfo.episodes.length > 0) {
-                     data = fallbackInfo;
-                 }
-             }
-         }
          
          if (data) {
             let finalAnilist = anilistInfo;

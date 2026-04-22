@@ -5,7 +5,7 @@ import {
   chevronBackOutline, chevronForwardOutline, 
   alertCircleOutline, expandOutline
 } from 'ionicons/icons';
-import { animeflvService } from '../services/animeflvService';
+// removed
 import { tioanimeService } from '../services/tioanimeService';
 import CommentSection from './CommentSection';
 import { Capacitor } from '@capacitor/core';
@@ -16,7 +16,7 @@ interface VideoPlayerProps {
   episodes: any[];
   animeTitle: string;
   animeId: string;
-  sourceProvider?: 'animeflv' | 'tioanime';
+  sourceProvider?: 'tioanime';
   onEpisodeChange: (ep: any) => void;
   onClose: () => void;
 }
@@ -39,8 +39,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
-  const [sourceProvider, setSourceProvider] = useState<'animeflv' | 'tioanime'>(initialSource || 'animeflv');
-  const [flvId, setFlvId] = useState<string | null>(null);
+  const [sourceProvider, setSourceProvider] = useState<'tioanime'>('tioanime');
   const [tioId, setTioId] = useState<string | null>(null);
   const [servers, setServers] = useState<{sub: Server[], dub: Server[]}>({sub: [], dub: []});
   const [selectedServer, setSelectedServer] = useState<string>('');
@@ -48,9 +47,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
-  const [availableProviders, setAvailableProviders] = useState<{animeflv: boolean, tioanime: boolean}>({
-    animeflv: true, 
-    tioanime: false
+  const [availableProviders, setAvailableProviders] = useState<{tioanime: boolean}>({
+    tioanime: true
   });
   const [isPseudoFullscreen, setIsPseudoFullscreen] = useState(false);
 
@@ -90,19 +88,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       if (!animeTitle) return;
       
       const checks = [
-        animeflvService.search(animeTitle).then(res => res && res.length > 0).catch(() => false),
         tioanimeService.search(animeTitle).then(res => res && res.length > 0).catch(() => false)
       ];
       
-      const [hasFlv, hasTio] = await Promise.all(checks);
+      const [hasTio] = await Promise.all(checks);
       
       setAvailableProviders({
-        animeflv: !!hasFlv,
         tioanime: !!hasTio
       });
-
-      if (sourceProvider === 'animeflv' && !hasFlv && hasTio) setSourceProvider('tioanime');
-      if (sourceProvider === 'tioanime' && !hasTio && hasFlv) setSourceProvider('animeflv');
     };
     
     checkProviders();
@@ -114,21 +107,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     let active = true;
 
-    const fetchAnimeFLVServers = async () => {
-      const results = await animeflvService.search(animeTitle);
-      if (!results || results.length === 0) throw new Error('No se encontró el anime en S-Principal.');
-      
-      setFlvId(results[0].id);
-      const flvEpId = `${results[0].id}-${episodeNumber}`;
-      const rawData = await animeflvService.getEpisodeSources(flvEpId);
-      
-      if (!rawData?.sources || rawData.sources.length === 0) throw new Error('No se encontraron servidores en S-Principal.');
-      
-      const subServers = rawData.sources.map((s: any, i: number) => ({ serverId: i, serverName: s.serverName }));
-      setServers({ sub: subServers, dub: [] });
-      setSelectedServer(subServers[0].serverName);
-      setSelectedCategory('sub');
-    };
+    // removed
 
     const fetchTioAnimeServers = async () => {
       const results = await tioanimeService.search(animeTitle);
@@ -150,8 +129,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       try {
         setLoading(true);
         setError(null);
-        if (sourceProvider === 'animeflv') await fetchAnimeFLVServers();
-        else if (sourceProvider === 'tioanime') await fetchTioAnimeServers();
+        if (sourceProvider === 'tioanime') await fetchTioAnimeServers();
       } catch (err: any) {
         if (!active) return;
         setError(err.message || 'Error al configurar el proveedor');
@@ -169,15 +147,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (!selectedServer || !episodeId) return;
     let active = true;
 
-    const getStreamFromAnimeFLV = async () => {
-      const flvEpId = `${flvId}-${episodeNumber}`;
-      const rawData = await animeflvService.getEpisodeSources(flvEpId);
-      if (rawData?.sources) {
-         const matchedSource = rawData.sources.find((s: any) => s.serverName === selectedServer) || rawData.sources[0];
-         return { sources: [matchedSource], subtitles: [] };
-      }
-      return null;
-    };
+    // removed
 
     const getStreamFromTioAnime = async () => {
       const tioEpId = `${tioId}-${episodeNumber}`;
@@ -194,8 +164,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         setLoading(true);
         setError(null);
         let data: any = null;
-        if (sourceProvider === 'animeflv' && flvId) data = await getStreamFromAnimeFLV();
-        else if (sourceProvider === 'tioanime' && tioId) data = await getStreamFromTioAnime();
+        if (sourceProvider === 'tioanime' && tioId) data = await getStreamFromTioAnime();
 
         if (!active) return;
         if (!data?.sources?.length) throw new Error('Este servidor no devolvió fuentes de video.');
@@ -234,7 +203,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     loadStreamData();
     return () => { active = false; };
-  }, [selectedServer, selectedCategory, episodeId, sourceProvider, flvId, tioId, episodeNumber, initPlayer]);
+  }, [selectedServer, selectedCategory, episodeId, sourceProvider, tioId, episodeNumber, initPlayer]);
 
   useEffect(() => {
     return () => { if (hlsRef.current) hlsRef.current.destroy(); };
@@ -331,7 +300,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   const getIntelligentName = (provider: string) => {
-    const names: any = { 'animeflv': 'S-Principal', 'tioanime': 'S-Express' };
+    const names: any = { 'tioanime': 'S-Express' };
     return names[provider] || provider.toUpperCase();
   };
 
@@ -342,7 +311,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <IonText color="danger"><h4 style={{margin: '0 0 15px', fontWeight: 800}}>⚠️ {error}</h4></IonText>
           <div style={{ display: 'flex', gap: '10px' }}>
             <IonButton size="small" fill="solid" color="primary" onClick={() => globalThis.location.reload()} style={{'--border-radius': '8px'}}>Reintentar</IonButton>
-            <IonButton size="small" fill="outline" color="light" onClick={() => setSourceProvider('animeflv')} style={{'--border-radius': '8px'}}>Cambiar Servidor</IonButton>
+            <IonButton size="small" fill="outline" color="light" onClick={() => setSourceProvider('tioanime')} style={{'--border-radius': '8px'}}>Reintentar</IonButton>
           </div>
         </div>
       );
@@ -373,7 +342,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', color: '#fff' }}>
       <div style={{ background: 'rgba(0,0,0,0.2)', padding: '10px 15px', display: 'flex', gap: '8px', overflowX: 'auto', borderBottom: '1px solid rgba(255,255,255,0.05)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }}>
-         {['animeflv', 'tioanime'].filter(p => (availableProviders as any)[p]).map(p => (
+         {['tioanime'].filter(p => (availableProviders as any)[p]).map(p => (
            <button key={p} type="button" onClick={() => setSourceProvider(p as any)} className={`player-tab ${sourceProvider === p ? 'active' : ''}`} style={{ padding: '10px 18px', fontSize: '0.7rem', fontWeight: 900, cursor: 'pointer', background: sourceProvider === p ? 'var(--ion-color-primary)' : 'rgba(255,255,255,0.05)', color: sourceProvider === p ? '#000' : '#888', borderRadius: '10px', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', flexShrink: 0, border: '1px solid ' + (sourceProvider === p ? 'transparent' : 'rgba(255,255,255,0.1)'), outline: 'none' }}>
              {getIntelligentName(p)}
            </button>

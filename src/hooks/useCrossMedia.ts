@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { anilistService } from '../services/anilistService';
 import { mangaProvider } from '../services/mangaProvider';
-import { animeflvService } from '../services/animeflvService';
+import { tioanimeService } from '../services/tioanimeService';
 
 interface CrossMediaResult {
   id: string; // ID depending on destination (MangaDex ID or Aniwatch ID)
@@ -57,7 +57,7 @@ export function useCrossMedia(title: string | null | undefined, currentType: 'MA
           let routePrefix = '';
 
           if (targetType === 'ANIME') {
-            let searchRes = await animeflvService.search(foundTitle);
+            let searchRes = await tioanimeService.search(foundTitle);
             if (searchRes && searchRes.length > 0) {
               resolvedId = searchRes[0].id;
               routePrefix = '/anime';

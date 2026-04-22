@@ -21,7 +21,7 @@ const AnimeCardItem: React.FC<AnimeCardItemProps> = ({ anime, onClick, index = 0
   const hasDub = anime.episodes?.dub > 0 || anime.hasDub || anime.languageCategory === 'dub' || anime.language === 'latino';
   
   // Haus Intelligence: Sources
-  const sources = anime.sources || (anime.source ? [anime.source === 'animeflv' ? 'FL' : 'TI'] : []);
+  const sources = anime.sources || (anime.source ? ['TI'] : []);
 
   return (
     <div 
