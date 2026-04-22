@@ -6,12 +6,12 @@ import {
   IonChip, IonLabel
 } from '@ionic/react';
 import { filterOutline, searchOutline, chevronBackOutline, chevronForwardOutline } from 'ionicons/icons';
-// removed
+
 import { tioanimeService } from '../../services/tioanimeService';
 import AnimeCardItem from '../../components/AnimeCardItem';
 import './styles.css';
 
-const ITEMS_PER_PAGE_FLV = 24;
+const ITEMS_PER_PAGE = 24;
 
 const AnimeDirectoryPage: React.FC = () => {
   const [results, setResults] = useState<any[]>([]);
@@ -55,12 +55,7 @@ const AnimeDirectoryPage: React.FC = () => {
     
     try {
       let newItems: any[] = [];
-      let flvResults: any = null;
-      
-      if (true) {
-          newItems = await tioanimeService.search(query);
-      } 
-
+      newItems = await tioanimeService.search(query);
       // If specific provider, also inject metadata for consistent UI
       if (provider !== 'default') {
           newItems = newItems.map(item => ({
@@ -79,14 +74,14 @@ const AnimeDirectoryPage: React.FC = () => {
       } else {
         setResults(newItems);
         if (targetPage === 1) {
-            // Restore pagination logic for Omni/FLV
+            // Restore pagination logic
             const serverTotal = (newItems as any).totalCount || 0;
             if (serverTotal > 0) {
                 setTotalCount(serverTotal);
-                setTotalPages(Math.ceil(serverTotal / ITEMS_PER_PAGE_FLV));
+                setTotalPages(Math.ceil(serverTotal / ITEMS_PER_PAGE));
             } else {
                 setTotalCount(newItems.length);
-                setTotalPages(300); // Allow deep navigation in Omni-mode even if total is unknown
+                setTotalPages(300); // Allow deep navigation even if total is unknown
             }
         }
       }

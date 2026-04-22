@@ -48,7 +48,7 @@ export const checkUpdatesForLibrary = async (favorites: any[], hours = 24): Prom
     }
   }
 
-  // 2. CHECK ANIME UPDATES (AnimeFLV)
+  // 2. CHECK ANIME UPDATES (TioAnime)
   try {
     const recentEps = await tioanimeService.getLatestEpisodes();
     const favAnimes = favorites.filter(f => f.format === 'Anime');

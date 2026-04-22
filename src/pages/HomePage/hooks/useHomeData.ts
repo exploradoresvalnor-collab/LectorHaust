@@ -7,7 +7,7 @@ import { mangaProvider, MangaSource } from '../../../services/mangaProvider';
 import { useLibraryStore } from '../../../store/useLibraryStore';
 import { getDefaultLanguage } from '../../../utils/translations';
 import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import { tioanimeService as animeflvService } from '../../../services/tioanimeService';
+import { tioanimeService } from '../../../services/tioanimeService';
 import { translationService } from '../../../services/translationService';
 import { anilistService } from '../../../services/anilistService';
 
@@ -198,7 +198,7 @@ export function useHomeData() {
         try {
           let updatedItem = { ...item };
           if (item.type === 'anime') {
-             const full = await animeflvService.getAnimeInfo(item.id);
+             const full = await tioanimeService.getAnimeInfo(item.id);
              if (full) {
                 updatedItem.description = full.description || updatedItem.description;
                 updatedItem.status = full.status || updatedItem.status;

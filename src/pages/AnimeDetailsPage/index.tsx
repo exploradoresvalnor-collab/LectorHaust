@@ -28,7 +28,7 @@ import {
   swapVerticalOutline
 } from 'ionicons/icons';
 import { useParams } from 'react-router-dom';
-// removed
+
 import { anilistService } from '../../services/anilistService';
 import LoadingScreen from '../../components/LoadingScreen';
 import SmartImage from '../../components/SmartImage';
@@ -118,15 +118,10 @@ const AnimeDetailsPage: React.FC = () => {
       if (!id) return;
       
       try {
-         const providerMap: any = {
-          'tioanime': tioanimeService
-        };
-        const provider = tioanimeService;
-        
-        const currentTitle = anime?.title || anime?.name;
-        
+         const currentTitle = anime?.title || anime?.name;
+         
          let [data, anilistInfo] = await Promise.all([
-           provider.getAnimeInfo(actualId),
+           tioanimeService.getAnimeInfo(actualId),
            currentTitle ? anilistService.getAnimeDetailsByName(currentTitle) : Promise.resolve(null)
          ]);
          

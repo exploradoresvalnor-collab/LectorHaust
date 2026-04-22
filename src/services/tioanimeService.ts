@@ -10,7 +10,7 @@ const BASE_URL = 'https://tioanime.com';
 const PROXY_URL = 'https://manga-proxy.mchaustman.workers.dev/?url=';
 
 /**
- * Helper to fetch HTML content with timeout and proxy support (consistent with animeflvService)
+ * Helper to fetch HTML content with timeout and proxy support
  */
 async function fetchHtml(url: string) {
     // Si es nativo (Android/iOS), NO hay problemas de CORS, vamos DIRECTO por velocidad y fiabilidad.
