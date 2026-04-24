@@ -223,21 +223,9 @@ const MangaDetailsPage: React.FC = () => {
     }
   }, [chapters, chapterOrder, queryClient]);
 
-  // ✨ PROGRESSIVE LOADING: Mostrar esqueletos en lugar de fullpage spinner
-  if (loading && !initialData) {
-    return (
-      <IonPage>
-        <LoadingScreen />
-      </IonPage>
-    );
-  }
-  
+  // ✨ PROGRESSIVE LOADING: Solo mostrar pantalla de carga si no hay data de manga Y estamos cargando
   if (loading && !manga) {
-    return (
-      <IonPage>
-        <LoadingScreen />
-      </IonPage>
-    );
+    return <LoadingScreen message="Sintonizando con el multiverso..." isInitialLoad={true} />;
   }
 
   if (!manga && !loading) {

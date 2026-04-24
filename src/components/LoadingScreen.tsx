@@ -29,8 +29,11 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ message, isInitialLoad = 
     }
     
     const phraseInterval = setInterval(() => {
-      const randomPhrase = PHRASES[Math.floor(Math.random() * PHRASES.length)];
-      setCurrentPhrase(randomPhrase);
+      // Solo actualizar si la pestaña está activa para ahorrar recursos
+      if (document.visibilityState === 'visible') {
+        const randomPhrase = PHRASES[Math.floor(Math.random() * PHRASES.length)];
+        setCurrentPhrase(randomPhrase);
+      }
     }, 3000);
 
     return () => clearInterval(phraseInterval);
@@ -38,10 +41,13 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ message, isInitialLoad = 
 
   useEffect(() => {
     const dotsInterval = setInterval(() => {
-      setDots(prev => prev.length >= 3 ? '' : prev + '.');
+      if (document.visibilityState === 'visible') {
+        setDots(prev => prev.length >= 3 ? '' : prev + '.');
+      }
     }, 500);
     return () => clearInterval(dotsInterval);
   }, []);
+
 
   return (
     <div className={`unified-loading-overlay ${isInitialLoad ? 'initial-load' : ''}`}>

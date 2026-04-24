@@ -28,26 +28,57 @@ export const deduplicateChapters = (chaptersArray: any[]) => {
 const detailsMemoryCache = new Map<string, any>();
 
 export function useMangaDetails(id?: string, initialData?: any) {
-  const [manga, setManga] = useState<any>(initialData || null);
-  const [aniData, setAniData] = useState<any>(null);
-  const [chapters, setChapters] = useState<any[]>([]);
-  const [loading, setLoading] = useState(!initialData);
-  const [loadingChapters, setLoadingChapters] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalChapters, setTotalChapters] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [hasMoreChapters, setHasMoreChapters] = useState(true);
+  const [state, setState] = useState<{
+    manga: any | null;
+    aniData: any | null;
+    chapters: any[];
+    loading: boolean;
+    loadingChapters: boolean;
+    currentPage: number;
+    totalChapters: number;
+    totalPages: number;
+    hasMoreChapters: boolean;
+    availableLangs: string[];
+    mdStats: { rating: number | null, follows: number };
+    chapterLang: string;
+    chapterOrder: 'asc' | 'desc';
+    isOptimized: boolean;
+    isTranslated: boolean;
+  }>({
+    manga: initialData || null,
+    aniData: null,
+    chapters: [],
+    loading: !initialData,
+    loadingChapters: true,
+    currentPage: 1,
+    totalChapters: 0,
+    totalPages: 0,
+    hasMoreChapters: true,
+    availableLangs: [],
+    mdStats: { rating: null, follows: 0 },
+    chapterLang: 'es',
+    chapterOrder: 'desc',
+    isOptimized: false,
+    isTranslated: false
+  });
+
   const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [chapterLang, setChapterLang] = useState('es');
-  const [availableLangs, setAvailableLangs] = useState<string[]>([]);
-  const [mdStats, setMdStats] = useState<{ rating: number | null, follows: number }>({ rating: null, follows: 0 });
-  const [chapterOrder, setChapterOrder] = useState<'asc' | 'desc'>('desc');
   const { showNSFW } = useLibraryStore();
-  const [isOptimized, setIsOptimized] = useState(false);
-  const [isTranslated, setIsTranslated] = useState(false);
-  // Store the external ID if we had to fallback (for pagination)
   const externalFallbackId = useRef<string | null>(null);
   const isMounted = useRef(true);
+
+  // Destructure for internal use and return
+  const { 
+    manga, aniData, chapters, loading, loadingChapters, 
+    currentPage, totalChapters, totalPages, hasMoreChapters, 
+    chapterLang, availableLangs, mdStats, chapterOrder, 
+    isOptimized, isTranslated 
+  } = state;
+
+  const setChapterOrder = useCallback((order: 'asc' | 'desc') => {
+    setState(prev => ({ ...prev, chapterOrder: order, loadingChapters: true }));
+  }, []);
+
 
   useEffect(() => {
     const fetchMangaDetails = async () => {
@@ -63,17 +94,12 @@ export function useMangaDetails(id?: string, initialData?: any) {
         const c = detailsMemoryCache.get(cacheKey);
         if (c.manga && c.chapters && c.chapters.length > 0) {
           if (isMounted.current) {
-            setManga(c.manga);
-            setAniData(c.aniData);
-            setChapters(c.chapters);
-            setTotalChapters(c.totalChapters);
-            setTotalPages(c.totalPages);
-            setHasMoreChapters(c.hasMoreChapters);
-            setAvailableLangs(c.availableLangs);
-            setMdStats(c.mdStats);
-            setCurrentPage(c.currentPage);
-            setLoading(false);
-            setLoadingChapters(false);
+            setState(prev => ({
+              ...prev,
+              ...c,
+              loading: false,
+              loadingChapters: false
+            }));
           }
           return;
         } else {
@@ -82,7 +108,8 @@ export function useMangaDetails(id?: string, initialData?: any) {
         }
       }
 
-      setLoading(true);
+      setState(prev => ({ ...prev, loading: true }));
+
       externalFallbackId.current = null; // Reset fallback on each load
 
       // GLOBAL TIMEOUT: Prevent infinite loading state
@@ -145,17 +172,23 @@ export function useMangaDetails(id?: string, initialData?: any) {
           wasTr = false;
         }
         
+        let finalManga = {
+          ...mangaObj,
+          attributes: {
+            ...mangaObj.attributes,
+            translatedDescription: translatedDesc // Store specifically for UI
+          }
+        };
+
         if (isMounted.current) {
           console.log(`[Details] Setting manga state...`);
-          setIsTranslated(wasTr);
-          setManga({
-            ...mangaObj,
-            attributes: {
-              ...mangaObj.attributes,
-              translatedDescription: translatedDesc // Store specifically for UI
-            }
-          });
+          setState(prev => ({
+            ...prev,
+            manga: finalManga,
+            isTranslated: wasTr
+          }));
         }
+
         
         const title = mangaObj.attributes?.title?.en || Object.values(mangaObj.attributes?.title || {})[0];
         
@@ -163,8 +196,9 @@ export function useMangaDetails(id?: string, initialData?: any) {
         Promise.all([
           mangaProvider.getMangaStatistics(id)
             .then((stats: any) => {
-              if (isMounted.current) setMdStats(stats);
+              if (isMounted.current) setState(prev => ({ ...prev, mdStats: stats }));
             })
+
             .catch((err: any) => {
               console.warn('[Stats] Failed to fetch manga statistics:', err.message || err);
             }),
@@ -175,8 +209,9 @@ export function useMangaDetails(id?: string, initialData?: any) {
               const aniListResults = await anilistService.searchManga(title as string);
               if (isMounted.current && aniListResults && aniListResults.length > 0) {
                 const detail = await anilistService.getMangaDetails(aniListResults[0].id);
-                if (isMounted.current) setAniData(detail);
+                if (isMounted.current) setState(prev => ({ ...prev, aniData: detail }));
               }
+
             } catch (err: any) {
               console.warn('[AniList] Failed to fetch AniList data:', err.message || err);
             }
@@ -186,8 +221,12 @@ export function useMangaDetails(id?: string, initialData?: any) {
             .then((allChaptersData: any) => {
               if (isMounted.current && allChaptersData.data) {
                 const langs = [...new Set(allChaptersData.data.map((c: any) => c.attributes?.translatedLanguage))] as string[];
-                setAvailableLangs((prev: string[]) => prev.length > 0 ? prev : langs.filter((l: string) => !!l));
+                setState(prev => ({ 
+                  ...prev, 
+                  availableLangs: prev.availableLangs.length > 0 ? prev.availableLangs : langs.filter((l: string) => !!l) 
+                }));
               }
+
             })
             .catch((err: any) => {
               console.warn('[Languages] Failed to fetch available languages:', err.message || err);
@@ -271,11 +310,15 @@ export function useMangaDetails(id?: string, initialData?: any) {
                       };
 
                       if (isMounted.current) {
-                        setAvailableLangs(prev => [...new Set([...prev, fallbackLang])]);
-                        setIsOptimized(true);
-                        setChapterLang(fallbackLang);
+                        setState(prev => ({
+                          ...prev,
+                          availableLangs: [...new Set([...prev.availableLangs, fallbackLang])],
+                          isOptimized: true,
+                          chapterLang: fallbackLang
+                        }));
                         console.log(`[Details] ✅ Haus v3 Applied via ${bestSource.source} (${fallbackLang.toUpperCase()}). ${extChaptersData.total} chapters.`);
                       }
+
                       
                       externalFound = true;
                       break; // Stop at first valid source
@@ -297,17 +340,15 @@ export function useMangaDetails(id?: string, initialData?: any) {
               // MangaDex HAS chapters in other languages → use them as last resort
               console.log(`[Details] Using MangaDex (${allLangChapters.total} chapters in other languages).`);
               chaptersData = allLangChapters;
-              
               if (isMounted.current) {
-                const langCounts: Record<string, number> = {};
-                allLangChapters.data.forEach((c: any) => {
-                  const lang = c.attributes?.translatedLanguage || 'unknown';
-                  langCounts[lang] = (langCounts[lang] || 0) + 1;
-                });
-                const bestLang = Object.entries(langCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'en';
-                setChapterLang(bestLang);
-                setIsOptimized(false);
-              }
+                  const langCounts: Record<string, number> = {};
+                  allLangChapters.data.forEach((c: any) => {
+                    const lang = c.attributes?.translatedLanguage || 'unknown';
+                    langCounts[lang] = (langCounts[lang] || 0) + 1;
+                  });
+                  const bestLang = Object.entries(langCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'en';
+                  setState(prev => ({ ...prev, chapterLang: bestLang, isOptimized: false }));
+                }
             } else {
               // ⚠️ AGGRESSIVE FALLBACK: Try external sources if MangaDex has <10 chapters
               const mdChapterCount = allLangChapters?.total || 0;
@@ -356,11 +397,15 @@ export function useMangaDetails(id?: string, initialData?: any) {
                           };
 
                           if (isMounted.current) {
-                            setAvailableLangs([fallbackLang]);
-                            setIsOptimized(true);
-                            setChapterLang(fallbackLang);
+                            setState(prev => ({
+                              ...prev,
+                              availableLangs: [fallbackLang],
+                              isOptimized: true,
+                              chapterLang: fallbackLang
+                            }));
                             console.log(`[Details] ✅ Haus Applied via ${bestSource.source} (${fallbackLang.toUpperCase()}). ${extChaptersData.total} chapters.`);
                           }
+
                           
                           foundValidSource = true;
                           break;
@@ -371,11 +416,12 @@ export function useMangaDetails(id?: string, initialData?: any) {
                     }
 
                     if (!foundValidSource && isMounted.current) {
-                      setIsOptimized(false);
+                      setState(prev => ({ ...prev, isOptimized: false }));
                     }
                   } else {
-                    if (isMounted.current) setIsOptimized(false);
+                    if (isMounted.current) setState(prev => ({ ...prev, isOptimized: false }));
                   }
+
                 } catch (err) {
                   console.warn('[Details] Haus Intelligence fallback failed:', err);
                 }
@@ -388,27 +434,40 @@ export function useMangaDetails(id?: string, initialData?: any) {
         if (isMounted.current) {
           const newChapters = deduplicateChapters(chaptersData.data || []);
           console.log(`[Details] Deduplicating ${chaptersData.data?.length || 0} chapters -> ${newChapters.length}`);
-          setTotalChapters(chaptersData.total || 0);
-          setTotalPages(Math.ceil((chaptersData.total || 0) / 20));
-          setChapters(newChapters);
-          setHasMoreChapters((chaptersData.data || []).length >= 20);
+          
+          setState(prev => ({
+            ...prev,
+            totalChapters: chaptersData.total || 0,
+            totalPages: Math.ceil((chaptersData.total || 0) / 20),
+            chapters: newChapters,
+            hasMoreChapters: (chaptersData.data || []).length >= 20
+          }));
           console.log(`[Details] ✅ All state updated: ${newChapters.length} chapters, ${chaptersData.total} total`);
         }
+
 
       } catch (error: any) {
         console.error('[Details] ❌ Error fetching manga details:', error?.message || error);
         console.error('[Details] Stack:', error?.stack);
         if (isMounted.current) {
-          setManga(null);
+          setState(prev => ({ ...prev, manga: null }));
         }
+
       } finally {
         if (globalTimeout) clearTimeout(globalTimeout);
         if (isMounted.current) {
-          console.log(`[Details] ✅ FINAL: Setting loading=false, chapters: ${chapters.length}, manga loaded: ${manga ? 'YES' : 'NO'}`);
-          setLoading(false);
-          setLoadingChapters(false);
+          // Note: Using a functional update to get current state values for the log
+          setState(prev => {
+            console.log(`[Details] ✅ FINAL: Setting loading=false, chapters: ${prev.chapters.length}, manga loaded: ${prev.manga ? 'YES' : 'NO'}`);
+            return {
+              ...prev,
+              loading: false,
+              loadingChapters: false
+            };
+          });
         }
       }
+
     };
 
     isMounted.current = true;
@@ -431,11 +490,15 @@ export function useMangaDetails(id?: string, initialData?: any) {
   }, [manga, aniData, chapters, totalChapters, totalPages, hasMoreChapters, availableLangs, mdStats, currentPage, id, chapterLang, chapterOrder]);
 
   const handleLangChange = useCallback((newLang: string) => {
-    setChapterLang(newLang);
-    setLoadingChapters(true);
-    setCurrentPage(1);
-    setHasMoreChapters(true);
+    setState(prev => ({
+      ...prev,
+      chapterLang: newLang,
+      loadingChapters: true,
+      currentPage: 1,
+      hasMoreChapters: true
+    }));
   }, []);
+
 
   const loadMoreChapters = useCallback(async (e?: any) => {
     if (!id || currentPage >= totalPages || isFetchingMore) {
@@ -472,9 +535,13 @@ export function useMangaDetails(id?: string, initialData?: any) {
       if (!isMounted.current) return;
 
       const rawNewChapters = data.data || [];
-      setHasMoreChapters(nextPageIndex < totalPages);
-      setChapters(prev => deduplicateChapters([...prev, ...rawNewChapters]));
-      setCurrentPage(nextPageIndex);
+      setState(prev => ({
+        ...prev,
+        hasMoreChapters: nextPageIndex < totalPages,
+        chapters: deduplicateChapters([...prev.chapters, ...rawNewChapters]),
+        currentPage: nextPageIndex
+      }));
+
       
     } catch (err) {
       console.error('Error loading more chapters:', err);

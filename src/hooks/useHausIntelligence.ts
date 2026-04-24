@@ -115,12 +115,17 @@ export function useSemanticSearch(mangaList: any[] = []) {
     // Build index when manga list changes
     useEffect(() => {
         if (mangaList && mangaList.length > 0) {
-            setIsIndexing(true);
-            // Defer to next tick to avoid blocking
-            setTimeout(() => {
-                search.buildIndex(mangaList);
-                setIsIndexing(false);
-            }, 0);
+            // Only rebuild if the list length or content actually changed (shallow check)
+            // Or if the index is empty
+            if (search.getStats().indexedMangos === 0 || mangaList.length !== search.getStats().indexedMangos) {
+                setIsIndexing(true);
+                // Defer to next tick to avoid blocking
+                const timer = setTimeout(() => {
+                    search.buildIndex(mangaList);
+                    setIsIndexing(false);
+                }, 100); // Slightly longer delay to ensure UI stability
+                return () => clearTimeout(timer);
+            }
         }
     }, [mangaList, search]);
 
@@ -129,7 +134,6 @@ export function useSemanticSearch(mangaList: any[] = []) {
             setSearchResults([]);
             return;
         }
-
         const results = search.search(query, limit);
 
         // Map results back to full manga objects

@@ -11,7 +11,15 @@ import { tioanimeService } from '../../services/tioanimeService';
 import AnimeCardItem from '../../components/AnimeCardItem';
 import './styles.css';
 
-const ITEMS_PER_PAGE = 24;
+const GENRES = [
+  "Acción", "Artes Marciales", "Aventuras", "Carreras", "Ciencia Ficción", 
+  "Comedia", "Demencia", "Demonios", "Deportes", "Drama", "Ecchi", 
+  "Escolares", "Espacio", "Fantasía", "Harem", "Histórico", "Infantil", "Isekai", 
+  "Josei", "Juegos", "Militar", "Misterio", "Magia", "Mecha", "Música", "Parodia", 
+  "Policial", "Psicológico", "Romance", "Samurai", "Seinen", "Shoujo", 
+  "Shoujo Ai", "Shounen", "Shounen Ai", "Slice of Life", "Sobrenatural", "Superpoderes", "Suspenso", 
+  "Terror", "Vampiros", "Yaoi", "Yuri"
+];
 
 const AnimeDirectoryPage: React.FC = () => {
   const [results, setResults] = useState<any[]>([]);
@@ -30,17 +38,8 @@ const AnimeDirectoryPage: React.FC = () => {
   const [language, setLanguage] = useState<'sub-es' | 'latino'>('sub-es');
   const [provider, setProvider] = useState<'default' | 'tioanime'>('default');
   
-  const years = Array.from({ length: 56 }, (_, i) => (2025 - i).toString());
+  const years = React.useMemo(() => Array.from({ length: 56 }, (_, i) => (2025 - i).toString()), []);
 
-  const [genres] = useState<string[]>([
-    "Acción", "Artes Marciales", "Aventuras", "Carreras", "Ciencia Ficción", 
-    "Comedia", "Demencia", "Demonios", "Deportes", "Drama", "Ecchi", 
-    "Escolares", "Espacio", "Fantasía", "Harem", "Histórico", "Infantil", "Isekai", 
-    "Josei", "Juegos", "Militar", "Misterio", "Magia", "Mecha", "Música", "Parodia", 
-    "Policial", "Psicológico", "Romance", "Samurai", "Seinen", "Shoujo", 
-    "Shoujo Ai", "Shounen", "Shounen Ai", "Slice of Life", "Sobrenatural", "Superpoderes", "Suspenso", 
-    "Terror", "Vampiros", "Yaoi", "Yuri"
-  ]);
   const router = useIonRouter();
 
   const fetchAnimes = async (targetPage: number = 1) => {
@@ -185,12 +184,12 @@ const AnimeDirectoryPage: React.FC = () => {
 
             <div className="filter-select-inline">
               <span className="filter-label">Género:</span>
-              <IonSelect value={genre} interface="popover" onIonChange={e => setGenre(e.detail.value)} className="custom-select-inline">
-                 <IonSelectOption value="all">Todos</IonSelectOption>
-                 {genres.map(g => (
-                   <IonSelectOption key={g} value={g}>{g}</IonSelectOption>
-                 ))}
-              </IonSelect>
+                <IonSelect value={genre} interface="popover" onIonChange={e => setGenre(e.detail.value)} className="custom-select-inline">
+                   <IonSelectOption value="all">Todos</IonSelectOption>
+                   {GENRES.map(g => (
+                     <IonSelectOption key={g} value={g}>{g}</IonSelectOption>
+                   ))}
+                </IonSelect>
             </div>
 
             <div className="filter-select-inline">
