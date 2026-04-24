@@ -11,15 +11,10 @@ export const useRouteTransition = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // Iniciamos la carga al cambiar de ruta
+    // Mostrar loading brevemente al cambiar de ruta
     setIsLoading(true);
-    
-    // Safety timeout: Si la página no nos avisa que terminó (vía useEffect local), 
-    // cerramos el overlay a los 8s para no bloquear al usuario.
-    const safetyTimer = setTimeout(() => {
-      setIsLoading(false);
-    }, 8000);
+    const timer = setTimeout(() => setIsLoading(false), 300);
 
-    return () => clearTimeout(safetyTimer);
+    return () => clearTimeout(timer);
   }, [location.pathname, setIsLoading]);
 };

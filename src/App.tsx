@@ -33,7 +33,7 @@ import { collection, query, orderBy, limit, onSnapshot, doc, getDoc, setDoc, whe
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GlobalLoadingProvider } from './contexts/GlobalLoadingContext';
 import GlobalLoadingOverlay from './components/GlobalLoadingOverlay';
-import PageLoadingFallback from './components/PageLoadingFallback';
+import LoadingScreen from './components/LoadingScreen';
 import OfflineBanner from './components/OfflineBanner';
 
 // Lazy Loaded Pages
@@ -254,7 +254,7 @@ const AppContent: React.FC = () => {
       <OfflineBanner />
       <IonTabs>
         <IonRouterOutlet>
-          <Suspense fallback={<PageLoadingFallback message="Preparando aventura..." />}>
+          <Suspense fallback={<LoadingScreen message="Preparando aventura..." />}>
             <Route exact path="/home" component={HomePage} />
             <Route exact path="/manga/:id" component={MangaDetailsPage} />
             <Route exact path="/reader/:chapterId" component={ReaderPage} />
@@ -341,7 +341,7 @@ const App: React.FC = () => (
       <IonApp>
         <GlobalLoadingOverlay />
         <IonReactRouter>
-          <Suspense fallback={<PageLoadingFallback message="Iniciando aplicación..." />}>
+          <Suspense fallback={<LoadingScreen message="Iniciando aplicación..." isInitialLoad={true} />}>
             <AppContent />
           </Suspense>
         </IonReactRouter>

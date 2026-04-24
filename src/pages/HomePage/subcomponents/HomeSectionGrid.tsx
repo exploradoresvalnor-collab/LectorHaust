@@ -10,6 +10,7 @@ interface HomeSectionGridProps {
   onMangaClick: (manga: any) => void;
   onViewAll?: () => void;
   mangaProvider: any;
+  onMangaLoad?: () => void;
 }
 
 const HomeSectionGrid: React.FC<HomeSectionGridProps> = ({ 
@@ -18,7 +19,8 @@ const HomeSectionGrid: React.FC<HomeSectionGridProps> = ({
   items, 
   onMangaClick, 
   onViewAll,
-  mangaProvider 
+  mangaProvider,
+  onMangaLoad
 }) => {
   if (!items || items.length === 0) return null;
 
@@ -49,6 +51,7 @@ const HomeSectionGrid: React.FC<HomeSectionGridProps> = ({
                   .slice(0, 3)
                   .map((t: any) => t.attributes?.name?.en || t.attributes?.name?.es)}
                 onClick={() => onMangaClick(manga)}
+                onLoad={onMangaLoad}
               />
             </IonCol>
           ))}

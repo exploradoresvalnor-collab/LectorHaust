@@ -15,6 +15,7 @@ interface MangaCardProps {
   status?: string;
   chapters?: number | string;
   mangaType?: string;
+  onLoad?: () => void;
 }
 
 const MangaCard: React.FC<MangaCardProps> = ({ 
@@ -28,7 +29,8 @@ const MangaCard: React.FC<MangaCardProps> = ({
   rating,
   status,
   chapters,
-  mangaType
+  mangaType,
+  onLoad
 }) => {
   const getBadgeInfo = () => {
     const lowerType = (mangaType || format || '').toLowerCase();
@@ -50,6 +52,7 @@ const MangaCard: React.FC<MangaCardProps> = ({
             className="thumb-img" 
             width={110}
             height={160}
+            onLoad={onLoad}
           />
           <div className="card-rating-pill">
             <span className="star-icon">★</span>

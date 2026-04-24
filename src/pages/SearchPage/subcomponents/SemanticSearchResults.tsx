@@ -30,13 +30,14 @@ export const SemanticSearchResults: React.FC<SemanticSearchProps> = ({
   const { searchResults, performSearch, advancedSearch, isIndexing } = useSemanticSearch(allManga);
 
   useEffect(() => {
-    if (!query || query.trim().length === 0) return;
+    const trimmedQuery = query?.trim();
+    if (!trimmedQuery || trimmedQuery.length === 0) return;
 
     // Detectar si usa operadores avanzados
-    if (query.includes('!')) {
-      advancedSearch(query, 40);
+    if (trimmedQuery.includes('!')) {
+      advancedSearch(trimmedQuery, 40);
     } else {
-      performSearch(query, 40);
+      performSearch(trimmedQuery, 40);
     }
   }, [query, performSearch, advancedSearch]);
 

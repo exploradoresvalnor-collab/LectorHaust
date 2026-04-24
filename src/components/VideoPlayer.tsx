@@ -206,7 +206,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }, [selectedServer, selectedCategory, episodeId, sourceProvider, tioId, episodeNumber, initPlayer]);
 
   useEffect(() => {
-    return () => { if (hlsRef.current) hlsRef.current.destroy(); };
+    return () => { 
+      if (hlsRef.current) hlsRef.current.destroy(); 
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.src = "";
+        videoRef.current.load();
+      }
+    };
   }, []);
 
   // 🛡️ ANTI-ADS: Monitor global para eliminar publicidad invasiva

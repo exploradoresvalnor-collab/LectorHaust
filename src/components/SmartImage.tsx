@@ -15,6 +15,7 @@ interface SmartImageProps {
   height?: string | number;
   loading?: 'lazy' | 'eager';
   fetchPriority?: 'high' | 'low' | 'auto';
+  onLoad?: () => void;
 }
 
 const SmartImage: React.FC<SmartImageProps> = ({ 
@@ -29,46 +30,62 @@ const SmartImage: React.FC<SmartImageProps> = ({
   width,
   height,
   loading = 'lazy',
-  fetchPriority = 'auto'
+  fetchPriority = 'auto',
+  onLoad
 }) => {
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
   const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
-    // If the image is already loaded in the DOM with this exact src, skip shimmer
+    let isMounted = true;
+
+    // Check if already loaded
     if (imgRef.current?.complete && imgRef.current?.naturalWidth > 0) {
       setStatus('loaded');
+      if (onLoad) onLoad();
       return;
     }
+
     setStatus('loading');
     const timer = setTimeout(() => {
-      setStatus(prev => prev === 'loading' ? 'error' : prev);
+      if (isMounted) {
+        setStatus(prev => prev === 'loading' ? 'error' : prev);
+      }
     }, timeout);
-    return () => clearTimeout(timer);
-  }, [src, timeout]);
 
-  const proxiedSrc = proxifyImage(src);
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [src, timeout]); // Removed onLoad from deps to break the loop
+
+  const proxiedSrc = src ? proxifyImage(src) : null;
   const finalSrc = (!proxiedSrc || status === 'error') ? placeholder : proxiedSrc;
   const isCritical = loading === 'eager';
+
+  if (!src) return null; // Or handle empty src gracefully
 
   return (
     <div 
       className={`smart-image-wrapper ${status === 'loading' && !isCritical ? 'image-skeleton-shimmer' : ''} ${wrapperClassName}`}
       onClick={onClick}
     >
-      <img
-        ref={imgRef}
-        src={finalSrc}
-        alt={alt}
-        className={`smart-img ${status === 'loaded' || isCritical ? 'img-visible' : 'img-hidden'} ${className}`}
-        loading={loading}
-        decoding={isCritical ? 'sync' : 'async'}
-        onLoad={() => setStatus('loaded')}
-        onError={() => setStatus('error')}
-        width={width}
-        height={height}
-        {...(fetchPriority ? { fetchPriority } : {})}
-      />
+        <img
+          ref={imgRef}
+          src={finalSrc}
+          alt={alt}
+          className={`smart-img ${status === 'loaded' || isCritical ? 'img-visible' : 'img-hidden'} ${className}`}
+          loading={loading}
+          decoding={isCritical ? 'sync' : 'async'}
+          onLoad={() => {
+            setStatus('loaded');
+            if (onLoad) onLoad();
+          }}
+          onError={() => setStatus('error')}
+          width={width}
+          height={height}
+          fetchPriority={fetchPriority}
+        />
       {children}
     </div>
   );

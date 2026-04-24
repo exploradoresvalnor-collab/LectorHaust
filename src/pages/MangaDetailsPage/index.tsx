@@ -23,7 +23,8 @@ import {
   IonModal,
   useIonToast,
   IonInfiniteScroll,
-  IonInfiniteScrollContent
+  IonInfiniteScrollContent,
+  useIonViewWillEnter
 } from '@ionic/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { 
@@ -50,6 +51,7 @@ import {
 import { useParams, useLocation } from 'react-router-dom';
 import { mangaProvider, sanitizeDescription } from '../../services/mangaProvider';
 import { useLibraryStore } from '../../store/useLibraryStore';
+import { useGlobalLoading } from '../../contexts/GlobalLoadingContext';
 import ChapterItem from '../../components/ChapterItem';
 import LoadingScreen from '../../components/LoadingScreen';
 import CommentSection from '../../components/CommentSection';
@@ -84,8 +86,24 @@ const MangaDetailsPage: React.FC = () => {
     return () => unsub();
   }, []);
 
-  const { toggleFavorite, isFavorite, isRead, getProgress, toggleRead, showNSFW } = useLibraryStore();
+  const toggleFavorite = useLibraryStore(state => state.toggleFavorite);
+  const isFavorite = useLibraryStore(state => state.isFavorite);
+  const isRead = useLibraryStore(state => state.isRead);
+  const getProgress = useLibraryStore(state => state.getProgress);
+  const toggleRead = useLibraryStore(state => state.toggleRead);
+  const favorites = useLibraryStore(state => state.favorites);
+  const showNSFW = useLibraryStore(state => state.showNSFW);
   const progress = id ? getProgress(id) : null;
+
+  const { setIsLoading } = useGlobalLoading();
+  const [coverLoaded, setCoverLoaded] = React.useState(false);
+  const [isReady, setIsReady] = React.useState(false);
+
+  useIonViewWillEnter(() => {
+    if (!isReady) {
+      setIsLoading(true);
+    }
+  });
 
   const {
     manga,
@@ -107,6 +125,27 @@ const MangaDetailsPage: React.FC = () => {
     handleLangChange,
     loadMoreChapters
   } = useMangaDetails(id, initialData);
+
+  // Control de carga global estricta
+  useEffect(() => {
+    if (!loading && manga && coverLoaded) {
+      // Pequeño delay para estabilizar renderizado
+      const timer = setTimeout(() => {
+        setIsReady(true);
+        setIsLoading(false);
+      }, 400);
+      return () => clearTimeout(timer);
+    } else {
+      setIsLoading(true);
+    }
+  }, [loading, manga, coverLoaded, setIsLoading]);
+
+  // Al desmontar, resetear estados si es necesario
+  useEffect(() => {
+    return () => {
+      setIsLoading(false);
+    };
+  }, [setIsLoading]);
 
   // Smart recommendations state
   const [verifiedRecs, setVerifiedRecs] = useState<any[]>([]);
@@ -371,6 +410,7 @@ const MangaDetailsPage: React.FC = () => {
               width={180}
               height={260}
               loading="eager"
+              onLoad={() => setCoverLoaded(true)}
             />
             <div className="title-section">
               <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>

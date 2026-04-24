@@ -28,9 +28,10 @@ interface HeroItem {
 interface HeroGridProps {
   heroItems: HeroItem[];
   onItemClick: (item: HeroItem) => void;
+  onImageLoad?: () => void;
 }
 
-const HeroGrid: React.FC<HeroGridProps> = ({ heroItems, onItemClick }) => {
+const HeroGrid: React.FC<HeroGridProps> = ({ heroItems, onItemClick, onImageLoad }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 1024);
@@ -141,7 +142,7 @@ const HeroGrid: React.FC<HeroGridProps> = ({ heroItems, onItemClick }) => {
               </div>
 
               <div className="hero-carousel-poster-v3">
-                <img src={item.image} alt={item.title} />
+                <img src={item.image} alt={item.title} onLoad={onImageLoad} />
               </div>
             </div>
           );

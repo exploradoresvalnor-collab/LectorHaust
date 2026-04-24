@@ -114,7 +114,8 @@ export function useSearch() {
   const [trendingOrigin, setTrendingOrigin] = useState<string | null>(null);
   const [trendingLang, setTrendingLang] = useState<string | null>('es');
 
-  const { favorites, showNSFW } = useLibraryStore();
+  const favorites = useLibraryStore(state => state.favorites);
+  const showNSFW = useLibraryStore(state => state.showNSFW);
 
   // --- 1. TRENDING (Infinite Query) ---
   const {

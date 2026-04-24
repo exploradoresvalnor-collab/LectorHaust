@@ -11,7 +11,8 @@ import {
   IonIcon,
   useIonRouter,
   IonButton,
-  IonToast
+  IonToast,
+  useIonViewWillEnter
 } from '@ionic/react';
 import { 
   chevronDownOutline, 
@@ -26,6 +27,7 @@ import EmptyState from '../../components/EmptyState';
 import LoadingScreen from '../../components/LoadingScreen';
 import UserAvatar from '../../components/UserAvatar';
 import { useHomeData } from './hooks/useHomeData';
+import { useGlobalLoading } from '../../contexts/GlobalLoadingContext';
 import { useReadingMood } from '../../hooks/useReadingMood';
 import { hapticsService } from '../../services/hapticsService';
 import { getTranslation } from '../../utils/translations';
@@ -58,6 +60,44 @@ const HomePage: React.FC = () => {
     fetchData,
     loadMoreLatest
   } = useHomeData();
+
+  const allManga = React.useMemo(() => {
+    return [...latestManga, ...latestManhwa, ...latestManhua];
+  }, [latestManga, latestManhwa, latestManhua]);
+
+  const { setIsLoading } = useGlobalLoading();
+  const [imagesLoaded, setImagesLoaded] = React.useState(0);
+  const [isReady, setIsReady] = React.useState(false);
+
+  // Umbral de imágenes críticas (Hero + primeras de cada sección)
+  const CRITICAL_IMAGES_COUNT = 5;
+
+  useIonViewWillEnter(() => {
+    if (!isReady) {
+      setIsLoading(true);
+    }
+  });
+
+  useEffect(() => {
+    // Iniciamos carga global al montar
+    setIsLoading(true);
+  }, [setIsLoading]);
+
+  useEffect(() => {
+    // Si la data ya no está cargando y las imágenes críticas están listas
+    if (!loading && (imagesLoaded >= CRITICAL_IMAGES_COUNT || latest.length === 0)) {
+      // Pequeño delay para asegurar que el DOM se asentó
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+        setIsReady(true);
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, imagesLoaded, latest.length, setIsLoading]);
+
+  const handleImageLoad = React.useCallback(() => {
+    setImagesLoaded(prev => prev + 1);
+  }, []);
   
   const handleLatestClick = (manga: any) => {
     hapticsService.lightImpact();
@@ -174,6 +214,7 @@ const HomePage: React.FC = () => {
                   hapticsService.lightImpact();
                   router.push(item.type === 'anime' ? `/anime/${item.id}` : `/manga/${item.id}`);
                 }}
+                onImageLoad={handleImageLoad}
               />
             )}
           </div>
@@ -183,7 +224,7 @@ const HomePage: React.FC = () => {
         {!loading && latestManga.length > 0 && (
           <div className="home-recommendations-section">
             <RecommendationGrid 
-              allManga={latestManga.concat(latestManhwa).concat(latestManhua)}
+              allManga={allManga}
               onMangaClick={handleLatestClick}
               limit={12}
               mood={mood}
@@ -215,6 +256,7 @@ const HomePage: React.FC = () => {
                   onMangaClick={handleLatestClick}
                   mangaProvider={mangaProvider}
                   onViewAll={() => router.push('/search?type=manga')}
+                  onMangaLoad={handleImageLoad}
                 />
 
                 <HomeSectionGrid 
@@ -224,6 +266,7 @@ const HomePage: React.FC = () => {
                   onMangaClick={handleLatestClick}
                   mangaProvider={mangaProvider}
                   onViewAll={() => router.push('/search?type=manhwa')}
+                  onMangaLoad={handleImageLoad}
                 />
 
                 <HomeSectionGrid 
@@ -233,6 +276,7 @@ const HomePage: React.FC = () => {
                   onMangaClick={handleLatestClick}
                   mangaProvider={mangaProvider}
                   onViewAll={() => router.push('/search?type=manhua')}
+                  onMangaLoad={handleImageLoad}
                 />
               </>
             )}

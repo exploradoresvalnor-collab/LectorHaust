@@ -104,6 +104,14 @@ const SearchPage: React.FC = () => {
     trendingLang, setTrendingLang
   } = useSearch();
 
+  const filteredResults = React.useMemo(() => {
+    return results.filter((m: any) => 
+      (m.attributes.calculatedTotalChapters || 
+       m.attributes.lastChapter || 
+       m.attributes.latestChapterNumber || 1) > 0
+    );
+  }, [results]);
+
   const renderFilterBadge = (label: string, icon: any, active: boolean, onClick: () => void) => (
     <IonChip 
       className={`filter-chip ${active ? 'active' : ''}`} 
@@ -294,7 +302,7 @@ const SearchPage: React.FC = () => {
               <>
                 <IonGrid className="search-results-grid">
                   <IonRow>
-                    {results.filter((m: any) => (m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber || 1) > 0).map((manga: any) => (
+                    {filteredResults.map((manga: any) => (
                       <IonCol size="6" sizeSm="6" sizeMd="4" style={{ flex: '0 0 20%', maxWidth: '20%' }} className="ion-hide-md-down" key={manga.id}>
                         <MangaCard 
                           title={mangaProvider.getLocalizedTitle(manga)}
@@ -312,7 +320,7 @@ const SearchPage: React.FC = () => {
                       </IonCol>
                     ))}
                     {/* Fallback for MD down using standard Ionic sizes */}
-                    {results.filter((m: any) => (m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber || 1) > 0).map((manga: any) => (
+                    {filteredResults.map((manga: any) => (
                       <IonCol size="6" sizeSm="6" sizeMd="4" className="ion-hide-lg-up" key={manga.id + '_mobile'}>
                         <MangaCard 
                           title={mangaProvider.getLocalizedTitle(manga)}
