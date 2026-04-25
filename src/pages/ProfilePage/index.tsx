@@ -64,6 +64,9 @@ const ProfilePage: React.FC = () => {
   const [pendingArtUrl, setPendingArtUrl] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const history = useHistory();
+  const [showPINAlert, setShowPINAlert] = useState(false);
+  const [pinAction, setPinAction] = useState<'set' | 'verify'>('verify');
+  const [pendingNSFWValue, setPendingNSFWValue] = useState<boolean>(false);
 
   useEffect(() => {
      const timer = setTimeout(() => setIsStatsLoading(false), 500);
@@ -106,7 +109,7 @@ const ProfilePage: React.FC = () => {
     }
   }, [user]);
 
-  const { readChapters, showNSFW, setShowNSFW } = useLibraryStore();
+  const { readChapters, showNSFW, setShowNSFW, nsfwPIN, setNsfwPIN } = useLibraryStore();
   
   const handleLogout = async (force: boolean = false) => {
     if (user?.isAnonymous && !force) {
@@ -603,12 +606,15 @@ const ProfilePage: React.FC = () => {
                         checked={showNSFW} 
                         onIonChange={e => {
                           const val = e.detail.checked;
-                          setShowNSFW(val);
-                          presentToast({ 
-                            message: val ? 'Contenido adulto habilitado 🔞' : 'Contenido adulto oculto 🛡️', 
-                            duration: 1500,
-                            color: val ? 'danger' : 'success'
-                          });
+                          if (val !== showNSFW) {
+                            setPendingNSFWValue(val);
+                            if (!nsfwPIN) {
+                              setPinAction('set');
+                            } else {
+                              setPinAction('verify');
+                            }
+                            setShowPINAlert(true);
+                          }
                         }} 
                       />
                     </IonItem>
@@ -656,6 +662,67 @@ const ProfilePage: React.FC = () => {
               text: 'Guardar', 
               handler: (data) => {
                 handleUpdateProfile(data);
+              } 
+            }
+          ]}
+        />
+        
+        <IonAlert
+          isOpen={showPINAlert}
+          onDidDismiss={() => setShowPINAlert(false)}
+          header={pinAction === 'set' ? 'Establecer PIN NSFW' : 'Verificación de Seguridad'}
+          message={pinAction === 'set' 
+            ? 'Crea un PIN de 4 dígitos para proteger el acceso al contenido adulto.' 
+            : 'Ingresa tu PIN de seguridad para continuar.'}
+          inputs={[
+            {
+              name: 'pin',
+              type: 'password',
+              placeholder: 'PIN (4 dígitos)',
+              attributes: {
+                maxlength: 4,
+                inputmode: 'numeric'
+              }
+            }
+          ]}
+          buttons={[
+            { 
+              text: 'Cancelar', 
+              role: 'cancel',
+              handler: () => {
+                const toggle = document.querySelector('ion-toggle[slot="end"]') as any;
+                if (toggle) toggle.checked = showNSFW;
+              }
+            },
+            { 
+              text: pinAction === 'set' ? 'Guardar' : 'Confirmar', 
+              handler: (data) => {
+                const inputPIN = data.pin;
+                
+                if (pinAction === 'set') {
+                  if (inputPIN && inputPIN.length === 4) {
+                    setNsfwPIN(inputPIN);
+                    setShowNSFW(pendingNSFWValue);
+                    presentToast({ message: 'PIN establecido y cambios guardados ✨', duration: 2000, color: 'success' });
+                  } else {
+                    presentToast({ message: 'El PIN debe ser de 4 dígitos', duration: 2000, color: 'warning' });
+                    return false;
+                  }
+                } else {
+                  if (inputPIN === nsfwPIN) {
+                    setShowNSFW(pendingNSFWValue);
+                    presentToast({ 
+                      message: pendingNSFWValue ? 'Contenido adulto habilitado 🔞' : 'Contenido adulto oculto 🛡️', 
+                      duration: 2000, 
+                      color: pendingNSFWValue ? 'danger' : 'success' 
+                    });
+                  } else {
+                    presentToast({ message: 'PIN incorrecto ❌', duration: 2000, color: 'danger' });
+                    const toggle = document.querySelector('ion-toggle[slot="end"]') as any;
+                    if (toggle) toggle.checked = showNSFW;
+                    return false;
+                  }
+                }
               } 
             }
           ]}

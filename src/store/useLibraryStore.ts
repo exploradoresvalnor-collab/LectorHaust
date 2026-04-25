@@ -24,6 +24,8 @@ interface LibraryState {
   // Global Settings
   showNSFW: boolean;
   setShowNSFW: (val: boolean) => void;
+  nsfwPIN: string | null;
+  setNsfwPIN: (pin: string | null) => void;
 }
 
 let syncTimeout: NodeJS.Timeout | null = null;
@@ -33,8 +35,14 @@ export const useLibraryStore = create<LibraryState>()(
     (set, get) => ({
       favorites: [],
       showNSFW: false,
+      nsfwPIN: null,
       setShowNSFW: (val) => {
         set({ showNSFW: val });
+        const user = auth.currentUser;
+        if (user) get().pushToCloud(user.uid);
+      },
+      setNsfwPIN: (pin) => {
+        set({ nsfwPIN: pin });
         const user = auth.currentUser;
         if (user) get().pushToCloud(user.uid);
       },
@@ -132,7 +140,8 @@ export const useLibraryStore = create<LibraryState>()(
               favorites: mergedFavs,
               history: mergedHistory,
               readChapters: mergedReadChapters,
-              showNSFW: cloudData.showNSFW !== undefined ? cloudData.showNSFW : get().showNSFW
+              showNSFW: cloudData.showNSFW !== undefined ? cloudData.showNSFW : get().showNSFW,
+              nsfwPIN: cloudData.nsfwPIN !== undefined ? cloudData.nsfwPIN : get().nsfwPIN
             });
             
             // Automatically push the merged result back to cloud
@@ -173,6 +182,7 @@ export const useLibraryStore = create<LibraryState>()(
               history: get().history,
               readChapters: get().readChapters,
               showNSFW: get().showNSFW,
+              nsfwPIN: get().nsfwPIN,
               updatedAt: Date.now()
             }), { merge: true });
           } catch (err) {

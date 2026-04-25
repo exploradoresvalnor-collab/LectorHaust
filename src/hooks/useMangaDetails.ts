@@ -123,36 +123,26 @@ export function useMangaDetails(id?: string, initialData?: any) {
       try {
         // Essential: Fetch MangaDex details and First Page of Chapters in parallel
         // If we have initialData, we only fetch chapters and extras.
-        
-        console.log(`[Details] START: Fetching manga ${id} (timeout: ${globalTimeoutMs}ms)`);
+               console.log(`[Details] START: Fetching manga ${id} (timeout: ${globalTimeoutMs}ms)`);
         const fetchStartTime = performance.now();
         
-        // Wrap in global timeout promise
-        const mainFetch = Promise.all([
-          !initialData ? mangaProvider.getMangaDetails(id, showNSFW) : Promise.resolve({ data: initialData }),
-          mangaProvider.getMangaChapters(id, chapterLang, 20, 0, chapterOrder, showNSFW)
-        ]);
-        
-        const timeoutPromise = new Promise((_, reject) => {
-          globalTimeout = setTimeout(() => {
-            reject(new Error(`[Details] Global timeout (${globalTimeoutMs}ms) exceeded while fetching ${id}`));
-          }, globalTimeoutMs);
-        });
-        
-        console.log(`[Details] Awaiting main fetch with timeout...`);
-        const [mdDetails, firstChapters] = await Promise.race([mainFetch, timeoutPromise]) as any;
-        const fetchDuration = performance.now() - fetchStartTime;
-        if (globalTimeout) clearTimeout(globalTimeout);
-        console.log(`[Details] ✅ Main fetch completed in ${fetchDuration.toFixed(0)}ms`);
-        
+        // 1. Fetch Manga Metadata First (Essential)
+        let mdDetails: any;
+        try {
+          mdDetails = !initialData 
+            ? await mangaProvider.getMangaDetails(id, showNSFW) 
+            : { data: initialData };
+        } catch (mangaErr: any) {
+          console.error('[Details] ❌ Fatal error fetching manga metadata:', mangaErr);
+          throw mangaErr; // Re-throw to main catch if metadata fails
+        }
+
         if (!isMounted.current) return;
 
         const mangaObj = mdDetails.data;
         if (!mangaObj) throw new Error('Manga not found');
         
-        console.log(`[Details] Translating description...`);
-        
-        // Translate description immediately (with timeout to prevent hanging)
+        // Process Metadata immediately
         const rawDesc = mangaProvider.getLocalizedDescription(mangaObj);
         let translatedDesc = rawDesc;
         let wasTr = false;
@@ -235,214 +225,46 @@ export function useMangaDetails(id?: string, initialData?: any) {
           console.error('[NonEssential] Promise.all error:', err);
         });
 
-        let chaptersData = firstChapters;
-        
-        // ────────────────────────────────────────────────────────
-        // 🔄 HAUS INTELLIGENT FALLBACK (v2): 
-        //    Step 1: If no chapters in user's language, check ALL languages on MangaDex first
-        //    Step 2: Only go to external sources if MangaDex has 0 chapters globally
-        // ────────────────────────────────────────────────────────
-        const hasNoLocalChapters = !chaptersData.data || chaptersData.data.length === 0;
-        const isManhwaOrManhua = mangaObj.attributes?.originalLanguage === 'ko' || mangaObj.attributes?.originalLanguage === 'zh';
-        
-        if (hasNoLocalChapters && !mangaProvider.isExternalId(id)) {
-          console.log(`[Details] No chapters in "${chapterLang}" for "${title}". Checking MangaDex in ALL languages...`);
+        // 3. Fetch Chapters (Resilient & Decoupled)
+        try {
+          console.log(`[Details] Fetching chapters for ${id}...`);
+          let chaptersData = await mangaProvider.getMangaChapters(id, chapterLang, 20, 0, chapterOrder, showNSFW);
           
-          // Step 1: Ask MangaDex for chapters in ANY language
-          let allLangChapters: any = null;
-          try {
-            allLangChapters = await mangaProvider.getMangaChapters(id, null as any, 20, 0, chapterOrder, showNSFW);
-          } catch (e) {
-            console.warn('[Details] All-language check failed:', e);
+          // Secondary fallback: If no chapters found in the desired language, try checking if MD has ANY language
+          if ((!chaptersData.data || chaptersData.data.length === 0) && !mangaProvider.isExternalId(id)) {
+            console.log('[Details] No chapters in requested language, checking global MangaDex availability...');
+            const allLangs = await mangaProvider.getMangaChapters(id, null as any, 20, 0, chapterOrder, showNSFW);
+            if (allLangs?.data && allLangs.data.length > 0) {
+               chaptersData = allLangs;
+               // Automatically switch to the most common language available as a fallback
+               const langCounts: Record<string, number> = {};
+               allLangs.data.forEach((c: any) => {
+                 const lang = c.attributes?.translatedLanguage || 'en';
+                 langCounts[lang] = (langCounts[lang] || 0) + 1;
+               });
+               const bestLang = Object.entries(langCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'en';
+               setState(prev => ({ ...prev, chapterLang: bestLang }));
+            }
           }
 
-          const mdHasChaptersInOtherLangs = allLangChapters?.data && allLangChapters.data.length > 0;
-
-          // ────────────────────────────────────────────────────────
-          // 🔄 HAUS INTELLIGENT v3: For manhwas/manhuas, ALWAYS try 
-          // external sources (ManhwaWeb has Spanish!) even if MangaDex 
-          // has chapters in English. Spanish external > English MangaDex.
-          // ────────────────────────────────────────────────────────
-          let externalFound = false;
-
-          if (isManhwaOrManhua && title && !mangaProvider.isExternalId(id)) {
-            console.log(`[Details] 🇰🇷🇨🇳 Manhwa/Manhua detected: "${title}". Trying external Spanish sources FIRST...`);
+          if (isMounted.current) {
+            const newChapters = deduplicateChapters(chaptersData.data || []);
+            console.log(`[Details] ✅ Chapters loaded: ${newChapters.length}`);
             
-            // PREVENT INFINITE LOOPS: Limit external search attempts
-            if (externalSearchAttempts >= MAX_EXTERNAL_SEARCH_ATTEMPTS) {
-              console.warn(`[Details] ⚠️ Max external search attempts (${MAX_EXTERNAL_SEARCH_ATTEMPTS}) reached. Skipping external search.`);
-            } else {
-              externalSearchAttempts++;
-              try {
-                const candidates = await mangaProvider.findBestExternalSources(mangaObj);
-                
-                if (candidates && candidates.length > 0) {
-                // Prioritize ManhwaWeb (Spanish) over other sources
-                const sorted = [...candidates].sort((a, b) => {
-                  if (a.source === 'manhwaweb' && b.source !== 'manhwaweb') return -1;
-                  if (b.source === 'manhwaweb' && a.source !== 'manhwaweb') return 1;
-                  return 0;
-                });
-
-                for (const bestSource of sorted) {
-                  if (!isMounted.current) break;
-                  const fullId = bestSource.id; 
-                  console.log(`[Details] Testing candidate: ${bestSource.source} (${fullId})...`);
-                  
-                  try {
-                    const extChaptersData = await mangaProvider.getMangaChapters(fullId);
-                    
-                    if (extChaptersData.data && extChaptersData.data.length > 0) {
-                      externalFallbackId.current = fullId;
-                      const isManhwaWeb = bestSource.source === 'manhwaweb';
-                      const fallbackLang = isManhwaWeb ? 'es' : 'en';
-                      
-                      chaptersData = {
-                        data: extChaptersData.data.map((c: any) => ({
-                          id: c.id,
-                          attributes: {
-                            chapter: c.attributes.chapter,
-                            title: c.attributes.title,
-                            translatedLanguage: fallbackLang
-                          }
-                        })),
-                        total: extChaptersData.total
-                      };
-
-                      if (isMounted.current) {
-                        setState(prev => ({
-                          ...prev,
-                          availableLangs: [...new Set([...prev.availableLangs, fallbackLang])],
-                          isOptimized: true,
-                          chapterLang: fallbackLang
-                        }));
-                        console.log(`[Details] ✅ Haus v3 Applied via ${bestSource.source} (${fallbackLang.toUpperCase()}). ${extChaptersData.total} chapters.`);
-                      }
-
-                      
-                      externalFound = true;
-                      break; // Stop at first valid source
-                    }
-                  } catch (chapErr) {
-                    console.warn(`[Details] Candidate ${bestSource.source} failed chapter fetch:`, chapErr);
-                  }
-                }
-              }
-            } catch (err) {
-              console.warn('[Details] Haus v3 manhwa external search failed:', err);
-            }
-            } // End of external search attempt limit
+            setState(prev => ({
+              ...prev,
+              totalChapters: chaptersData.total || 0,
+              totalPages: Math.ceil((chaptersData.total || 0) / 20),
+              chapters: newChapters,
+              hasMoreChapters: (chaptersData.data || []).length >= 20,
+              loadingChapters: false
+            }));
           }
-
-          // If external source worked, skip MangaDex fallback logic
-          if (!externalFound) {
-            if (mdHasChaptersInOtherLangs) {
-              // MangaDex HAS chapters in other languages → use them as last resort
-              console.log(`[Details] Using MangaDex (${allLangChapters.total} chapters in other languages).`);
-              chaptersData = allLangChapters;
-              if (isMounted.current) {
-                  const langCounts: Record<string, number> = {};
-                  allLangChapters.data.forEach((c: any) => {
-                    const lang = c.attributes?.translatedLanguage || 'unknown';
-                    langCounts[lang] = (langCounts[lang] || 0) + 1;
-                  });
-                  const bestLang = Object.entries(langCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'en';
-                  setState(prev => ({ ...prev, chapterLang: bestLang, isOptimized: false }));
-                }
-            } else {
-              // ⚠️ AGGRESSIVE FALLBACK: Try external sources if MangaDex has <10 chapters
-              const mdChapterCount = allLangChapters?.total || 0;
-              const needsExternalFallback = title && (
-                (!allLangChapters?.data || allLangChapters.data.length === 0) ||
-                (mdChapterCount < 10 && mangaObj.attributes.status === 'completed') ||
-                (mdChapterCount < 5)
-              );
-
-              if (needsExternalFallback) {
-                // PREVENT INFINITE LOOPS: Limit external search attempts
-                if (externalSearchAttempts >= MAX_EXTERNAL_SEARCH_ATTEMPTS) {
-                  console.warn(`[Details] ⚠️ Max external search attempts (${MAX_EXTERNAL_SEARCH_ATTEMPTS}) reached. Cannot find chapters.`);
-                } else {
-                  externalSearchAttempts++;
-                  console.log(`[Details] MangaDex has 0 chapters globally for "${title}". Trying Haus Intelligence (attempt ${externalSearchAttempts}/${MAX_EXTERNAL_SEARCH_ATTEMPTS})...`);
-                  try {
-                    const candidates = await mangaProvider.findBestExternalSources(mangaObj);
-                    
-                    if (candidates && candidates.length > 0) {
-                      let foundValidSource = false;
-                      
-                      for (const bestSource of candidates) {
-                        if (!isMounted.current) break;
-                        const fullId = bestSource.id; 
-                        console.log(`[Details] Testing candidate: ${bestSource.source} (${fullId})...`);
-                        
-                        try {
-                          const extChaptersData = await mangaProvider.getMangaChapters(fullId);
-                          
-                          if (extChaptersData.data && extChaptersData.data.length > 0) {
-                            externalFallbackId.current = fullId;
-                            const isManhwaWeb = bestSource.source === 'manhwaweb';
-                            const fallbackLang = isManhwaWeb ? 'es' : 'en';
-                          
-                          chaptersData = {
-                            data: extChaptersData.data.map((c: any) => ({
-                              id: c.id,
-                              attributes: {
-                                chapter: c.attributes.chapter,
-                                title: c.attributes.title,
-                                translatedLanguage: fallbackLang
-                              }
-                            })),
-                            total: extChaptersData.total
-                          };
-
-                          if (isMounted.current) {
-                            setState(prev => ({
-                              ...prev,
-                              availableLangs: [fallbackLang],
-                              isOptimized: true,
-                              chapterLang: fallbackLang
-                            }));
-                            console.log(`[Details] ✅ Haus Applied via ${bestSource.source} (${fallbackLang.toUpperCase()}). ${extChaptersData.total} chapters.`);
-                          }
-
-                          
-                          foundValidSource = true;
-                          break;
-                        }
-                      } catch (chapErr) {
-                        console.warn(`[Details] Candidate ${bestSource.source} failed chapter fetch:`, chapErr);
-                      }
-                    }
-
-                    if (!foundValidSource && isMounted.current) {
-                      setState(prev => ({ ...prev, isOptimized: false }));
-                    }
-                  } else {
-                    if (isMounted.current) setState(prev => ({ ...prev, isOptimized: false }));
-                  }
-
-                } catch (err) {
-                  console.warn('[Details] Haus Intelligence fallback failed:', err);
-                }
-                } // End of external search attempt limit
-              }
-            }
+        } catch (chapErr: any) {
+          console.warn('[Details] ⚠️ Chapter fetch failed (metadata preserved):', chapErr.message || chapErr);
+          if (isMounted.current) {
+            setState(prev => ({ ...prev, loadingChapters: false, chapters: [] }));
           }
-        }
-
-        if (isMounted.current) {
-          const newChapters = deduplicateChapters(chaptersData.data || []);
-          console.log(`[Details] Deduplicating ${chaptersData.data?.length || 0} chapters -> ${newChapters.length}`);
-          
-          setState(prev => ({
-            ...prev,
-            totalChapters: chaptersData.total || 0,
-            totalPages: Math.ceil((chaptersData.total || 0) / 20),
-            chapters: newChapters,
-            hasMoreChapters: (chaptersData.data || []).length >= 20
-          }));
-          console.log(`[Details] ✅ All state updated: ${newChapters.length} chapters, ${chaptersData.total} total`);
         }
 
 

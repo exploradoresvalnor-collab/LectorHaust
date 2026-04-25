@@ -250,32 +250,32 @@ const HomePage: React.FC = () => {
             ) : (
               <>
                 <HomeSectionGrid 
-                  title="Últimos Mangas  " 
-                  icon={bookOutline}
+                  title="Mangas Legendarios" 
+                  icon={sparklesOutline}
                   items={latestManga}
                   onMangaClick={handleLatestClick}
                   mangaProvider={mangaProvider}
-                  onViewAll={() => router.push('/search?type=manga')}
+                  onViewAll={() => router.push('/search?type=manga&order=follows')}
                   onMangaLoad={handleImageLoad}
                 />
 
                 <HomeSectionGrid 
-                  title="Últimos Manhwas (Corea)  " 
-                  icon={bookOutline}
+                  title="Mejores Manhwas (Corea)" 
+                  icon={sparklesOutline}
                   items={latestManhwa}
                   onMangaClick={handleLatestClick}
                   mangaProvider={mangaProvider}
-                  onViewAll={() => router.push('/search?type=manhwa')}
+                  onViewAll={() => router.push('/search?type=manhwa&order=follows')}
                   onMangaLoad={handleImageLoad}
                 />
 
                 <HomeSectionGrid 
-                  title="Últimos Manhuas (China)  " 
-                  icon={bookOutline}
+                  title="Joyas del Manhua (China)" 
+                  icon={sparklesOutline}
                   items={latestManhua}
                   onMangaClick={handleLatestClick}
                   mangaProvider={mangaProvider}
-                  onViewAll={() => router.push('/search?type=manhua')}
+                  onViewAll={() => router.push('/search?type=manhua&order=follows')}
                   onMangaLoad={handleImageLoad}
                 />
               </>

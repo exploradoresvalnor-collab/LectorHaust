@@ -58,14 +58,14 @@ export function useHomeData() {
     isLoading: loadingManga,
     refetch: refetchManga
   } = useQuery({
-    queryKey: ['latestManga', currentSource, latestLang, showNSFW],
+    queryKey: ['popularMangaV3', currentSource, latestLang, showNSFW],
     queryFn: async () => {
-      const res = await mangaProvider.getLatestUpdatedManga(6, 0, latestLang, 'manga', showNSFW);
+      const res = await mangaProvider.getPopularManga('ja', latestLang, 6, 0, null, false, false, false);
       // Habilitar carga de manhwa después de que manga esté listo
       setTimeout(() => setEnableManhwaLoading(true), 300);
       return res.data || [];
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 30, // 30 mins, popular data changes slowly
   });
 
   const {
@@ -73,14 +73,14 @@ export function useHomeData() {
     isLoading: loadingManhwa,
     refetch: refetchManhwa
   } = useQuery({
-    queryKey: ['latestManhwa', currentSource, latestLang, showNSFW],
+    queryKey: ['popularManhwaV3', currentSource, latestLang, showNSFW],
     queryFn: async () => {
-      const res = await mangaProvider.getLatestUpdatedManga(6, 0, latestLang, 'manhwa', showNSFW);
+      const res = await mangaProvider.getPopularManga('ko', latestLang, 6, 0, null, false, false, true);
       // Habilitar carga de manhua después de que manhwa esté listo
       setTimeout(() => setEnableManhuaLoading(true), 300);
       return res.data || [];
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 30,
     enabled: enableManhwaLoading, // Solo carga cuando está habilitado
   });
 
@@ -89,14 +89,14 @@ export function useHomeData() {
     isLoading: loadingManhua,
     refetch: refetchManhua
   } = useQuery({
-    queryKey: ['latestManhua', currentSource, latestLang, showNSFW],
+    queryKey: ['popularManhuaV3', currentSource, latestLang, showNSFW],
     queryFn: async () => {
-      const res = await mangaProvider.getLatestUpdatedManga(6, 0, latestLang, 'manhua', showNSFW);
+      const res = await mangaProvider.getPopularManga('zh', latestLang, 6, 0, null, false, false, true);
       // Habilitar carga de anime después de que manhua esté listo
       setTimeout(() => setEnableAnimeLoading(true), 500);
       return res.data || [];
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 30,
     enabled: enableManhuaLoading, // Solo carga cuando está habilitado
   });
 

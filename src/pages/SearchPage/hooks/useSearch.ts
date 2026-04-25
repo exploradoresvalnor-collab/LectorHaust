@@ -127,7 +127,7 @@ export function useSearch() {
   } = useInfiniteQuery({
     queryKey: ['trendingManga', trendingOrigin, trendingLang, showNSFW],
     queryFn: ({ pageParam = 0 }) => 
-      mangaProvider.getPopularManga(trendingOrigin, trendingLang || 'all', 16, pageParam as number, null, false, showNSFW),
+      mangaProvider.getPopularManga(trendingOrigin, trendingLang || 'all', 16, pageParam as number, null, false, false, true),
     initialPageParam: 0,
     getNextPageParam: (lastPage: any, allPages: any[]) => {
       return lastPage.data?.length === 16 ? allPages.length * 16 : undefined;
@@ -157,7 +157,7 @@ export function useSearch() {
   } = useInfiniteQuery({
     queryKey: ['completedManga', completedLang, completedGenre, completedColor, completedDemographic, showNSFW],
     queryFn: async ({ pageParam = 0 }) => {
-      const resp = await mangaProvider.getFullyTranslatedMasterpieces(null, completedLang, 12, pageParam as number, completedGenre || null, completedColor, showNSFW);
+      const resp = await mangaProvider.getFullyTranslatedMasterpieces(null, completedLang, 12, pageParam as number, completedGenre || null, completedColor, false, true);
       let data = resp.data || [];
       if (completedDemographic) {
         data = data.filter((m: any) => m.attributes.publicationDemographic === completedDemographic);
@@ -225,7 +225,7 @@ export function useSearch() {
   // --- 4. SUGGESTIONS ---
   const { data: suggestionsData } = useQuery({
     queryKey: ['suggestions', showNSFW],
-    queryFn: () => mangaProvider.getLatestUpdatedManga(16, 0, 'es', 'all', showNSFW),
+    queryFn: () => mangaProvider.getLatestUpdatedManga(16, 0, 'es', 'all', false, true),
     enabled: activeSegment === 'search' && !query, // Only fetch suggestions if in search mode and no query
     staleTime: 1000 * 60 * 10, // 10 mins
   });

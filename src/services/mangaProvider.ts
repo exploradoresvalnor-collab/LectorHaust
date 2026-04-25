@@ -196,6 +196,32 @@ const deduplicateResults = (results: MangaItem[]): MangaItem[] => {
   return mergeResults(results); // Redirigir a mergeResults para Haus v3
 };
 
+// Mapping for legendary manhwas that have different names on external sources
+const knownMasterpieces: Record<string, string[]> = {
+    'na honjaman levelup': ['solo leveling', 'solo l3vel1ng'],
+    'solo leveling': ['na honjaman levelup', 'solo l3vel1ng'],
+    'jeonjijeok dokja sijeom': ['omniscient reader', 'el punto de vista del lector omnisciente'],
+    'omniscient reader': ['jeonjijeok dokja sijeom', 'el punto de vista del lector omnisciente'],
+    'agyeogui ending jugeumppun': ['villains are destined to die', 'la villana esta destinada a morir'],
+    'villains are destined to die': ['agyeogui ending jugeumppun', 'la villana esta destinada a morir'],
+    'the beginning after the end': ['el principio despues del final', 'tbate'],
+    'mercenary enrollment': ['inscripcion de mercenarios', 'teenage mercenary'],
+    'teenage mercenary': ['mercenary enrollment'],
+    'tower of god': ['torre de dios'],
+    'noblesse': [],
+    'the boxer': ['el boxeador'],
+    'eleceed': [],
+    'wind breaker': [],
+    'lookism': [],
+    'viral hit': ['how to fight'],
+    'nanomachine': ['nano maquina'],
+    'legend of the northern blade': ['leyenda de la hoja del norte'],
+    'sssclass suicide hunter': ['hunter que vive para morir'],
+    'the greatest estate developer': ['el mejor diseñador de fincas'],
+    'bastard': [],
+    'sweet home': []
+};
+
 export const mangaProvider = {
     setSource(source: MangaSource) {
         currentSource = source;
@@ -343,16 +369,28 @@ export const mangaProvider = {
         }
     },
    
-    async getPopularManga(origin: string | null = null, lang: string | null = 'es', limit = 12, offset = 0, genre: string | null = null, fullColor = false, allowNSFW = false) {
+    async getPopularManga(origin: string | null = null, lang: string | null = 'es', limit = 12, offset = 0, genre: string | null = null, fullColor = false, allowNSFW = false, forceSafe = false) {
         try {
-            const mdResp = await mangadexService.getPopularManga(origin, lang, limit, offset, genre, fullColor, allowNSFW);
+            const mdResp = await mangadexService.getPopularManga(origin, lang, limit, offset, genre, fullColor, allowNSFW, forceSafe);
             
-            // Enrichment with ManhwaWeb for Spanish rankings
+            // Enrichment with ManhwaWeb for Spanish rankings - STRICT WHITELIST if forceSafe is true
             if (lang === 'es' && offset === 0 && (!origin || origin === 'ko')) {
                 const mwebTop = await manhwawebService.getTopWeekly();
                 if (mwebTop && mwebTop.length > 0) {
-                    // Normalize for mapping
-                    const mappedMweb = mwebTop.map((m: any) => ({
+                    
+                    // Normalize for mapping and filter
+                    const filteredMweb = mwebTop.filter((m: any) => {
+                        // If not forcing safe (e.g. in Search with NSFW on), allow all
+                        if (!forceSafe) return true;
+                        
+                        // If forcing safe (Home Page), ONLY allow legendary "Masterpieces" we know are SFW
+                        const titleLower = normalizeTitle(m.attributes?.title?.es || m.attributes?.title?.en || '');
+                        const isLegendary = Object.keys(knownMasterpieces).some(key => titleLower.includes(key));
+                        
+                        return isLegendary;
+                    });
+
+                    const mappedMweb = filteredMweb.map((m: any) => ({
                         id: m.id,
                         type: 'manga',
                         attributes: {
@@ -365,8 +403,8 @@ export const mangaProvider = {
                         _mwebSlug: m._mwebSlug
                     }));
                     
-                    // Prepend/Merge (MangaDex results are generally higher quality, but mweb has the "missing" ones)
-                    const combined = deduplicateResults([...mappedMweb.slice(0, 6), ...mdResp.data]);
+                    // Prepend/Merge
+                    const combined = deduplicateResults([...mappedMweb, ...mdResp.data]);
                     return { ...mdResp, data: combined.slice(0, limit) };
                 }
             }
@@ -379,26 +417,12 @@ export const mangaProvider = {
     },
 
 
-    getLatestUpdatedManga(limit = 12, offset = 0, lang = 'es', type = 'all', allowNSFW = false) {
-        return mangadexService.getLatestUpdatedManga(limit, offset, lang, type, allowNSFW);
+    getLatestUpdatedManga(limit = 12, offset = 0, lang = 'es', type = 'all', allowNSFW = false, forceSafe = false) {
+        return mangadexService.getLatestUpdatedManga(limit, offset, lang, type, allowNSFW, forceSafe);
     },
 
-    async getFullyTranslatedMasterpieces(origin: string | null = null, lang: string | null = 'es', limit = 12, offset = 0, genre: string | null = null, fullColor = false, allowNSFW = false) {
-        try {
-            // Get completed manga with verified translations
-            const results = await mangadexService.searchManga('', {
-                status: 'completed',
-                lang: lang || 'es',
-                origin: origin || undefined,
-                tags: genre ? [genre] : undefined,
-                fullColor: fullColor
-            }, limit, offset, undefined, allowNSFW);
-            
-            return results;
-        } catch (err) {
-            console.warn('[Provider] getFullyTranslatedMasterpieces failed:', err);
-            return { data: [], pagination: { limit, offset, total: 0 } };
-        }
+    async getFullyTranslatedMasterpieces(origin: string | null = null, lang: string | null = 'es', limit = 12, offset = 0, genre: string | null = null, fullColor = false, allowNSFW = false, forceSafe = false) {
+        return mangadexService.getFullyTranslatedMasterpieces(origin, lang || 'es', limit, offset, genre || null, fullColor, allowNSFW, forceSafe);
     },
 
     getLatestChapters(limit = 12, offset = 0, lang: string | null = null, allowNSFW = false) {
@@ -474,7 +498,41 @@ export const mangaProvider = {
             }
             return rawData;
         }
-        return mangadexService.getMangaChapters(mangaId, lang, limit, offset, order, allowNSFW);
+
+        // --- HAUS INTELLIGENCE: DEEP FALLBACK ---
+        try {
+            const mdResp = await mangadexService.getMangaChapters(mangaId, lang, limit, offset, order, allowNSFW);
+            
+            // If MD has NO chapters in the selected language (common for licensed manhwas)
+            if ((!mdResp.data || mdResp.data.length === 0) && lang === 'es' && offset === 0) {
+                console.log(`[Intelligence] ⚠️ No chapters on MangaDex for ${mangaId}. Triggering Fallback...`);
+                
+                // 1. Get manga details to have the title
+                const details = await mangadexService.getMangaDetails(mangaId);
+                if (details && details.data) {
+                    // 2. Search for external sources
+                    const externalSources = await this.findBestExternalSources(details.data);
+                    
+                    if (externalSources.length > 0) {
+                        try {
+                            const best = externalSources[0];
+                            console.log(`[Intelligence] 🎯 Found better source: ${best.source} (${best.id}). Retrying fetch...`);
+                            
+                            // 3. Recursive call with the external ID
+                            return await this.getMangaChapters(best.id, lang, limit, offset, order, allowNSFW);
+                        } catch (fallbackErr) {
+                            console.error(`[Intelligence] ❌ Fallback failed (404/Error), using empty MD state`, fallbackErr);
+                            return mdResp; // Devolvemos el estado vacío original de MD en lugar de lanzar error
+                        }
+                    }
+                }
+            }
+            
+            return mdResp;
+        } catch (err) {
+            console.warn('[Intelligence] Deep Fallback failed:', err);
+            return { data: [], total: 0 };
+        }
     },
 
     getChapterPages(chapterId: string, quality: 'data' | 'data-saver' = 'data') {
@@ -641,16 +699,19 @@ export const mangaProvider = {
                 .map((alt: any) => typeof alt === 'string' ? alt : (alt['en'] || alt['es-la'] || alt['es'] || ''))
                 .filter((t: string) => t.length > 2 && /^[a-zA-Z]/.test(t)); // Only latin-script titles
             
-            // Build priority queue: English > Romaji > Alt English > Others
+            // Build priority queue: Known Alternatives > English > Romaji > Alt English > Others
+            const knownAlts = normalizedTargets.flatMap(t => knownMasterpieces[t] || []);
+            
             const prioritizedQueries = [
                 ...new Set([
+                    ...knownAlts,
                     englishTitle,
                     romajiTitle,
                     ...altEnglish,
                     searchTitle, // Original searchTitle as last resort
                     ...targetTitles
                 ])
-            ].filter(q => q && (q as string).length > 2).slice(0, 4);
+            ].filter(q => q && (q as string).length > 2).slice(0, 6);
             
             for (const query of prioritizedQueries) {
                 console.log(`[Intelligence] 🌐 Searching "${query}" on ALL sources in parallel...`);

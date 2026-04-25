@@ -52,7 +52,7 @@ export const manhwawebService = {
       if (!Array.isArray(items)) return [];
 
       return items.slice(0, 20).map((m: any) => ({
-        id: `mweb:${m._id || m.id_manhwa || m.slug || m.real_id}`,
+        id: `mweb:${m.real_id || m.slug || m._id || m.id_manhwa}`,
         type: 'manga',
         attributes: {
           title: { 
@@ -196,7 +196,7 @@ export const manhwawebService = {
       const data = await apiFetch('/manhwa/nuevos');
       const weeklyTop = data?.top?.manhwas_esp || [];
       return weeklyTop.map((m: any) => {
-        let id = m.id_manhwa || m._id || m.slug || m.link || m.real_id;
+        let id = m.real_id || m.slug || m.id_manhwa || m._id || m.link;
         if (typeof id === 'string' && id.includes('/')) {
             const parts = id.split('/');
             id = parts[parts.length - 1]; // Take only the slug part
@@ -225,7 +225,7 @@ export const manhwawebService = {
       const data = await apiFetch('/manhwa/nuevos');
       const globalTop = data?.top?.manhwas_raw || [];
       return globalTop.map((m: any) => {
-        let id = m.id_manhwa || m._id || m.slug || m.link || m.real_id;
+        let id = m.real_id || m.slug || m.id_manhwa || m._id || m.link;
         if (typeof id === 'string' && id.includes('/')) {
             const parts = id.split('/');
             id = parts[parts.length - 1];

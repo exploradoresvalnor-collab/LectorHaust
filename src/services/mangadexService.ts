@@ -185,7 +185,8 @@ const GENRE_UUIDS: Record<string, string> = {
 };
 
 export const mangadexService = {
-    getContentRatingParams(allowNSFW: boolean): string {
+    getContentRatingParams(allowNSFW: boolean, forceSafe = false): string {
+        if (forceSafe) return '&contentRating[]=safe';
         let params = '&contentRating[]=safe&contentRating[]=suggestive';
         if (allowNSFW) {
             params += '&contentRating[]=erotica';
@@ -196,9 +197,9 @@ export const mangadexService = {
     /**
      * Helper to build a standard MangaDex URL with common parameters
      */
-    buildUrl(basePath: string, limit: number, offset: number, allowNSFW = false): string {
+    buildUrl(basePath: string, limit: number, offset: number, allowNSFW = false, forceSafe = false): string {
         let url = `${basePath}?limit=${limit}&offset=${offset}`;
-        url += this.getContentRatingParams(allowNSFW);
+        url += this.getContentRatingParams(allowNSFW, forceSafe);
         return url;
     },
 
@@ -351,8 +352,8 @@ export const mangadexService = {
     /**
      * Get popular manga filtered by language and origin
      */
-    async getPopularManga(origin: string | null = null, lang: string | null = 'es', limit = 12, offset = 0, genre: string | null = null, fullColor = false, allowNSFW = false): Promise<any> {
-        let url = this.buildUrl('/manga', limit, offset, allowNSFW);
+    async getPopularManga(origin: string | null = null, lang: string | null = 'es', limit = 12, offset = 0, genre: string | null = null, fullColor = false, allowNSFW = false, forceSafe = false): Promise<any> {
+        let url = this.buildUrl('/manga', limit, offset, allowNSFW, forceSafe);
         url += '&hasAvailableChapters=true&order[followedCount]=desc&includes[]=cover_art&includes[]=author';
         
         if (lang && lang !== 'all') {
@@ -396,7 +397,7 @@ export const mangadexService = {
      * Deep Fetch: Gets completed mangas and strictly verifies if all published chapters 
      * are translated to the target language (default 'es').
      */
-    async getFullyTranslatedMasterpieces(origin: string | null = null, lang = 'es', limit = 10, offset = 0, genre: string | null = null, fullColor = false, allowNSFW = false) {
+    async getFullyTranslatedMasterpieces(origin: string | null = null, lang = 'es', limit = 10, offset = 0, genre: string | null = null, fullColor = false, allowNSFW = false, forceSafe = false) {
         // 1. Try Cache First (Fast Path)
         // Updated cache version (v2) to force fresh validation with new rules
         const cacheKey = `masterpieces_v2_${origin || 'ALL'}_${lang}_${genre || 'NONE'}_${fullColor}_${allowNSFW}_${offset}`;
@@ -418,7 +419,7 @@ export const mangadexService = {
         // Reduced from limit * 6 (80) to limit * 4 (max 48) for faster validation
         const fetchLimit = Math.min(limit * 4, 48); 
         let url = `/manga?limit=${fetchLimit}&offset=${offset}&hasAvailableChapters=true&order[followedCount]=desc&includes[]=cover_art&includes[]=author`;
-        url += this.getContentRatingParams(allowNSFW);
+        url += this.getContentRatingParams(allowNSFW, forceSafe);
         
         console.log(`[Masterpieces] Fetching with URL: ${url}`);
         if (fullColor) {
@@ -568,7 +569,7 @@ export const mangadexService = {
         }
     },
 
-    async getLatestUpdatedManga(limit = 12, offset = 0, lang = 'es', type = 'all', allowNSFW = false) {
+    async getLatestUpdatedManga(limit = 12, offset = 0, lang = 'es', type = 'all', allowNSFW = false, forceSafe = false) {
         // HAUS INTELLIGENCE FIX: Mode 1: Chapter-first (Filtered by origin)
         // Ensures we actually get the translated chapter number instead of '?'
         if (type !== 'all') {
@@ -578,7 +579,7 @@ export const mangadexService = {
             
             const fetchLimit = 25;
             let url = `/chapter?limit=${fetchLimit}&offset=${offset}&order[readableAt]=desc&includes[]=manga&originalLanguage[]=${targetOrigin}`;
-            url += this.getContentRatingParams(allowNSFW);
+            url += this.getContentRatingParams(allowNSFW, forceSafe);
             
             if (lang === 'all') {
                 // World mode: No language filter
