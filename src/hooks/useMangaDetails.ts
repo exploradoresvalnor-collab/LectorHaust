@@ -116,9 +116,8 @@ export function useMangaDetails(id?: string, initialData?: any) {
       const globalTimeoutMs = 12000; // 12 seconds (reduced from 20s for better UX)
       let globalTimeout: NodeJS.Timeout | null = null;
       
-      // FALLBACK SEARCH LIMIT: Max 3 attempts to prevent infinite loops
-      let externalSearchAttempts = 0;
-      const MAX_EXTERNAL_SEARCH_ATTEMPTS = 3;      try {
+      const MAX_EXTERNAL_SEARCH_ATTEMPTS = 3;
+      try {
         console.log(`[Details] START: Parallel fetch for manga ${id}`);
         
         // 1. Parallel fetch for Metadata and initial Chapters
@@ -153,7 +152,7 @@ export function useMangaDetails(id?: string, initialData?: any) {
           }));
         }
 
-        // 3. Background translation and other tasks
+        // 3. Background tasks
         const title = mangaObj.attributes?.title?.en || Object.values(mangaObj.attributes?.title || {})[0];
         
         Promise.all([
@@ -173,11 +172,8 @@ export function useMangaDetails(id?: string, initialData?: any) {
                     }
                   } : null
                 }));
-                console.log(`[Details] ✅ Translation updated in background`);
               }
-            } catch (tranErr) {
-              console.warn(`[Details] ⚠️ Translation background task failed:`, tranErr);
-            }
+            } catch (err) {}
           })(),
 
           mangaProvider.getMangaStatistics(id)
@@ -198,42 +194,29 @@ export function useMangaDetails(id?: string, initialData?: any) {
           })(),
 
           (async () => {
-             // Available languages check
              const allLangs = await mangaProvider.getMangaChapters(id, null as any, 100);
              if (isMounted.current && allLangs.data) {
                 const langs = [...new Set(allLangs.data.map((c: any) => c.attributes?.translatedLanguage))] as string[];
-                setState(prev => ({ 
-                  ...prev, 
-                  availableLangs: langs.filter((l: string) => !!l) 
-                }));
+                setState(prev => ({ ...prev, availableLangs: langs.filter((l: string) => !!l) }));
              }
           })()
-        ]);     }
-        }
-
+        ]);
 
       } catch (error: any) {
         console.error('[Details] ❌ Error fetching manga details:', error?.message || error);
-        console.error('[Details] Stack:', error?.stack);
         if (isMounted.current) {
           setState(prev => ({ ...prev, manga: null }));
         }
-
       } finally {
         if (globalTimeout) clearTimeout(globalTimeout);
         if (isMounted.current) {
-          // Note: Using a functional update to get current state values for the log
-          setState(prev => {
-            console.log(`[Details] ✅ FINAL: Setting loading=false, chapters: ${prev.chapters.length}, manga loaded: ${prev.manga ? 'YES' : 'NO'}`);
-            return {
-              ...prev,
-              loading: false,
-              loadingChapters: false
-            };
-          });
+          setState(prev => ({
+            ...prev,
+            loading: false,
+            loadingChapters: false
+          }));
         }
       }
-
     };
 
     isMounted.current = true;
