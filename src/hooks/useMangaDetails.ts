@@ -118,80 +118,73 @@ export function useMangaDetails(id?: string, initialData?: any) {
       
       // FALLBACK SEARCH LIMIT: Max 3 attempts to prevent infinite loops
       let externalSearchAttempts = 0;
-      const MAX_EXTERNAL_SEARCH_ATTEMPTS = 3;
-
-      try {
-        // Essential: Fetch MangaDex details and First Page of Chapters in parallel
-        // If we have initialData, we only fetch chapters and extras.
-               console.log(`[Details] START: Fetching manga ${id} (timeout: ${globalTimeoutMs}ms)`);
-        const fetchStartTime = performance.now();
+      const MAX_EXTERNAL_SEARCH_ATTEMPTS = 3;      try {
+        console.log(`[Details] START: Parallel fetch for manga ${id}`);
         
-        // 1. Fetch Manga Metadata First (Essential)
-        let mdDetails: any;
-        try {
-          mdDetails = !initialData 
-            ? await mangaProvider.getMangaDetails(id, showNSFW) 
-            : { data: initialData };
-        } catch (mangaErr: any) {
-          console.error('[Details] ❌ Fatal error fetching manga metadata:', mangaErr);
-          throw mangaErr; // Re-throw to main catch if metadata fails
-        }
+        // 1. Parallel fetch for Metadata and initial Chapters
+        const [mdDetails, chaptersData] = await Promise.all([
+          !initialData ? mangaProvider.getMangaDetails(id, showNSFW) : Promise.resolve({ data: initialData }),
+          mangaProvider.getMangaChapters(id, chapterLang, 20, 0, chapterOrder, showNSFW)
+        ]);
 
         if (!isMounted.current) return;
 
         const mangaObj = mdDetails.data;
         if (!mangaObj) throw new Error('Manga not found');
         
-        // Process Metadata immediately
+        // 2. Set initial state immediately with original description
         const rawDesc = mangaProvider.getLocalizedDescription(mangaObj);
-        let translatedDesc = rawDesc;
-        let wasTr = false;
         
-        try {
-          const translationTimeout = new Promise<any>((_, reject) =>
-            setTimeout(() => reject(new Error('Translation timeout')), 3000)
-          );
-          const translationPromise = translationService.translateToSpanish(rawDesc);
-          const result = await Promise.race([translationPromise, translationTimeout]);
-          translatedDesc = result.text;
-          wasTr = result.isTranslated;
-          console.log(`[Details] ✅ Translation completed`);
-        } catch (tranErr) {
-          console.warn(`[Details] ⚠️ Translation failed (using original):`, tranErr);
-          translatedDesc = rawDesc;
-          wasTr = false;
-        }
-        
-        let finalManga = {
-          ...mangaObj,
-          attributes: {
-            ...mangaObj.attributes,
-            translatedDescription: translatedDesc // Store specifically for UI
-          }
-        };
-
         if (isMounted.current) {
-          console.log(`[Details] Setting manga state...`);
           setState(prev => ({
             ...prev,
-            manga: finalManga,
-            isTranslated: wasTr
+            manga: {
+              ...mangaObj,
+              attributes: {
+                ...mangaObj.attributes,
+                translatedDescription: rawDesc
+              }
+            },
+            totalChapters: chaptersData.total || 0,
+            totalPages: Math.ceil((chaptersData.total || 0) / 20),
+            chapters: deduplicateChapters(chaptersData.data || []),
+            hasMoreChapters: (chaptersData.data || []).length >= 20,
+            loadingChapters: false
           }));
         }
 
-        
+        // 3. Background translation and other tasks
         const title = mangaObj.attributes?.title?.en || Object.values(mangaObj.attributes?.title || {})[0];
         
-        // Non-essential parallel fetches (with better error handling)
         Promise.all([
+          // Background Translation
+          (async () => {
+            try {
+              const result = await translationService.translateToSpanish(rawDesc);
+              if (isMounted.current && result.isTranslated) {
+                setState(prev => ({
+                  ...prev,
+                  isTranslated: true,
+                  manga: prev.manga ? {
+                    ...prev.manga,
+                    attributes: {
+                      ...prev.manga.attributes,
+                      translatedDescription: result.text
+                    }
+                  } : null
+                }));
+                console.log(`[Details] ✅ Translation updated in background`);
+              }
+            } catch (tranErr) {
+              console.warn(`[Details] ⚠️ Translation background task failed:`, tranErr);
+            }
+          })(),
+
           mangaProvider.getMangaStatistics(id)
             .then((stats: any) => {
               if (isMounted.current) setState(prev => ({ ...prev, mdStats: stats }));
             })
-
-            .catch((err: any) => {
-              console.warn('[Stats] Failed to fetch manga statistics:', err.message || err);
-            }),
+            .catch(() => {}),
 
           (async () => {
             if (!title) return;
@@ -201,70 +194,21 @@ export function useMangaDetails(id?: string, initialData?: any) {
                 const detail = await anilistService.getMangaDetails(aniListResults[0].id);
                 if (isMounted.current) setState(prev => ({ ...prev, aniData: detail }));
               }
-
-            } catch (err: any) {
-              console.warn('[AniList] Failed to fetch AniList data:', err.message || err);
-            }
+            } catch (err) {}
           })(),
 
-          mangaProvider.getMangaChapters(id, null as any, 100)
-            .then((allChaptersData: any) => {
-              if (isMounted.current && allChaptersData.data) {
-                const langs = [...new Set(allChaptersData.data.map((c: any) => c.attributes?.translatedLanguage))] as string[];
+          (async () => {
+             // Available languages check
+             const allLangs = await mangaProvider.getMangaChapters(id, null as any, 100);
+             if (isMounted.current && allLangs.data) {
+                const langs = [...new Set(allLangs.data.map((c: any) => c.attributes?.translatedLanguage))] as string[];
                 setState(prev => ({ 
                   ...prev, 
-                  availableLangs: prev.availableLangs.length > 0 ? prev.availableLangs : langs.filter((l: string) => !!l) 
+                  availableLangs: langs.filter((l: string) => !!l) 
                 }));
-              }
-
-            })
-            .catch((err: any) => {
-              console.warn('[Languages] Failed to fetch available languages:', err.message || err);
-            })
-        ]).catch((err: any) => {
-          console.error('[NonEssential] Promise.all error:', err);
-        });
-
-        // 3. Fetch Chapters (Resilient & Decoupled)
-        try {
-          console.log(`[Details] Fetching chapters for ${id}...`);
-          let chaptersData = await mangaProvider.getMangaChapters(id, chapterLang, 20, 0, chapterOrder, showNSFW);
-          
-          // Secondary fallback: If no chapters found in the desired language, try checking if MD has ANY language
-          if ((!chaptersData.data || chaptersData.data.length === 0) && !mangaProvider.isExternalId(id)) {
-            console.log('[Details] No chapters in requested language, checking global MangaDex availability...');
-            const allLangs = await mangaProvider.getMangaChapters(id, null as any, 20, 0, chapterOrder, showNSFW);
-            if (allLangs?.data && allLangs.data.length > 0) {
-               chaptersData = allLangs;
-               // Automatically switch to the most common language available as a fallback
-               const langCounts: Record<string, number> = {};
-               allLangs.data.forEach((c: any) => {
-                 const lang = c.attributes?.translatedLanguage || 'en';
-                 langCounts[lang] = (langCounts[lang] || 0) + 1;
-               });
-               const bestLang = Object.entries(langCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'en';
-               setState(prev => ({ ...prev, chapterLang: bestLang }));
-            }
-          }
-
-          if (isMounted.current) {
-            const newChapters = deduplicateChapters(chaptersData.data || []);
-            console.log(`[Details] ✅ Chapters loaded: ${newChapters.length}`);
-            
-            setState(prev => ({
-              ...prev,
-              totalChapters: chaptersData.total || 0,
-              totalPages: Math.ceil((chaptersData.total || 0) / 20),
-              chapters: newChapters,
-              hasMoreChapters: (chaptersData.data || []).length >= 20,
-              loadingChapters: false
-            }));
-          }
-        } catch (chapErr: any) {
-          console.warn('[Details] ⚠️ Chapter fetch failed (metadata preserved):', chapErr.message || chapErr);
-          if (isMounted.current) {
-            setState(prev => ({ ...prev, loadingChapters: false, chapters: [] }));
-          }
+             }
+          })()
+        ]);     }
         }
 
 

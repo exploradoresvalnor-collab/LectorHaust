@@ -57,34 +57,7 @@
   border-radius: 4px;
 }
 
-.desktop-nav { display: flex; gap: 20px; }
-@media (max-width: 1024px) {
-  .desktop-nav { display: none !important; }
-  .header-search-wrapper { display: none !important; }
-}
-.nav-link { color: #fff; font-weight: 600; cursor: pointer; transition: color 0.2s; }
-.nav-link:hover, .nav-link.active { color: #007bff; }
 
-.header-search-wrapper {
-  flex: 1;
-  max-width: 420px;
-  height: 36px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  gap: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.header-search-input {
-  background: transparent;
-  border: none;
-  color: #fff;
-  width: 100%;
-  outline: none;
-}
 
 .login-btn-tmo {
   background: #007bff;

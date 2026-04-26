@@ -1,4 +1,6 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+
 import { mangaProvider } from '../../../services/mangaProvider';
 import { useLibraryStore } from '../../../store/useLibraryStore';
 import { getDefaultLanguage } from '../../../utils/translations';
@@ -91,6 +93,7 @@ export const genreMapping: Record<string, string> = {
 };
 
 export function useSearch() {
+  const location = useLocation();
   const [activeSegment, setActiveSegment] = useState('trending');
   const [query, setQuery] = useState('');
   
@@ -108,7 +111,33 @@ export function useSearch() {
   const [activeOrder, setActiveOrder] = useState<string>('relevance');
   const [activeColor, setActiveColor] = useState(false);
   
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Sync with URL params
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const type = params.get('type');
+    const genre = params.get('genre');
+    const urlQuery = params.get('q');
+    const order = params.get('order');
+
+    if (type || genre || urlQuery || order) {
+      setActiveSegment('search');
+      if (urlQuery) setQuery(urlQuery);
+      if (genre) setActiveGenre(genre);
+      
+      if (order === 'follows') setActiveOrder('followedCount');
+      else if (order) setActiveOrder(order);
+
+      if (type === 'manga') setActiveFormat('ja');
+      else if (type === 'manhwa') setActiveFormat('ko');
+      else if (type === 'manhua') setActiveFormat('zh');
+      else if (type === 'one_shot') {
+          setActiveFormat('ja');
+          setActiveOrder('rating');
+      }
+    }
+  }, [location.search]);
 
   // Trending Filters
   const [trendingOrigin, setTrendingOrigin] = useState<string | null>(null);
@@ -117,13 +146,16 @@ export function useSearch() {
   const favorites = useLibraryStore(state => state.favorites);
   const showNSFW = useLibraryStore(state => state.showNSFW);
 
+
   // --- 1. TRENDING (Infinite Query) ---
   const {
     data: trendingData,
     fetchNextPage: fetchNextTrending,
     hasNextPage: hasNextTrending,
     isFetchingNextPage: isFetchingMoreTrending,
-    isLoading: loadingTrending
+    isLoading: loadingTrending,
+    isError: trendingError,
+    error: trendingErrorInfo
   } = useInfiniteQuery({
     queryKey: ['trendingManga', trendingOrigin, trendingLang, showNSFW],
     queryFn: ({ pageParam = 0 }) => 
@@ -153,7 +185,9 @@ export function useSearch() {
     fetchNextPage: fetchNextCompleted,
     hasNextPage: hasNextCompleted,
     isFetchingNextPage: isFetchingMoreCompleted,
-    isLoading: loadingCompleted
+    isLoading: loadingCompleted,
+    isError: completedError,
+    error: completedErrorInfo
   } = useInfiniteQuery({
     queryKey: ['completedManga', completedLang, completedGenre, completedColor, completedDemographic, showNSFW],
     queryFn: async ({ pageParam = 0 }) => {
@@ -188,7 +222,9 @@ export function useSearch() {
     fetchNextPage: fetchNextSearch,
     hasNextPage: hasNextSearch,
     isFetchingNextPage: isFetchingMoreSearch,
-    isLoading: loadingSearch
+    isLoading: loadingSearch,
+    isError: searchError,
+    error: searchErrorInfo
   } = useInfiniteQuery({
     queryKey: ['searchManga', query, activeFormat, activeGenre, activeStatus, activeDemographic, activeOrder, activeColor, showNSFW],
     queryFn: async ({ pageParam = 0 }) => {
@@ -291,6 +327,10 @@ export function useSearch() {
     setCompletedColor,
     showFilters,
     setShowFilters,
+    isError: searchError,
+    error: searchErrorInfo,
+    trendingError,
+    completedError,
     favorites,
     loadDiscoveryData: () => {}, // Handled by useInfiniteQuery
     fetchCompleted: () => {}, // Handled by useInfiniteQuery

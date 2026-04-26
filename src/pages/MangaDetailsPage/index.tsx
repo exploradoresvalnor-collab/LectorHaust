@@ -126,26 +126,46 @@ const MangaDetailsPage: React.FC = () => {
     loadMoreChapters
   } = useMangaDetails(id, initialData);
 
-  // Control de carga global estricta
-  useEffect(() => {
-    if (!loading && manga && coverLoaded) {
-      // Pequeño delay para estabilizar renderizado
-      const timer = setTimeout(() => {
-        setIsReady(true);
-        setIsLoading(false);
-      }, 400);
-      return () => clearTimeout(timer);
-    } else {
-      setIsLoading(true);
-    }
-  }, [loading, manga, coverLoaded, setIsLoading]);
+  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const safetyTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Al desmontar, resetear estados si es necesario
+  // Control de carga global: Una sola vez al montar/desmontar para evitar duplicados
   useEffect(() => {
-    return () => {
-      setIsLoading(false);
-    };
+    setIsLoading(true);
+    return () => setIsLoading(false);
   }, [setIsLoading]);
+
+  // Lógica para marcar la página como "lista" y liberar el cargador
+  useEffect(() => {
+    if (isReady) return;
+
+    // Si la data terminó de cargar (sin importar las imágenes para máxima velocidad)
+    if (!loading) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        setIsLoading(false);
+        setIsReady(true);
+      }, 150);
+    }
+    
+    if (!safetyTimerRef.current && !isReady) {
+      safetyTimerRef.current = setTimeout(() => {
+         if (!isReady) {
+           setIsLoading(false);
+           setIsReady(true);
+         }
+      }, 5000);
+    }
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (safetyTimerRef.current) {
+        clearTimeout(safetyTimerRef.current);
+        safetyTimerRef.current = null;
+      }
+    };
+  }, [loading, setIsLoading, isReady]);
+
 
   // Smart recommendations state
   const [verifiedRecs, setVerifiedRecs] = useState<any[]>([]);
@@ -399,6 +419,8 @@ const MangaDetailsPage: React.FC = () => {
               height={260}
               loading="eager"
               onLoad={() => setCoverLoaded(true)}
+              onError={() => setCoverLoaded(true)}
+
             />
             <div className="title-section">
               <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>

@@ -59,13 +59,8 @@ export function useHomeData() {
     refetch: refetchManga
   } = useQuery({
     queryKey: ['popularMangaV3', currentSource, latestLang, showNSFW],
-    queryFn: async () => {
-      const res = await mangaProvider.getPopularManga('ja', latestLang, 6, 0, null, false, false, false);
-      // Habilitar carga de manhwa después de que manga esté listo
-      setTimeout(() => setEnableManhwaLoading(true), 300);
-      return res.data || [];
-    },
-    staleTime: 1000 * 60 * 30, // 30 mins, popular data changes slowly
+    queryFn: () => mangaProvider.getPopularManga('ja', latestLang, 6, 0, null, false, false, false),
+    staleTime: 1000 * 60 * 30,
   });
 
   const {
@@ -74,14 +69,9 @@ export function useHomeData() {
     refetch: refetchManhwa
   } = useQuery({
     queryKey: ['popularManhwaV3', currentSource, latestLang, showNSFW],
-    queryFn: async () => {
-      const res = await mangaProvider.getPopularManga('ko', latestLang, 6, 0, null, false, false, true);
-      // Habilitar carga de manhua después de que manhwa esté listo
-      setTimeout(() => setEnableManhuaLoading(true), 300);
-      return res.data || [];
-    },
+    queryFn: () => mangaProvider.getPopularManga('ko', latestLang, 6, 0, null, false, false, true),
     staleTime: 1000 * 60 * 30,
-    enabled: enableManhwaLoading, // Solo carga cuando está habilitado
+    enabled: enableManhwaLoading,
   });
 
   const {
@@ -90,21 +80,33 @@ export function useHomeData() {
     refetch: refetchManhua
   } = useQuery({
     queryKey: ['popularManhuaV3', currentSource, latestLang, showNSFW],
-    queryFn: async () => {
-      const res = await mangaProvider.getPopularManga('zh', latestLang, 6, 0, null, false, false, true);
-      // Habilitar carga de anime después de que manhua esté listo
-      setTimeout(() => setEnableAnimeLoading(true), 500);
-      return res.data || [];
-    },
+    queryFn: () => mangaProvider.getPopularManga('zh', latestLang, 6, 0, null, false, false, true),
     staleTime: 1000 * 60 * 30,
-    enabled: enableManhuaLoading, // Solo carga cuando está habilitado
+    enabled: enableManhuaLoading,
   });
 
-  const latestManga = useMemo(() => extractUnique(rawManga || []), [rawManga]);
-  const latestManhwa = useMemo(() => extractUnique(rawManhwa || []), [rawManhwa]);
-  const latestManhua = useMemo(() => extractUnique(rawManhua || []), [rawManhua]);
+  // Chain loading triggers
+  useEffect(() => {
+    if (rawManga?.data && rawManga.data.length > 0) {
+      // Si ya hay data (cache), activamos el siguiente bloque inmediatamente
+      setEnableManhwaLoading(true);
+    }
+  }, [rawManga]);
 
-  const loadingLatest = loadingManga || loadingManhwa || loadingManhua;
+  useEffect(() => {
+    if (rawManhwa?.data && rawManhwa.data.length > 0) {
+      setEnableManhuaLoading(true);
+    }
+  }, [rawManhwa]);
+
+
+
+  const latestManga = useMemo(() => extractUnique(rawManga?.data || []), [rawManga]);
+  const latestManhwa = useMemo(() => extractUnique(rawManhwa?.data || []), [rawManhwa]);
+  const latestManhua = useMemo(() => extractUnique(rawManhua?.data || []), [rawManhua]);
+
+
+  const loadingLatest = loadingManga;
 
   // Interleave for Hero and Rankings to guarantee variety
   const latest = useMemo(() => {
@@ -119,103 +121,99 @@ export function useHomeData() {
   }, [latestManga, latestManhwa, latestManhua]);
 
   // --- HERO MIXED DATA ---
-  const [heroItems, setHeroItems] = useState<any[]>([]);
+  const [enrichedHeroItems, setEnrichedHeroItems] = useState<any[]>([]);
   const [isHeroReady, setIsHeroReady] = useState(false);
 
+  // 1. Synchronous build of basic items for instant display
+  const heroItems = useMemo(() => {
+    const animes: any[] = [];
+    const mangas: any[] = [];
+    const final: any[] = [];
+
+    if (latest && latest.length > 0) {
+      latest.slice(0, 4).forEach((m: any) => {
+        mangas.push({
+          id: m.id,
+          title: mangaProvider.getLocalizedTitle(m),
+          description: mangaProvider.getLocalizedDescription(m) || 'Cargando detalles...',
+          isTranslated: false,
+          image: mangaProvider.getCoverUrl(m, 'original'),
+          type: 'manga',
+          badge: 'MANGA',
+          status: m.attributes?.status === 'completed' ? 'Concluido' : 'Serie',
+          link: `/manga/${m.id}`,
+          raw: m
+        });
+      });
+    }
+
+    const maxLength = Math.max(animes.length, mangas.length);
+    for (let i = 0; i < maxLength; i++) {
+      if (animes[i]) final.push(animes[i]);
+      if (mangas[i]) final.push(mangas[i]);
+    }
+    
+    return final.slice(0, 8);
+  }, [latest]);
+
+  // 2. Background Enrichment Effect
   useEffect(() => {
     let mounted = true;
-    const buildHero = async () => {
-      let finalItems: any[] = [];
-      const animes: any[] = [];
-      const mangas: any[] = [];
-
-      if (trendingAnime && trendingAnime.length > 0) {
-        trendingAnime.slice(0, 3).forEach((a: any) => {
-          animes.push({
-            ...a,
-            description: a.description || 'Cargando sinopsis...',
-            isTranslated: false,
-            status: a.status || 'Serie',
-            type: 'anime',
-            badge: 'ANIME',
-            link: `/anime/${a.id}`
-          });
-        });
+    
+    const enrich = async () => {
+      if (heroItems.length === 0) {
+        setIsHeroReady(false);
+        return;
       }
 
-      if (latest && latest.length > 0) {
-        latest.slice(0, 4).forEach((m: any) => {
-          mangas.push({
-            id: m.id,
-            title: mangaProvider.getLocalizedTitle(m),
-            description: mangaProvider.getLocalizedDescription(m) || 'Cargando detalles...',
-            isTranslated: false,
-            image: mangaProvider.getCoverUrl(m, 'original'),
-            type: 'manga',
-            badge: 'MANGA',
-            status: m.attributes?.status === 'completed' ? 'Concluido' : 'Serie',
-            link: `/manga/${m.id}`,
-            raw: m
-          });
-        });
-      }
+      setIsHeroReady(true); // Base items are ready immediately
 
-      const maxLength = Math.max(animes.length, mangas.length);
-      for (let i = 0; i < maxLength; i++) {
-        if (animes[i]) finalItems.push(animes[i]);
-        if (mangas[i]) finalItems.push(mangas[i]);
-      }
-      
-      finalItems = finalItems.slice(0, 8);
-      if (mounted) setHeroItems([...finalItems]);
-
-      // Parallel Enrichment of Hero Items
-      await Promise.all(finalItems.map(async (item) => {
+      // Parallel Enrichment
+      Promise.all(heroItems.map(async (item) => {
         if (!mounted) return;
         try {
           let updatedItem = { ...item };
-          if (item.type === 'anime') {
-             const full = await tioanimeService.getAnimeInfo(item.id);
-             if (full) {
-                updatedItem.description = full.description || updatedItem.description;
-                updatedItem.status = full.status || updatedItem.status;
-                updatedItem.image = full.image || updatedItem.image;
-                updatedItem.episodes = full.totalEpisodes;
-             }
-             const { text: desc, isTranslated } = await translationService.translateToSpanish(updatedItem.description || '');
-             updatedItem.description = desc;
-             updatedItem.isTranslated = isTranslated;
-          } else if (item.type === 'manga') {
-             const { text: desc, isTranslated } = await translationService.translateToSpanish(updatedItem.description || '');
-             updatedItem.description = desc;
-             updatedItem.isTranslated = isTranslated;
-             try {
-                const cleanedTitle = anilistService.cleanTitle(updatedItem.title);
-                let aniRes = await anilistService.searchManga(cleanedTitle);
-                if (aniRes && aniRes.length > 0) {
-                  const fullAni = await anilistService.getMangaDetails(aniRes[0].id);
-                  const aniCover = fullAni?.coverImage?.extraLarge || fullAni?.coverImage?.large;
-                  if (aniCover) updatedItem.image = mangaProvider.getCoverUrl(item.raw, 'original', aniCover);
-                }
-             } catch (e) {}
-          }
+          // Background translation
+          const { text: desc, isTranslated } = await translationService.translateToSpanish(updatedItem.description || '');
+          updatedItem.description = desc;
+          updatedItem.isTranslated = isTranslated;
+
+          // AniList Enrichment
+          try {
+            const cleanedTitle = anilistService.cleanTitle(updatedItem.title);
+            let aniRes = await anilistService.searchManga(cleanedTitle);
+            if (aniRes && aniRes.length > 0) {
+              const fullAni = await anilistService.getMangaDetails(aniRes[0].id);
+              const aniCover = fullAni?.coverImage?.extraLarge || fullAni?.coverImage?.large;
+              if (aniCover) updatedItem.image = mangaProvider.getCoverUrl(item.raw, 'original', aniCover);
+            }
+          } catch (e) {}
+
           if (mounted) {
-             setHeroItems(prev => {
-                const newItems = [...prev];
-                const replaceIdx = newItems.findIndex(x => x.id === updatedItem.id);
-                if (replaceIdx !== -1) newItems[replaceIdx] = updatedItem;
-                return newItems;
-             });
+            setEnrichedHeroItems(prev => {
+              const newItems = prev.length === 0 ? [...heroItems] : [...prev];
+              const idx = newItems.findIndex(x => x.id === updatedItem.id);
+              if (idx !== -1) newItems[idx] = updatedItem;
+              return newItems;
+            });
           }
         } catch (e) {}
       }));
-      if (mounted) setIsHeroReady(true);
     };
-    
-    setIsHeroReady(false);
-    buildHero();
+
+    enrich();
     return () => { mounted = false; };
-  }, [latest, trendingAnime]);
+  }, [heroItems]);
+
+  // Merge base items with enriched ones
+  const displayHeroItems = useMemo(() => {
+    if (enrichedHeroItems.length === 0) return heroItems;
+    // Map enriched items back to the current order of heroItems
+    return heroItems.map(base => {
+      const enriched = enrichedHeroItems.find(e => e.id === base.id);
+      return enriched || base;
+    });
+  }, [heroItems, enrichedHeroItems]);
 
   // Helpers
   const fetchData = useCallback(async (force = false) => {
@@ -283,14 +281,14 @@ export function useHomeData() {
   }, []);
 
   return {
-    heroItems,
+    heroItems: displayHeroItems,
     heroIndex,
     setHeroIndex,
     latest,
     latestManga,
     latestManhwa,
     latestManhua,
-    loading: loadingLatest || !isHeroReady,
+    loading: loadingLatest,
     isDone: true, // Infinite scroll disabled for Home
     unreadNotifications,
     currentUser,
@@ -303,6 +301,7 @@ export function useHomeData() {
     latestType,
     setLatestType,
     fetchData,
-    loadMoreLatest
+    loadMoreLatest,
+    isHeroReady
   };
 }

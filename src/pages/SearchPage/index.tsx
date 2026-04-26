@@ -101,7 +101,8 @@ const SearchPage: React.FC = () => {
     handleSearch, setFormatFilter, setGenreFilter, setStatusFilter,
     setDemographicFilter, loadMore, loadMoreTrending, trendingLoading, isTrendingDone,
     trendingOrigin, setTrendingOrigin,
-    trendingLang, setTrendingLang
+    trendingLang, setTrendingLang,
+    isError, error
   } = useSearch();
 
   const filteredResults = React.useMemo(() => {
@@ -296,8 +297,37 @@ const SearchPage: React.FC = () => {
               {/* Habilitar TrendingStrip en Búsqueda */}
               <TrendingStrip items={trending} />
 
-            {loading && offset === 0 ? (
-              <LoadingScreen />
+            {loading && results.length === 0 ? (
+              <IonGrid className="search-results-grid">
+                <IonRow>
+                  {Array.from({ length: 10 }).map((_, i) => (
+                    <IonCol size="6" sizeSm="6" sizeMd="4" style={{ flex: '0 0 20%', maxWidth: '20%' }} className="ion-hide-md-down" key={`skel-dt-${i}`}>
+                      <div className="skeleton-card-pro" style={{ padding: '10px' }}>
+                        <IonSkeletonText animated style={{ height: '220px', borderRadius: '15px' }} />
+                        <IonSkeletonText animated style={{ width: '80%', height: '16px', marginTop: '12px' }} />
+                        <IonSkeletonText animated style={{ width: '40%', height: '14px', marginTop: '8px' }} />
+                      </div>
+                    </IonCol>
+                  ))}
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <IonCol size="6" sizeSm="6" sizeMd="4" className="ion-hide-lg-up" key={`skel-mb-${i}`}>
+                       <div className="skeleton-card-pro" style={{ padding: '8px' }}>
+                        <IonSkeletonText animated style={{ height: '180px', borderRadius: '12px' }} />
+                        <IonSkeletonText animated style={{ width: '90%', height: '14px', marginTop: '10px' }} />
+                      </div>
+                    </IonCol>
+                  ))}
+                </IonRow>
+              </IonGrid>
+            ) : isError ? (
+              <div className="error-state animate-fade-in" style={{ padding: '40px', textAlign: 'center' }}>
+                <IonIcon icon={searchOutline} style={{ fontSize: '64px', color: 'var(--ion-color-danger)' }} />
+                <h3>Ocurrió un problema</h3>
+                <p>No pudimos conectar con los servidores de manga.</p>
+                <IonButton fill="outline" onClick={() => handleSearch(query)}>
+                  Reintentar
+                </IonButton>
+              </div>
             ) : (
               <>
                 <IonGrid className="search-results-grid">
@@ -343,15 +373,19 @@ const SearchPage: React.FC = () => {
                   <IonInfiniteScrollContent loadingSpinner="bubbles" />
                 </IonInfiniteScroll>
                 
-                {/* HAUS INTELLIGENCE: Fallback to Semantic Search */}
-                {results.length === 0 && query && !loading && (
-                  <div className="semantic-search-fallback">
-                    <SemanticSearchResults 
-                      allManga={results.length === 0 ? trending : results}
-                      query={query}
-                      onResultClick={(manga: any) => router.push(`/manga/${manga.id}`)}
-                      showAdvancedHints={true}
-                    />
+                {/* HAUS INTELLIGENCE: Fallback to Discovery or Semantic Search */}
+                {results.length === 0 && !loading && !isError && (
+                  <div className="search-empty-state">
+                    {query ? (
+                      <SemanticSearchResults 
+                        allManga={results.length === 0 ? trending : results}
+                        query={query}
+                        onResultClick={(manga: any) => router.push(`/manga/${manga.id}`)}
+                        showAdvancedHints={true}
+                      />
+                    ) : (
+                      renderDiscoveryState()
+                    )}
                   </div>
                 )}
               </>

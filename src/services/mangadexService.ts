@@ -14,27 +14,57 @@ const UPLOADS_URL = 'https://uploads.mangadex.org';
 const CLOUDINARY_CLOUD_NAME = 'djzak5yb2';
 
 /**
- * 1. Queue Controller (Rate Limiter)
- * Only manages spacing requests by 200ms, WITHOUT blocking the network.
+ * 1. Intelligent Rate Limiter (Haus v3)
+ * Allows a burst of up to 3 concurrent requests to avoid UI hanging,
+ * while maintaining the 5 req/s average required by MangaDex.
  */
-let lastRequestTime = 0;
-let requestQueue = Promise.resolve();
+class RateLimiter {
+    private queue: (() => void)[] = [];
+    private activeRequests = 0;
+    private lastRequestTimestamp = 0;
+    private readonly MAX_CONCURRENT = 3;
+    private readonly MIN_SPACING_MS = 200;
+
+    async waitForTurn(): Promise<void> {
+        return new Promise((resolve) => {
+            this.queue.push(resolve);
+            this.processQueue();
+        });
+    }
+
+    private processQueue() {
+        if (this.queue.length === 0 || this.activeRequests >= this.MAX_CONCURRENT) {
+            return;
+        }
+
+        const now = Date.now();
+        const elapsed = now - this.lastRequestTimestamp;
+        const waitTime = Math.max(0, this.MIN_SPACING_MS - elapsed);
+
+        if (waitTime > 0) {
+            setTimeout(() => this.processQueue(), waitTime);
+            return;
+        }
+
+        const next = this.queue.shift();
+        if (next) {
+            this.activeRequests++;
+            this.lastRequestTimestamp = Date.now();
+            next();
+            this.processQueue(); // Check if we can start another one
+        }
+    }
+
+    releaseTurn() {
+        this.activeRequests--;
+        this.processQueue();
+    }
+}
+
+const limiter = new RateLimiter();
 
 async function waitForTurn(): Promise<void> {
-    let darLuzVerde: () => void;
-    const miTurno = new Promise<void>(resolve => { darLuzVerde = resolve; });
-    
-    requestQueue = requestQueue.then(async () => {
-        const now = Date.now();
-        const elapsed = now - lastRequestTime;
-        if (elapsed < 200) {
-            await new Promise(r => setTimeout(r, 200 - elapsed));
-        }
-        lastRequestTime = Date.now();
-        darLuzVerde();
-    }).catch(() => darLuzVerde());
-
-    return miTurno;
+    return limiter.waitForTurn();
 }
 
 /**
@@ -75,26 +105,31 @@ async function apiFetch(endpoint: string, retries = 3, delay = 1500): Promise<an
             controller.abort();
         }, timeoutMs);
 
-        const response = await fetch(proxiedUrl, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-            if (!isNative && (response.status === 403 || response.status === 404 || response.status >= 500)) {
-                throw new Error(`Primary Proxy Error: ${response.status}`);
-            }
+        try {
+            const response = await fetch(proxiedUrl, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                if (!isNative && (response.status === 403 || response.status === 404 || response.status >= 500)) {
+                    throw new Error(`Primary Proxy Error: ${response.status}`);
+                }
 
-            if ((response.status >= 500 || response.status === 429) && retries > 0) {
-                await new Promise(res => setTimeout(res, delay));
-                return apiFetch(endpoint, retries - 1, delay * 2);
+                if ((response.status >= 500 || response.status === 429) && retries > 0) {
+                    limiter.releaseTurn(); // Release before retry delay
+                    await new Promise(res => setTimeout(res, delay));
+                    return apiFetch(endpoint, retries - 1, delay * 2);
+                }
+                throw new Error(`MangaDex API Error: ${response.status}`);
             }
-            throw new Error(`MangaDex API Error: ${response.status}`);
+            
+            const data = await response.json();
+            if (!data || typeof data !== 'object') {
+                throw new Error('Empty or invalid API response');
+            }
+            return data;
+        } finally {
+            limiter.releaseTurn();
         }
-        
-        const data = await response.json();
-        if (!data || typeof data !== 'object') {
-            throw new Error('Empty or invalid API response');
-        }
-        return data;
     } catch (err: any) {
         if (!isNative && !isLocalhost) {
             try {

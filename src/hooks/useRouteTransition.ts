@@ -15,6 +15,9 @@ export const useRouteTransition = () => {
     setIsLoading(true);
     const timer = setTimeout(() => setIsLoading(false), 300);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      setIsLoading(false); // Garantizar limpieza del contador global
+    };
   }, [location.pathname, setIsLoading]);
 };

@@ -70,7 +70,7 @@ const HomePage: React.FC = () => {
   const [isReady, setIsReady] = React.useState(false);
 
   // Umbral de imágenes críticas (Hero + primeras de cada sección)
-  const CRITICAL_IMAGES_COUNT = 5;
+  const CRITICAL_IMAGES_COUNT = 2;
 
   useIonViewWillEnter(() => {
     if (!isReady) {
@@ -78,22 +78,50 @@ const HomePage: React.FC = () => {
     }
   });
 
-  useEffect(() => {
-    // Iniciamos carga global al montar
-    setIsLoading(true);
-  }, [setIsLoading]);
+  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const safetyTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    // Si la data ya no está cargando y las imágenes críticas están listas
-    if (!loading && (imagesLoaded >= CRITICAL_IMAGES_COUNT || latest.length === 0)) {
-      // Pequeño delay para asegurar que el DOM se asentó
-      const timer = setTimeout(() => {
+    // Si ya tenemos datos (cache), marcamos como listo inmediatamente para evitar parpadeos
+    if (latest.length > 0) {
+      setIsReady(true);
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+      return () => setIsLoading(false);
+    }
+  }, [setIsLoading, latest.length]);
+
+  useEffect(() => {
+    if (isReady) return;
+
+    // Si la data terminó de cargar (sin importar las imágenes para máxima velocidad)
+    if (!loading) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
         setIsLoading(false);
         setIsReady(true);
-      }, 800);
-      return () => clearTimeout(timer);
+      }, 150);
     }
-  }, [loading, imagesLoaded, latest.length, setIsLoading]);
+    
+    if (!safetyTimerRef.current && !isReady) {
+      safetyTimerRef.current = setTimeout(() => {
+         if (!isReady) {
+           setIsLoading(false);
+           setIsReady(true);
+         }
+      }, 5000);
+    }
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (safetyTimerRef.current) {
+        clearTimeout(safetyTimerRef.current);
+        safetyTimerRef.current = null;
+      }
+    };
+  }, [loading, setIsLoading, isReady]);
+
 
   const handleImageLoad = React.useCallback(() => {
     setImagesLoaded(prev => prev + 1);
@@ -135,26 +163,9 @@ const HomePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Navigation Links */}
-            <nav className="desktop-nav">
-              <span className="nav-link active" onClick={() => router.push('/home')}>Inicio</span>
-              <span className="nav-link" onClick={() => router.push('/search?type=manga')}>Mangas</span>
-              <span className="nav-link" onClick={() => router.push('/search?type=manhwa')}>Manhwa</span>
-              <span className="nav-link" onClick={() => router.push('/search?type=one_shot')}>One Shot</span>
-              <span className="nav-link" onClick={() => router.push('/search?type=manhua')}>Manhua</span>
-              <span className="nav-link" onClick={() => router.push('/library')}>Biblioteca</span>
-            </nav>
 
-            {/* Search Bar */}
-            <div className="header-search-wrapper" onClick={() => router.push('/search')}>
-              <IonIcon icon={searchOutline} className="search-icon-mini" />
-              <input 
-                type="text" 
-                placeholder="Busca tu manga favorito" 
-                readOnly 
-                className="header-search-input"
-              />
-            </div>
+
+
 
             {/* User/Login Section */}
             <div className="header-actions">

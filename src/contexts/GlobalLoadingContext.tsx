@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useRef, useEffect } from 'react';
 
 interface GlobalLoadingContextType {
   isLoading: boolean;
@@ -9,29 +9,52 @@ interface GlobalLoadingContextType {
 
 const GlobalLoadingContext = createContext<GlobalLoadingContextType | undefined>(undefined);
 
-interface GlobalLoadingProviderProps {
-  children: ReactNode;
-}
-
-export const GlobalLoadingProvider: React.FC<GlobalLoadingProviderProps> = ({ children }) => {
-  const [isLoading, setIsLoading] = useState(false);
+export const GlobalLoadingProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [loadingCount, setLoadingCount] = useState(0);
   const [message, setMessage] = useState<string | undefined>();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleSetIsLoading = useCallback((loading: boolean) => {
-    setIsLoading(loading);
+  const setIsLoading = useCallback((loading: boolean) => {
+    setLoadingCount(prev => {
+      const next = loading ? prev + 1 : Math.max(0, prev - 1);
+      
+      // Auto-cleanup for safety
+      if (next === 0 && timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      
+      return next;
+    });
+
+    if (loading) {
+      // Safety: No loader should last more than 15s
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        setLoadingCount(0);
+        console.warn('[GlobalLoading] Safety timeout triggered - Force clearing loader');
+      }, 15000);
+    }
   }, []);
 
-  const handleSetMessage = useCallback((msg?: string) => {
+  const setMessageCallback = useCallback((msg?: string) => {
     setMessage(msg);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, []);
 
   return (
     <GlobalLoadingContext.Provider
       value={{
-        isLoading,
-        setIsLoading: handleSetIsLoading,
+        isLoading: loadingCount > 0,
+        setIsLoading,
         message,
-        setMessage: handleSetMessage
+        setMessage: setMessageCallback
       }}
     >
       {children}
@@ -46,3 +69,4 @@ export const useGlobalLoading = (): GlobalLoadingContextType => {
   }
   return context;
 };
+

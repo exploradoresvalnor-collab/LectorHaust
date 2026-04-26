@@ -91,8 +91,8 @@ const AppContent: React.FC = () => {
     location.pathname.startsWith('/reader/') ||
     location.pathname.startsWith('/chat') ||
     location.pathname.startsWith('/social') ||
-    location.pathname.startsWith('/profile') ||
-    location.pathname === '/search';
+    location.pathname.startsWith('/profile');
+
 
   // Update check logic (every 5 min)
   useEffect(() => {
