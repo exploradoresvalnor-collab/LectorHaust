@@ -47,6 +47,20 @@ export const AdaptationTimelineWidget: React.FC<AdaptationTimelineWidgetProps> =
           </IonBadge>
         </div>
 
+        {sync?.animeId && (
+          <IonButton 
+            expand="block" 
+            fill="solid" 
+            color="primary" 
+            size="small" 
+            style={{ marginBottom: '15px', fontWeight: 800, '--border-radius': '10px' }}
+            onClick={() => window.location.href = `/anime/${sync.animeId}`}
+          >
+            <IonIcon icon={playCircleOutline} slot="start" />
+            VER ADAPTACIÓN EN ANIME
+          </IonButton>
+        )}
+
         {/* Barra de progreso */}
         <div className="progress-section">
           <div className="progress-label">

@@ -13,6 +13,7 @@
     align-items: center;
     overflow: hidden;
     position: relative;
+    box-sizing: border-box;
 }
 
 .chapter-item-container::before {
@@ -57,6 +58,7 @@
     justify-content: flex-start;
     gap: 12px;
     min-width: 0;
+    overflow: hidden;
 }
 
 .chapter-item-info {
@@ -90,7 +92,10 @@
     gap: 8px;
     font-size: 0.7rem;
     color: rgba(255, 255, 255, 0.35);
-    margin-left: auto; /* Empuja la fecha a la derecha */
+    margin-left: auto; 
+    flex-shrink: 1;
+    min-width: 0;
+    justify-content: flex-end;
 }
 
 .chapter-fansub-badge {
@@ -102,6 +107,10 @@
     border-radius: 6px !important;
     font-weight: 600;
     letter-spacing: 0.2px;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Action Buttons */

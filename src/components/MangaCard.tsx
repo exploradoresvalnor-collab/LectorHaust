@@ -1,6 +1,7 @@
 import React from 'react';
 import { mangadexService } from '../services/mangadexService';
 import SmartImage from './SmartImage';
+import { formatTimeAgo } from '../utils/time';
 import './MangaCard.css';
 
 interface MangaCardProps {
@@ -15,6 +16,7 @@ interface MangaCardProps {
   status?: string;
   chapters?: number | string;
   mangaType?: string;
+  updatedAt?: string;
   onLoad?: () => void;
 }
 
@@ -30,6 +32,7 @@ const MangaCard: React.FC<MangaCardProps> = ({
   status,
   chapters,
   mangaType,
+  updatedAt,
   onLoad
 }) => {
   const getBadgeInfo = () => {
@@ -70,6 +73,11 @@ const MangaCard: React.FC<MangaCardProps> = ({
             <span className="star-icon">★</span>
             <span className="rating-num">{(rating as number || 8.5).toFixed(2)}</span>
           </div>
+          {updatedAt && (
+            <div className="card-time-badge">
+               {formatTimeAgo(updatedAt)}
+            </div>
+          )}
         </div>
 
         <div className="card-info-column">

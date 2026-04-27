@@ -475,6 +475,48 @@
   opacity: 0.9;
 }
 
+.chapter-mini-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 6px 12px;
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 600;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.chapter-mini-input:focus {
+    border-color: var(--ion-color-primary);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 10px rgba(var(--ion-color-primary-rgb), 0.2);
+}
+
+.chapter-mini-input::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.details-lang-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    gap: 5px;
+}
+
+@media (max-width: 480px) {
+    .details-lang-header {
+        flex-wrap: wrap;
+    }
+    .chapter-search-minimal {
+        order: 3;
+        width: 100%;
+        margin: 10px 0 0 !important;
+    }
+}
+
 .skeleton-rec .recommendation-cover-wrapper {
   background: rgba(255,255,255,0.05);
 }

@@ -176,6 +176,7 @@ const MangaDetailsPage: React.FC = () => {
   const [downloadingChapters, setDownloadingChapters] = useState<Record<string, number>>({});
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showFullDescription, setShowFullDescription] = useState(false);
+  const [chapterSearchQuery, setChapterSearchQuery] = useState('');
   const [presentToast] = useIonToast();
 
   const parsedTitle = manga ? mangaProvider.getLocalizedTitle(manga) : null;
@@ -656,6 +657,16 @@ const MangaDetailsPage: React.FC = () => {
               <span>{chapterOrder === 'asc' ? 'Primero' : 'Último'}</span>
             </IonButton>
 
+            <div className="chapter-search-minimal" style={{ flex: 1, margin: '0 8px', minWidth: '100px' }}>
+               <input 
+                 type="text" 
+                 placeholder="Buscar..." 
+                 value={chapterSearchQuery}
+                 onChange={(e) => setChapterSearchQuery(e.target.value)}
+                 className="chapter-mini-input"
+               />
+            </div>
+
             {!loadingChapters && chapters.length > 0 && (
               <IonButton 
                 fill="clear" 
@@ -757,63 +768,80 @@ const MangaDetailsPage: React.FC = () => {
               </IonList>
             ) : chapters.length > 0 ? (
               <div className="chapters-list-view" style={{ animation: 'fadeIn 0.4s ease-in' }}>
-                {chapters.map((chapter: any) => {
-                  const scanlationGroupRel = chapter.relationships?.find((r: any) => r.type === 'scanlation_group');
-                  const scanlationGroupName = scanlationGroupRel?.attributes?.name;
-                  
-                  return (
-                    <ChapterItem 
-                      key={chapter.id}
-                      number={chapter.attributes?.chapter}
-                      title={chapter.attributes?.title}
-                      publishedAt={chapter.attributes?.readableAt}
-                      externalUrl={chapter.attributes?.externalUrl}
-                      scanlationGroup={scanlationGroupName}
-                      isRead={isRead(chapter.id)}
-                      isDownloaded={downloadedChapters.has(chapter.id)}
-                      downloadProgress={downloadingChapters[chapter.id]}
-                      onDownload={async (e) => {
-                        e.stopPropagation();
-                        if (downloadedChapters.has(chapter.id)) return;
-                        hapticsService.lightImpact();
-                        setDownloadingChapters(prev => ({ ...prev, [chapter.id]: 0 }));
-                        try {
-                          const data = await mangaProvider.getChapterPages(chapter.id);
-                          if (data?.pages) {
-                            const title = mangaProvider.getLocalizedTitle(manga);
-                            const cover = mangaProvider.getCoverUrl(manga);
-                            await offlineService.downloadChapter(
-                              chapter.id, id || '', title, chapter.attributes?.chapter || '?', data.pages, cover,
-                              (progress) => setDownloadingChapters(prev => ({ ...prev, [chapter.id]: progress.percent }))
-                            );
-                            setDownloadedChapters(prev => new Set([...prev, chapter.id]));
+                {(() => {
+                  const filtered = chapters.filter((c: any) => {
+                    if (!chapterSearchQuery) return true;
+                    const q = chapterSearchQuery.toLowerCase();
+                    return (c.attributes?.chapter?.toLowerCase().includes(q) || 
+                            c.attributes?.title?.toLowerCase().includes(q));
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="ion-text-center ion-padding" style={{ opacity: 0.5 }}>
+                        No se encontraron capítulos.
+                      </div>
+                    );
+                  }
+
+                  return filtered.map((chapter: any) => {
+                    const scanlationGroupRel = chapter.relationships?.find((r: any) => r.type === 'scanlation_group');
+                    const scanlationGroupName = scanlationGroupRel?.attributes?.name;
+                    
+                    return (
+                      <ChapterItem 
+                        key={chapter.id}
+                        number={chapter.attributes?.chapter}
+                        title={chapter.attributes?.title}
+                        publishedAt={chapter.attributes?.readableAt}
+                        externalUrl={chapter.attributes?.externalUrl}
+                        scanlationGroup={scanlationGroupName}
+                        isRead={isRead(chapter.id)}
+                        isDownloaded={downloadedChapters.has(chapter.id)}
+                        downloadProgress={downloadingChapters[chapter.id]}
+                        onDownload={async (e) => {
+                          e.stopPropagation();
+                          if (downloadedChapters.has(chapter.id)) return;
+                          hapticsService.lightImpact();
+                          setDownloadingChapters(prev => ({ ...prev, [chapter.id]: 0 }));
+                          try {
+                            const data = await mangaProvider.getChapterPages(chapter.id);
+                            if (data?.pages) {
+                              const title = mangaProvider.getLocalizedTitle(manga);
+                              const cover = mangaProvider.getCoverUrl(manga);
+                              await offlineService.downloadChapter(
+                                chapter.id, id || '', title, chapter.attributes?.chapter || '?', data.pages, cover,
+                                (progress) => setDownloadingChapters(prev => ({ ...prev, [chapter.id]: progress.percent }))
+                              );
+                              setDownloadedChapters(prev => new Set([...prev, chapter.id]));
+                            }
+                          } catch (err) {
+                            console.error('[Download] Failed:', err);
+                          } finally {
+                            setDownloadingChapters(prev => { const n = { ...prev }; delete n[chapter.id]; return n; });
                           }
-                        } catch (err) {
-                          console.error('[Download] Failed:', err);
-                        } finally {
-                          setDownloadingChapters(prev => { const n = { ...prev }; delete n[chapter.id]; return n; });
-                        }
-                      }}
-                      onToggleRead={(e) => {
-                        e.stopPropagation();
-                        toggleRead(chapter.id);
-                      }}
-                      onClick={() => {
-                        if (document.activeElement instanceof HTMLElement) {
-                          document.activeElement.blur();
-                        }
-                        hapticsService.lightImpact();
-                        setTimeout(() => {
-                          if (chapter.attributes.externalUrl) {
-                            window.open(chapter.attributes.externalUrl, '_blank');
-                          } else {
-                            router.push(`/reader/${chapter.id}`);
+                        }}
+                        onToggleRead={(e) => {
+                          e.stopPropagation();
+                          toggleRead(chapter.id);
+                        }}
+                        onClick={() => {
+                          if (document.activeElement instanceof HTMLElement) {
+                            document.activeElement.blur();
                           }
-                        }, 150);
-                      }}
-                    />
-                  );
-                })}
+                          hapticsService.lightImpact();
+                          setTimeout(() => {
+                            if (chapter.attributes.externalUrl) {
+                              window.open(chapter.attributes.externalUrl, '_blank');
+                            } else {
+                              router.push(`/reader/${chapter.id}`);
+                            }
+                          }, 150);
+                        }}
+                      />
+                    );
+                  });
+                })()}
               </div>
             ) : (
               <div className="empty-adventure animate-fade-in ion-text-center">

@@ -598,166 +598,95 @@ export const mangadexService = {
         }
     },
 
-    async getLatestUpdatedManga(limit = 12, offset = 0, lang = 'es', type = 'all', allowNSFW = false, forceSafe = false) {
-        // HAUS INTELLIGENCE FIX: Mode 1: Chapter-first (Filtered by origin)
-        // Ensures we actually get the translated chapter number instead of '?'
-        if (type !== 'all') {
-            const typeValue = type.toLowerCase();
-            const typeMap: Record<string, string> = { 'manga': 'ja', 'manhwa': 'ko', 'manhua': 'zh' };
-            const targetOrigin = typeMap[typeValue] || typeValue;
-            
-            const fetchLimit = 25;
-            let url = `/chapter?limit=${fetchLimit}&offset=${offset}&order[readableAt]=desc&includes[]=manga&originalLanguage[]=${targetOrigin}`;
+    async getLatestUpdatedManga(limit = 24, offset = 0, lang = 'es', type = 'all', allowNSFW = false, forceSafe = false) {
+        // CASE 1: Specific Language Filter (Best served via /chapter to ensure the update IS in that language)
+        if (lang !== 'all') {
+            let url = `/chapter?limit=100&offset=${offset * 2}&order[readableAt]=desc&includes[]=manga`;
             url += this.getContentRatingParams(allowNSFW, forceSafe);
-            
-            if (lang === 'all') {
-                // World mode: No language filter
-            } else if (lang === 'es') {
+
+            if (lang === 'es') {
                 url += `&translatedLanguage[]=es&translatedLanguage[]=es-la`;
-            } else if (lang) {
+            } else {
                 url += `&translatedLanguage[]=${lang}`;
+            }
+
+            // Filter by origin if requested
+            if (type !== 'all') {
+                const typeMap: Record<string, string> = { 'manga': 'ja', 'manhwa': 'ko', 'manhua': 'zh' };
+                url += `&originalLanguage[]=${typeMap[type] || type}`;
             }
 
             try {
                 const resp = await apiFetch(url);
                 const chapters = resp.data || [];
                 
-                const seenMangaIds = new Set<string>();
-                const mangaIdToChapterData: Record<string, { readableAt: string, chapter: string, lang: string }> = {};
+                const seenIds = new Set<string>();
+                const uniqueMangaIds: string[] = [];
+                const idToChapterInfo: Record<string, any> = {};
 
-                for (const chapter of chapters) {
-                    const mangaRel = chapter.relationships.find((r: any) => r.type === 'manga');
-                    const isExternal = !!chapter.attributes.externalUrl;
-                    
-                    if (!mangaRel || seenMangaIds.has(mangaRel.id) || isExternal) continue;
-
-                    seenMangaIds.add(mangaRel.id);
-                    mangaIdToChapterData[mangaRel.id] = {
-                        readableAt: chapter.attributes.readableAt,
-                        chapter: chapter.attributes.chapter,
-                        lang: chapter.attributes.translatedLanguage
-                    };
+                for (const ch of chapters) {
+                    const mRel = ch.relationships.find((r: any) => r.type === 'manga');
+                    if (mRel && !seenIds.has(mRel.id)) {
+                        seenIds.add(mRel.id);
+                        uniqueMangaIds.push(mRel.id);
+                        idToChapterInfo[mRel.id] = {
+                            num: ch.attributes.chapter,
+                            time: ch.attributes.readableAt
+                        };
+                        if (uniqueMangaIds.length >= limit) break;
+                    }
                 }
 
-                const uniqueIds = Array.from(seenMangaIds);
-                if (uniqueIds.length === 0) return { data: [] };
+                if (uniqueMangaIds.length === 0) return { data: [] };
 
-                let mangaUrl = `/manga?limit=${Math.min(uniqueIds.length, 12)}&includes[]=cover_art&includes[]=author`;
-                uniqueIds.slice(0, 12).forEach(id => mangaUrl += `&ids[]=${id}`);
+                let mangaUrl = `/manga?limit=${limit}&includes[]=cover_art&includes[]=author`;
+                uniqueMangaIds.forEach(id => mangaUrl += `&ids[]=${id}`);
                 
-                const mangaResp = await apiFetch(mangaUrl);
-                const fullMangas = mangaResp.data || [];
-
-                const mergedMangas = fullMangas.map((manga: any) => ({
-                    ...manga,
+                const mResp = await apiFetch(mangaUrl);
+                const results = (mResp.data || []).map((m: any) => ({
+                    ...m,
                     attributes: {
-                        ...manga.attributes,
-                        latestChapterReadableAt: mangaIdToChapterData[manga.id]?.readableAt,
-                        latestChapterNumber: mangaIdToChapterData[manga.id]?.chapter,
-                        latestChapterLang: mangaIdToChapterData[manga.id]?.lang,
-                        mangaType: this.getMangaType(manga)
+                        ...m.attributes,
+                        latestChapterReadableAt: idToChapterInfo[m.id]?.time,
+                        latestChapterNumber: idToChapterInfo[m.id]?.num || m.attributes.lastChapter,
+                        mangaType: this.getMangaType(m)
                     }
-                }));
+                })).sort((a: any, b: any) => 
+                    new Date(b.attributes.latestChapterReadableAt).getTime() - 
+                    new Date(a.attributes.latestChapterReadableAt).getTime()
+                );
 
-                const sorted = mergedMangas.sort((a: any, b: any) => {
-                    const dateA = new Date(a.attributes.latestChapterReadableAt).getTime();
-                    const dateB = new Date(b.attributes.latestChapterReadableAt).getTime();
-                    return dateB - dateA;
-                });
-
-                return { data: sorted.slice(0, limit) };
+                return { data: results, total: resp.total, offset };
             } catch (err) {
-                console.error('Error fetching filtered chapter-first latest manga:', err);
+                console.error('Error fetching language-specific latest:', err);
                 return { data: [] };
             }
         }
 
-        // Mode 2: Chapter-first (Best for the "All" view with maximum variety)
-        // Fetch more chapters to ensure we find enough UNIQUE manga (even with bulk uploads)
-        const fetchLimit = 25; 
-        let url = `/chapter?limit=${fetchLimit}&offset=${offset}&order[readableAt]=desc&includes[]=manga`;
-        url += this.getContentRatingParams(allowNSFW);
-        
-        if (lang === 'all') {
-            // World mode: No language filter
-        } else if (lang === 'es') {
-            url += `&translatedLanguage[]=es&translatedLanguage[]=es-la`;
-        } else if (lang) {
-            url += `&translatedLanguage[]=${lang}`;
+        // CASE 2: Global "All Languages" (Best served via /manga for maximum variety)
+        let url = `/manga?limit=${limit}&offset=${offset}&includes[]=cover_art&includes[]=author&order[latestUploadedChapter]=desc`;
+        url += this.getContentRatingParams(allowNSFW, forceSafe);
+
+        if (type !== 'all') {
+            const typeMap: Record<string, string> = { 'manga': 'ja', 'manhwa': 'ko', 'manhua': 'zh' };
+            url += `&originalLanguage[]=${typeMap[type] || type}`;
         }
 
         try {
-            const resp = await apiFetch(url);
-            const chapters = resp.data || [];
-            
-            const seenMangaIds = new Set<string>();
-            const mangaIdToChapterData: Record<string, { readableAt: string, chapter: string, lang: string }> = {};
-
-            for (const chapter of chapters) {
-                const mangaRel = chapter.relationships.find((r: any) => r.type === 'manga');
-                const isExternal = !!chapter.attributes.externalUrl;
-                
-                // Be more lenient: some valid chapters might have pageCount=0 initially in MD's feed
-                // but we definitely skip external links we can't read.
-                if (!mangaRel || seenMangaIds.has(mangaRel.id) || isExternal) continue;
-
-                seenMangaIds.add(mangaRel.id);
-                mangaIdToChapterData[mangaRel.id] = {
-                    readableAt: chapter.attributes.readableAt,
-                    chapter: chapter.attributes.chapter,
-                    lang: chapter.attributes.translatedLanguage
-                };
-            }
-
-            const uniqueIds = Array.from(seenMangaIds);
-            if (uniqueIds.length === 0) return { data: [] };
-
-            let mangaUrl = `/manga?limit=${Math.min(uniqueIds.length, 12)}&includes[]=cover_art&includes[]=author`;
-            uniqueIds.slice(0, 12).forEach(id => mangaUrl += `&ids[]=${id}`);
-            
-            const mangaResp = await apiFetch(mangaUrl);
-            const fullMangas = mangaResp.data || [];
-
-            const mergedMangas = fullMangas.map((manga: any) => ({
-                ...manga,
+            const data = await apiFetch(url);
+            const results = (data.data || []).map((m: any) => ({
+                ...m,
                 attributes: {
-                    ...manga.attributes,
-                    latestChapterReadableAt: mangaIdToChapterData[manga.id]?.readableAt,
-                    latestChapterNumber: mangaIdToChapterData[manga.id]?.chapter,
-                    latestChapterLang: mangaIdToChapterData[manga.id]?.lang,
-                    mangaType: this.getMangaType(manga)
+                    ...m.attributes,
+                    latestChapterReadableAt: m.attributes.updatedAt,
+                    latestChapterNumber: m.attributes.lastChapter || '?',
+                    mangaType: this.getMangaType(m)
                 }
             }));
-
-            const sorted = mergedMangas.sort((a: any, b: any) => {
-                const dateA = new Date(a.attributes.latestChapterReadableAt).getTime();
-                const dateB = new Date(b.attributes.latestChapterReadableAt).getTime();
-                return dateB - dateA;
-            });
-
-            const variety = sorted.filter((m: any) => 
-                m.attributes.originalLanguage !== 'ja' || 
-                this.isDailyManga(m)
-            );
-            
-            const japaneseRegular = sorted.filter((m: any) => 
-                m.attributes.originalLanguage === 'ja' && 
-                !this.isDailyManga(m)
-            );
-
-            const result: any[] = [];
-            let vIdx = 0;
-            let jIdx = 0;
-            
-            while (result.length < limit && (vIdx < variety.length || jIdx < japaneseRegular.length)) {
-                if (vIdx < variety.length) result.push(variety[vIdx++]);
-                if (result.length < limit && jIdx < japaneseRegular.length) result.push(japaneseRegular[jIdx++]);
-            }
-
-            return { data: result };
+            return { data: results, total: data.total, offset: data.offset };
         } catch (err) {
-            console.error('Error fetching latest updated manga:', err);
-            throw err;
+            console.error('Error fetching global latest:', err);
+            return { data: [] };
         }
     },
 

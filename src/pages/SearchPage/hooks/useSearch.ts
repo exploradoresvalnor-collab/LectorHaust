@@ -94,7 +94,7 @@ export const genreMapping: Record<string, string> = {
 
 export function useSearch() {
   const location = useLocation();
-  const [activeSegment, setActiveSegment] = useState('trending');
+  const [activeSegment, setActiveSegment] = useState('latest');
   const [query, setQuery] = useState('');
   
   // Completed Filters
@@ -142,6 +142,10 @@ export function useSearch() {
   // Trending Filters
   const [trendingOrigin, setTrendingOrigin] = useState<string | null>(null);
   const [trendingLang, setTrendingLang] = useState<string | null>('es');
+  
+  // Latest Filters
+  const [latestLang, setLatestLang] = useState<string>('es');
+  const [latestFormat, setLatestFormat] = useState<string>('all');
 
   const favorites = useLibraryStore(state => state.favorites);
   const showNSFW = useLibraryStore(state => state.showNSFW);
@@ -261,11 +265,41 @@ export function useSearch() {
     });
   }, [searchData]);
 
-  // --- 4. SUGGESTIONS ---
+  // --- 4. LATEST UPDATES (Infinite Query) ---
+  const {
+    data: latestData,
+    fetchNextPage: fetchNextLatest,
+    hasNextPage: hasNextLatest,
+    isFetchingNextPage: isFetchingMoreLatest,
+    isLoading: loadingLatest,
+    isError: latestError
+  } = useInfiniteQuery({
+    queryKey: ['latestUpdates', latestLang, latestFormat, showNSFW],
+    queryFn: ({ pageParam = 0 }) => 
+      mangaProvider.getLatestUpdatedManga(24, pageParam as number, latestLang, latestFormat, false, true),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage: any, allPages: any[]) => {
+      return lastPage.data?.length === 24 ? allPages.length * 24 : undefined;
+    },
+    enabled: activeSegment === 'latest',
+    staleTime: 1000 * 60, // 1 min (EN VIVO feel)
+  });
+
+  const latest = useMemo(() => {
+    const raw = latestData?.pages.flatMap(p => p.data || []) || [];
+    const seen = new Set();
+    return raw.filter((m: any) => {
+      if (seen.has(m.id)) return false;
+      seen.add(m.id);
+      return true;
+    });
+  }, [latestData]);
+
+  // --- 5. SUGGESTIONS ---
   const { data: suggestionsData } = useQuery({
     queryKey: ['suggestions', showNSFW],
     queryFn: () => mangaProvider.getLatestUpdatedManga(16, 0, 'es', 'all', false, true),
-    enabled: activeSegment === 'search' && !query, // Only fetch suggestions if in search mode and no query
+    enabled: activeSegment === 'suggestions' && !query, 
     staleTime: 1000 * 60 * 10, // 10 mins
   });
 
@@ -318,6 +352,9 @@ export function useSearch() {
     completedDemographic,
     setCompletedDemographic,
     isCompletedDone: !hasNextCompleted,
+    latest,
+    loadingLatest,
+    isLatestDone: !hasNextLatest,
     activeFormat,
     activeGenre,
     activeStatus,
@@ -348,6 +385,14 @@ export function useSearch() {
     trendingOrigin,
     setTrendingOrigin,
     trendingLang,
-    setTrendingLang
+    setTrendingLang,
+    latestLang,
+    setLatestLang,
+    latestFormat,
+    setLatestFormat,
+    loadMoreLatest: useCallback(async (e: any) => {
+      if (hasNextLatest) await fetchNextLatest();
+      e.target.complete();
+    }, [fetchNextLatest, hasNextLatest])
   };
 }

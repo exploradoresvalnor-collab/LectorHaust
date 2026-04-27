@@ -27,11 +27,14 @@ import {
   searchOutline, 
   filterOutline, 
   trendingUpOutline, 
-  sparklesOutline, 
-  chevronBackOutline, 
-  ribbonOutline, 
+  sparklesOutline,
+  chevronBackOutline,
+  ribbonOutline,
   bulbOutline, 
-  heartOutline 
+  heartOutline,
+  timeOutline,
+  playCircleOutline,
+  globeOutline
 } from 'ionicons/icons';
 import { mangaProvider } from '../../services/mangaProvider';
 import MangaCard from '../../components/MangaCard';
@@ -95,6 +98,9 @@ const SearchPage: React.FC = () => {
     completedManga, completedLoading, completedGenre, setCompletedGenre,
     completedLang, setCompletedLang, completedDemographic, setCompletedDemographic,
     isCompletedDone, activeFormat, activeGenre, activeStatus,
+    latest, loadingLatest, isLatestDone, loadMoreLatest,
+    latestLang, setLatestLang,
+    latestFormat, setLatestFormat,
     activeDemographic, activeOrder, setActiveOrder, activeColor, setActiveColor,
     completedColor, setCompletedColor, showFilters, setShowFilters,
     favorites, loadMoreCompleted,
@@ -146,33 +152,42 @@ const SearchPage: React.FC = () => {
   return (
     <IonPage>
       <IonHeader className="ion-no-border">
-        <IonToolbar className="glass-effect" style={{ minHeight: '50px' }}>
-          <IonButtons slot="start" style={{ position: 'absolute', left: 0, zIndex: 10 }}>
+        <IonToolbar className="glass-effect elite-search-toolbar">
+          <div className="search-nav-container">
             <IonButton 
+              fill="clear"
               onClick={() => router.canGoBack() ? router.goBack() : router.push('/home', 'back')} 
-              style={{ color: 'white' }}
-              aria-label="Volver"
+              className="nav-back-btn-v2"
             >
-              <IonIcon icon={chevronBackOutline} size="large" />
+              <IonIcon icon={chevronBackOutline} />
             </IonButton>
-          </IonButtons>
-          <IonSegment value={activeSegment} onIonChange={(e: any) => {
-            hapticsService.lightImpact();
-            setActiveSegment(e.detail.value as string);
-          }} mode="md" className="custom-segment" style={{ marginLeft: '42px' }}>
-            <IonSegmentButton value="trending">
-              <IonIcon icon={trendingUpOutline} />
-            </IonSegmentButton>
-            <IonSegmentButton value="completed">
-              <IonIcon icon={ribbonOutline} />
-            </IonSegmentButton>
-            <IonSegmentButton value="suggestions">
-              <IonIcon icon={bulbOutline} />
-            </IonSegmentButton>
-            <IonSegmentButton value="search">
-              <IonIcon icon={searchOutline} />
-            </IonSegmentButton>
-          </IonSegment>
+
+            <IonSegment 
+              value={activeSegment} 
+              onIonChange={(e: any) => {
+                hapticsService.lightImpact();
+                setActiveSegment(e.detail.value as string);
+              }} 
+              mode="md" 
+              className="haus-main-segment"
+            >
+              <IonSegmentButton value="latest">
+                <IonIcon icon={timeOutline} />
+              </IonSegmentButton>
+              <IonSegmentButton value="trending">
+                <IonIcon icon={trendingUpOutline} />
+              </IonSegmentButton>
+              <IonSegmentButton value="completed">
+                <IonIcon icon={ribbonOutline} />
+              </IonSegmentButton>
+              <IonSegmentButton value="suggestions">
+                <IonIcon icon={bulbOutline} />
+              </IonSegmentButton>
+              <IonSegmentButton value="search">
+                <IonIcon icon={searchOutline} />
+              </IonSegmentButton>
+            </IonSegment>
+          </div>
         </IonToolbar>
       </IonHeader>
 
@@ -538,6 +553,85 @@ const SearchPage: React.FC = () => {
                   ))}
                 </IonRow>
               </IonGrid>
+            )}
+          </div>
+        )}
+
+        {activeSegment === 'latest' && (
+          <div className="latest-updates-section animate-fade-in">
+            <div className="latest-header-container">
+              <div className="latest-title-row">
+                <h2 className="discovery-title">Últimos Agregados</h2>
+                <div className="live-indicator">
+                  <span className="live-dot"></span>
+                  <span className="live-text">EN VIVO</span>
+                </div>
+              </div>
+
+              <div className="latest-filters-row">
+                <div className="filter-select-group haus-mini-filter">
+                  <IonIcon icon={globeOutline} />
+                  <IonSelect 
+                      value={latestFormat} 
+                      interface="popover" 
+                      onIonChange={e => setLatestFormat(e.detail.value)}
+                  >
+                      <IonSelectOption value="all">TODOS</IonSelectOption>
+                      <IonSelectOption value="ja">MANGA 🇯🇵</IonSelectOption>
+                      <IonSelectOption value="ko">MANHWA 🇰🇷</IonSelectOption>
+                      <IonSelectOption value="zh">MANHUA 🇨🇳</IonSelectOption>
+                  </IonSelect>
+                </div>
+
+                <div className="filter-select-group haus-mini-filter">
+                  <IonIcon icon={bulbOutline} />
+                  <IonSelect 
+                      value={latestLang} 
+                      interface="popover" 
+                      onIonChange={e => setLatestLang(e.detail.value)}
+                  >
+                      {LANGUAGES.map(l => (
+                          <IonSelectOption key={l.value} value={l.value}>{l.label.toUpperCase()}</IonSelectOption>
+                      ))}
+                  </IonSelect>
+                </div>
+              </div>
+            </div>
+
+            {loadingLatest && latest.length === 0 ? (
+               <IonGrid className="search-results-grid">
+                 <IonRow>
+                    {Array.from({ length: 12 }).map((_, i) => (
+                      <IonCol size="6" sizeSm="6" sizeMd="3" sizeLg="2" key={`latest-skel-${i}`}>
+                         <IonSkeletonText animated style={{ height: '180px', borderRadius: '12px', marginBottom: '8px' }} />
+                         <IonSkeletonText animated style={{ width: '80%', height: '12px', borderRadius: '4px' }} />
+                      </IonCol>
+                    ))}
+                  </IonRow>
+               </IonGrid>
+            ) : (
+              <>
+                <IonGrid className="search-results-grid">
+                  <IonRow>
+                    {latest.map((m: any) => (
+                      <IonCol size="6" sizeSm="6" sizeMd="3" sizeLg="2" key={m.id + '_latest'}>
+                        <MangaCard 
+                          title={mangaProvider.getLocalizedTitle(m)}
+                          coverUrl={mangaProvider.getCoverUrl(m)}
+                          format={m.attributes.originalLanguage}
+                          status={mangaProvider.getLocalizedStatus?.(m)}
+                          chapters={m.attributes.lastChapter || m.attributes.latestChapterNumber}
+                          updatedAt={m.attributes.latestChapterReadableAt}
+                          onClick={() => router.push(`/manga/${m.id}`)}
+                        />
+                      </IonCol>
+                    ))}
+                  </IonRow>
+                </IonGrid>
+                <IonInfiniteScroll disabled={isLatestDone} onIonInfinite={loadMoreLatest} threshold="100px">
+                  <IonInfiniteScrollContent loadingSpinner="bubbles" loadingText="Sincronizando últimas historias..." />
+                </IonInfiniteScroll>
+              </>
             )}
           </div>
         )}

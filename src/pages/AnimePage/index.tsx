@@ -44,7 +44,7 @@ const AnimePage: React.FC = () => {
   const [loadingPrimary, setLoadingPrimary] = useState(true);    // Hero + Tendencias
   const [loadingSecondary, setLoadingSecondary] = useState(true); // Nuevos Episodios
   const [loadingTertiary, setLoadingTertiary] = useState(true);   // Latino + Populares
-  const [activeFilter, setActiveFilter] = useState<'all' | 'latino'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'latino' | 'sub'>('all');
   const [searchLoading, setSearchLoading] = useState(false);
   const [query, setQuery] = useState('');
   const router = useIonRouter();
@@ -110,7 +110,9 @@ const AnimePage: React.FC = () => {
       try {
         if (activeFilter === 'latino') {
           const latino = await tioanimeService.getLatestAnimes();
-          setLatinoAnimes(latino.slice(0, 20).map(a => ({ ...a, preferredProvider: 'tioanime' })));
+          // Filter by title containing "latino" or "español latino" if possible, 
+          // or just show them all with the latino badge if that's what's available
+          setLatinoAnimes(latino.map(a => ({ ...a, language: 'latino', hasDub: true })));
         }
       } catch { /* Latino es opcional */ }
       setLoadingTertiary(false);
@@ -272,19 +274,34 @@ const AnimePage: React.FC = () => {
               <div className="main-content-wrapper">
                 
                 {/* FILTER CHIPS */}
-                <div className="discovery-filters-v2" style={{ display: 'flex', gap: '10px', marginBottom: '20px', overflowX: 'auto', paddingBottom: '10px' }}>
-                  <IonChip 
-                    className={`filter-chip-v2 ${activeFilter === 'all' ? 'active' : ''}`}
+                <div className="discovery-filters-v2" style={{ display: 'flex', gap: '8px', marginBottom: '25px', overflowX: 'auto', paddingBottom: '10px', scrollbarWidth: 'none' }}>
+                  <IonButton 
+                    fill={activeFilter === 'all' ? 'solid' : 'outline'} 
+                    size="small"
+                    shape="round"
                     onClick={() => setActiveFilter('all')}
+                    className="anime-filter-btn"
                   >
-                    <IonLabel>Todo</IonLabel>
-                  </IonChip>
-                  <IonChip 
-                    className={`filter-chip-v2 ${activeFilter === 'latino' ? 'active' : ''}`}
+                    🚀 GLOBAL
+                  </IonButton>
+                  <IonButton 
+                    fill={activeFilter === 'sub' ? 'solid' : 'outline'} 
+                    size="small"
+                    shape="round"
+                    onClick={() => setActiveFilter('sub')}
+                    className="anime-filter-btn"
+                  >
+                    🇯🇵 SUB
+                  </IonButton>
+                  <IonButton 
+                    fill={activeFilter === 'latino' ? 'solid' : 'outline'} 
+                    size="small"
+                    shape="round"
                     onClick={() => setActiveFilter('latino')}
+                    className="anime-filter-btn"
                   >
-                    <IonLabel>🇲🇽 Latino</IonLabel>
-                  </IonChip>
+                    🇲🇽 LATINO
+                  </IonButton>
                 </div>
 
                 {/* === GRID DE NOVEDADES (PARRILLA DE CUADROS) === */}
@@ -300,26 +317,46 @@ const AnimePage: React.FC = () => {
                   ) : (
                     <IonGrid className="anime-grid-v">
                       <IonRow className="anime-row-v">
-                        {(activeFilter === 'all' ? latestEpisodes : latinoAnimes).map((ep, idx) => (
-                          <IonCol size="6" sizeSm="6" sizeMd="4" style={{ flex: '0 0 20%', maxWidth: '20%' }} className="ion-hide-md-down" key={'ep-'+(ep.id || ep.animeId)+idx+'-desktop'}>
-                            <AnimeCardItem 
-                              anime={{ ...ep, id: ep.animeId || ep.id, title: ep.animeName || ep.title, image: ep.animePoster || ep.image, hasSub: true }} 
-                              onClick={() => router.push(`/anime/${ep.animeId || ep.id}`, 'forward', 'push', { anime: ep } as any)}
-                              index={idx}
-                              showEpisode={true}
-                            />
-                          </IonCol>
-                        ))}
-                        {(activeFilter === 'all' ? latestEpisodes : latinoAnimes).map((ep, idx) => (
-                          <IonCol size="6" sizeSm="6" sizeMd="4" className="ion-hide-lg-up" key={'ep-'+(ep.id || ep.animeId)+idx+'-mobile'}>
-                            <AnimeCardItem 
-                              anime={{ ...ep, id: ep.animeId || ep.id, title: ep.animeName || ep.title, image: ep.animePoster || ep.image, hasSub: true }} 
-                              onClick={() => router.push(`/anime/${ep.animeId || ep.id}`, 'forward', 'push', { anime: ep } as any)}
-                              index={idx}
-                              showEpisode={true}
-                            />
-                          </IonCol>
-                        ))}
+                        {(() => {
+                          const list = activeFilter === 'all' ? latestEpisodes : 
+                                       activeFilter === 'latino' ? latinoAnimes : 
+                                       latestEpisodes.filter(ep => !ep.animeName?.toLowerCase().includes('latino'));
+                          
+                          return list.map((ep, idx) => (
+                            <React.Fragment key={'ep-'+(ep.id || ep.animeId)+idx}>
+                              <IonCol size="6" sizeSm="6" sizeMd="4" style={{ flex: '0 0 20%', maxWidth: '20%' }} className="ion-hide-md-down">
+                                <AnimeCardItem 
+                                  anime={{ 
+                                    ...ep, 
+                                    id: ep.animeId || ep.id, 
+                                    title: ep.animeName || ep.title, 
+                                    image: ep.animePoster || ep.image, 
+                                    hasSub: activeFilter !== 'latino',
+                                    hasDub: activeFilter === 'latino' || ep.animeName?.toLowerCase().includes('latino')
+                                  }} 
+                                  onClick={() => router.push(`/anime/${ep.animeId || ep.id}`, 'forward', 'push', { anime: ep } as any)}
+                                  index={idx}
+                                  showEpisode={true}
+                                />
+                              </IonCol>
+                              <IonCol size="6" sizeSm="6" sizeMd="4" className="ion-hide-lg-up">
+                                <AnimeCardItem 
+                                  anime={{ 
+                                    ...ep, 
+                                    id: ep.animeId || ep.id, 
+                                    title: ep.animeName || ep.title, 
+                                    image: ep.animePoster || ep.image, 
+                                    hasSub: activeFilter !== 'latino',
+                                    hasDub: activeFilter === 'latino' || ep.animeName?.toLowerCase().includes('latino')
+                                  }} 
+                                  onClick={() => router.push(`/anime/${ep.animeId || ep.id}`, 'forward', 'push', { anime: ep } as any)}
+                                  index={idx}
+                                  showEpisode={true}
+                                />
+                              </IonCol>
+                            </React.Fragment>
+                          ));
+                        })()}
                       </IonRow>
                     </IonGrid>
                   )}
