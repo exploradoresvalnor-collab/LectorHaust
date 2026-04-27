@@ -6,6 +6,7 @@ import { auth } from '../services/firebase';
 import { userStatsService } from '../services/userStatsService';
 import { offlineService } from '../services/offlineService';
 import { hapticsService } from '../services/hapticsService';
+import { useQueryClient } from '@tanstack/react-query';
 
 export function useMangaReader(chapterId?: string) {
   const [pages, setPages] = useState<string[]>([]);
@@ -38,6 +39,7 @@ export function useMangaReader(chapterId?: string) {
   
   const currentPageIndex = useRef(0);
   const lastLoadedId = useRef<string | null>(null);
+  const queryClient = useQueryClient();
 
   // Guardar progreso al salir
   useEffect(() => {
@@ -330,6 +332,20 @@ export function useMangaReader(chapterId?: string) {
     }
   }, [loading, error, pages.length]);
 
+  // --- SENIOR PREFETCHING: Anticipar carga del próximo capítulo ---
+  useEffect(() => {
+    if (nextChapterId && pages.length > 0 && currentMangaPage > pages.length * 0.7) {
+      // Evitamos pre-cargar si ya está en cache o si estamos offline
+      if (!isOffline) {
+        queryClient.prefetchQuery({
+          queryKey: ['chapterPages', nextChapterId, 'data'],
+          queryFn: () => mangaProvider.getChapterPages(nextChapterId, 'data'),
+          staleTime: 1000 * 60 * 10 // 10 minutos de gracia
+        });
+      }
+    }
+  }, [nextChapterId, currentMangaPage, pages.length, queryClient, isOffline]);
+
   // Lógica Táctil para el modo paginado
   const handleMangaTap = (e: React.MouseEvent | { clientX: number }) => {
     if (showEndSection) return;
@@ -388,6 +404,7 @@ export function useMangaReader(chapterId?: string) {
     fitMode,
     setFitMode,
     initialScrollPage,
+    mangaTitle,
     retry
   };
 }

@@ -3,14 +3,14 @@
    ═══════════════════════════════════════════════════ */
 
 .chapter-item-container {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 14px;
-    margin-bottom: 8px;
-    transition: all 0.25s ease;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    margin-bottom: 5px;
+    transition: all 0.2s ease;
     display: flex;
     justify-content: space-between;
-    align-items: stretch;
+    align-items: center;
     overflow: hidden;
     position: relative;
 }
@@ -49,12 +49,14 @@
 /* Content */
 .chapter-item-content {
     flex: 1;
-    padding: 14px 16px;
+    padding: 10px 14px;
     cursor: pointer;
     display: flex;
-    flex-direction: column;
-    gap: 5px;
-    min-width: 0; /* Prevents overflow on mobile */
+    flex-direction: row; /* Horizontal para ahorrar espacio vertical */
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    min-width: 0;
 }
 
 .chapter-item-info {
@@ -64,30 +66,31 @@
 }
 
 .chapter-item-number {
-    font-weight: 800;
-    font-size: 0.95rem;
+    font-weight: 700;
+    font-size: 0.9rem;
     color: #fff;
     display: flex;
     align-items: center;
+    white-space: nowrap;
 }
 
 .chapter-item-title {
-    font-size: 0.82rem;
-    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.45);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 100%; /* Full width on mobile */
-    line-height: 1.3;
+    max-width: 250px; 
+    line-height: 1.2;
 }
 
 .chapter-item-meta {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 0.72rem;
-    color: rgba(255, 255, 255, 0.4);
-    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.35);
+    margin-left: auto; /* Empuja la fecha a la derecha */
 }
 
 .chapter-fansub-badge {

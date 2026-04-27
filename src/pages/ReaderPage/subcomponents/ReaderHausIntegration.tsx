@@ -29,36 +29,34 @@ export function useReaderTracking(
   mangaTitle: string,
   chapterId: string,
   chapterNumber: string,
-  totalPages: number
+  totalPages: number,
+  currentPage: number
 ) {
   const tracker = useReadingTracker();
   const { trackPageChange } = useReadingMood();
-  const [currentPage, setCurrentPage] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
   const [showRatingPrompt, setShowRatingPrompt] = useState(false);
 
   // Iniciar sesión de lectura
   useEffect(() => {
     tracker.startReading(mangaId, mangaTitle, chapterId, chapterNumber, totalPages);
-  }, [chapterId, mangaId, mangaTitle, chapterNumber, totalPages, tracker]);
+  }, [chapterId, mangaId, mangaTitle, chapterNumber, totalPages]); // Evitar reinicios innecesarios del tracker
 
-  // Actualizar progreso
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
-    tracker.updateProgress(chapterId, page, totalPages);
-    // Update mood based on page changes (every 2 pages)
-    trackPageChange(page);
+  // Sincronizar progreso reactivamente con el estado del Lector
+  useEffect(() => {
+    if (currentPage > 0) {
+      tracker.updateProgress(chapterId, currentPage, totalPages);
+      // Actualizar mood según cambio de página
+      trackPageChange(currentPage);
 
-    // Detectar si completó el capítulo
-    if (page >= totalPages && !isCompleted) {
-      setIsCompleted(true);
-      tracker.completeChapter(chapterId);
-      // Mostrar prompt de rating si es el final
-      if (page >= totalPages - 1) {
-        setTimeout(() => setShowRatingPrompt(true), 1000);
+      // Detectar si completó el capítulo
+      if (currentPage >= totalPages - 1 && !isCompleted && totalPages > 0) {
+        setIsCompleted(true);
+        tracker.completeChapter(chapterId);
+        setTimeout(() => setShowRatingPrompt(true), 1500);
       }
     }
-  }, [chapterId, totalPages, isCompleted, tracker, trackPageChange]);
+  }, [currentPage, chapterId, totalPages, isCompleted, trackPageChange, tracker]);
 
   // Pausar cuando se cierra
   useEffect(() => {
@@ -70,11 +68,9 @@ export function useReaderTracking(
   }, [chapterId, isCompleted, tracker]);
 
   return {
-    currentPage,
     isCompleted,
     showRatingPrompt,
     setShowRatingPrompt,
-    handlePageChange,
     tracker
   };
 }
@@ -231,21 +227,18 @@ export const ReadingSessionInfo: React.FC<{
  * Uso: <ReaderHausIntegration {...props} />
  */
 export const ReaderHausIntegration: React.FC<ReaderPageHausProps> = ({
-  mangaId,
-  mangaTitle,
   chapterId,
   chapterNumber,
   totalPages,
+  currentPage,
   onPageChange,
   onChapterComplete
 }) => {
   const {
-    currentPage,
     isCompleted,
     showRatingPrompt,
-    setShowRatingPrompt,
-    handlePageChange
-  } = useReaderTracking(mangaId, mangaTitle, chapterId, chapterNumber, totalPages);
+    setShowRatingPrompt
+  } = useReaderTracking(mangaId, mangaTitle, chapterId, chapterNumber, totalPages, currentPage);
 
   const engine = getRecommendationEngine();
 
@@ -257,11 +250,6 @@ export const ReaderHausIntegration: React.FC<ReaderPageHausProps> = ({
     onChapterComplete?.();
   };
 
-  // Notify parent of page changes
-  useEffect(() => {
-    onPageChange?.(currentPage);
-  }, [currentPage, onPageChange]);
-
   return (
     <>
       {/* Progress Widget */}
@@ -269,7 +257,7 @@ export const ReaderHausIntegration: React.FC<ReaderPageHausProps> = ({
         <ReadingProgressWidget
           currentPage={currentPage}
           totalPages={totalPages}
-          onPageChange={handlePageChange}
+          onPageChange={onPageChange || (() => {})}
         />
       )}
 

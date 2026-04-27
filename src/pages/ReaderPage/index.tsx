@@ -142,7 +142,7 @@ const ReaderPage: React.FC = () => {
             <IonIcon icon={chevronBackOutline} />
           </IonButton>
           <span className="persistent-chapter">
-            Cap. {chapterNum} {!isWebtoon && pages.length > 0 && <span className="persistent-page">({currentMangaPage + 1}/{pages.length})</span>}
+            Cap. {chapterNum} {isOffline && <IonBadge color="success" style={{ fontSize: '0.6rem', marginLeft: '6px', verticalAlign: 'middle' }}>OFFLINE</IonBadge>} {!isWebtoon && pages.length > 0 && <span className="persistent-page">({currentMangaPage + 1}/{pages.length})</span>}
           </span>
         </div>
         <div className="persistent-right">
@@ -315,10 +315,11 @@ const ReaderPage: React.FC = () => {
       {!loading && !error && mangaId && pages.length > 0 && (
         <ReaderHausIntegration 
           mangaId={mangaId}
-          mangaTitle={mangaId} // Usando mangaId como fallback
+          mangaTitle={mangaTitle}
           chapterId={chapterId}
           chapterNumber={chapterNum}
           totalPages={pages.length}
+          currentPage={currentMangaPage}
           onPageChange={setCurrentMangaPage}
         />
       )}

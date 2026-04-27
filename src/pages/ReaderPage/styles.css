@@ -483,3 +483,37 @@
   height: 44px;
   font-size: 1.8rem;
 }
+
+/* --- SHIMMER LOADING EFFECT --- */
+.shimmer-placeholder {
+  background: #121212;
+  background-image: linear-gradient(
+    to right,
+    #121212 0%,
+    #1a1a1a 20%,
+    #222222 40%,
+    #1a1a1a 60%,
+    #121212 100%
+  );
+  background-repeat: no-repeat;
+  background-size: 1000px 100%;
+  display: inline-block;
+  position: relative;
+  animation: shimmer-anim 2s infinite linear;
+  width: 100%;
+  min-height: 600px; /* Tamaño base de página de manga */
+}
+
+@keyframes shimmer-anim {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+.reader-image-container {
+  position: relative;
+  width: 100%;
+  min-height: 400px;
+  display: flex;
+  justify-content: center;
+  background: #000;
+}

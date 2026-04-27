@@ -358,9 +358,28 @@ export const mangaProvider = {
 
     /**
      * Busca un manga por título y verifica su existencia real y disponibilidad de capítulos.
+     * Incluye una capa de caché persistente para evitar búsquedas redundantes.
      */
     async fetchVerifiedRecommendation(title: string, allowNSFW = false): Promise<any | null> {
+        if (!title) return null;
+
+        // 1. Intentar recuperar del Caché de Verificación (Senior optimization)
+        const cacheKey = `verified_rec_${normalizeTitle(title)}`;
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            try {
+                const parsed = JSON.parse(cached);
+                // El caché expira en 7 días para asegurar que el contenido sigue existiendo
+                if (Date.now() - parsed.timestamp < 1000 * 60 * 60 * 24 * 7) {
+                    return parsed.data;
+                }
+            } catch (e) {
+                localStorage.removeItem(cacheKey);
+            }
+        }
+
         try {
+            // Búsqueda en background (solo MangaDex ES para ahorrar recursos)
             const results = await this.searchManga(title, {}, 1, 0, undefined, allowNSFW, true);
             if (!results.data || results.data.length === 0) return null;
 
@@ -372,11 +391,19 @@ export const mangaProvider = {
                 if (chapters.data.length === 0) return null;
             }
 
-            return {
+            const verifiedData = {
                 id: best.id,
                 hasChapters: true,
                 title: this.getLocalizedTitle(best)
             };
+
+            // 2. Guardar en Caché
+            localStorage.setItem(cacheKey, JSON.stringify({
+                data: verifiedData,
+                timestamp: Date.now()
+            }));
+
+            return verifiedData;
         } catch (err) {
             console.warn('[Provider] Verification failed for:', title, err);
             return null;
@@ -513,30 +540,57 @@ export const mangaProvider = {
             return rawData;
         }
 
-        // --- HAUS INTELLIGENCE: DEEP FALLBACK ---
+        // --- HAUS INTELLIGENCE: DEEP FALLBACK & MIRROR DETECTION ---
         try {
+            // 1. Obtener capítulos de MangaDex (Fuente base)
             const mdResp = await mangadexService.getMangaChapters(mangaId, lang, limit, offset, order, allowNSFW);
             
-            // If MD has NO chapters in the selected language (common for licensed manhwas)
-            if ((!mdResp.data || mdResp.data.length === 0) && lang === 'es' && offset === 0) {
-                console.log(`[Intelligence] ⚠️ No chapters on MangaDex for ${mangaId}. Triggering Fallback...`);
+            // 2. Analizar si la lista está "rota" o incompleta (Senior logic)
+            // - Si hay 0 capítulos.
+            // - Si el capítulo más reciente es muy viejo comparado con el total.
+            // - Si detectamos que los capítulos filtrados eran enlaces externos.
+            
+            const hasNoContent = !mdResp.data || mdResp.data.length === 0;
+            let needsMirror = hasNoContent;
+
+            if (!hasNoContent && lang === 'es' && offset === 0) {
+                const latestMdChapter = parseFloat(mdResp.data[0]?.attributes?.chapter || '0');
                 
-                // 1. Get manga details to have the title
+                // Consultamos metadata básica para ver si MD reporta un capítulo final mucho más alto
+                const details = await mangadexService.getMangaDetails(mangaId);
+                const reportedLastChapter = parseFloat(details?.data?.attributes?.lastChapter || '0');
+                
+                // Si el reporte oficial dice que hay 100 y nosotros solo tenemos 20 en español, necesitamos espejo
+                if (reportedLastChapter > 0 && latestMdChapter < (reportedLastChapter - 2)) {
+                    console.log(`[Intelligence] 🔎 Chapters stale on MD (MD: ${latestMdChapter} vs Official: ${reportedLastChapter}). Searching mirror...`);
+                    needsMirror = true;
+                }
+            }
+
+            if (needsMirror && lang === 'es' && offset === 0) {
                 const details = await mangadexService.getMangaDetails(mangaId);
                 if (details && details.data) {
-                    // 2. Search for external sources
                     const externalSources = await this.findBestExternalSources(details.data);
                     
                     if (externalSources.length > 0) {
-                        try {
-                            const best = externalSources[0];
-                            console.log(`[Intelligence] 🎯 Found better source: ${best.source} (${best.id}). Retrying fetch...`);
-                            
-                            // 3. Recursive call with the external ID
-                            return await this.getMangaChapters(best.id, lang, limit, offset, order, allowNSFW);
-                        } catch (fallbackErr) {
-                            console.error(`[Intelligence] ❌ Fallback failed (404/Error), using empty MD state`, fallbackErr);
-                            return mdResp; // Devolvemos el estado vacío original de MD en lugar de lanzar error
+                        for (const source of externalSources) {
+                            try {
+                                console.log(`[Intelligence] 🎯 Trying mirror from: ${source.source} (${source.id})`);
+                                const extChapters = await this.getMangaChapters(source.id, lang, limit, offset, order, allowNSFW);
+                                
+                                if (extChapters.data && extChapters.data.length > 0) {
+                                    const latestExtChapter = parseFloat(extChapters.data[0]?.attributes?.chapter || '0');
+                                    const latestMdChapter = parseFloat(mdResp.data[0]?.attributes?.chapter || '0');
+
+                                    // Si la fuente externa tiene capítulos más recientes o es la única con contenido, la usamos
+                                    if (latestExtChapter > latestMdChapter || hasNoContent) {
+                                        console.log(`[Intelligence] ✅ Mirror is better/available. Switching to ${source.source}`);
+                                        return extChapters;
+                                    }
+                                }
+                            } catch (fallbackErr) {
+                                console.warn(`[Intelligence] Mirror ${source.source} failed, trying next...`);
+                            }
                         }
                     }
                 }

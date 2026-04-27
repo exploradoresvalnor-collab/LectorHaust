@@ -42,8 +42,20 @@ const MangaCard: React.FC<MangaCardProps> = ({
 
   const badge = getBadgeInfo();
 
+  const handleMouseEnter = () => {
+    // Prefetch logic: Si el usuario pasa el mouse por encima, empezamos a cargar los detalles
+    // Esto hace que el clic se sienta instantáneo.
+    if (onClick && (window as any).mangaPrefetcher) {
+      (window as any).mangaPrefetcher();
+    }
+  };
+
   return (
-    <div className="manga-card-tmo-wrapper" onClick={onClick}>
+    <div 
+      className="manga-card-tmo-wrapper" 
+      onClick={onClick}
+      onMouseEnter={handleMouseEnter}
+    >
       <div className="manga-card-tmo animate-fade-in">
         <div className="card-thumb-column">
           <SmartImage 

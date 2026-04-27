@@ -37,6 +37,8 @@ import UserAvatar from '../../components/UserAvatar';
 import DonationsModal from './subcomponents/DonationsModal';
 import { useLanguageStore } from '../../store/useLanguageStore';
 import './styles.css';
+import './styles-mobile.css';
+import './styles-desktop.css';
 
 const ProfilePage: React.FC = () => {
   const [showDonations, setShowDonations] = useState(false);
@@ -64,24 +66,25 @@ const ProfilePage: React.FC = () => {
   const [pinAction, setPinAction] = useState<'set' | 'verify'>('verify');
   const [pendingNSFWValue, setPendingNSFWValue] = useState<boolean>(false);
 
-  useEffect(() => {
-     const timer = setTimeout(() => setIsStatsLoading(false), 500);
-     return () => clearTimeout(timer);
-  }, []);
-
+  // Suscripción a Auth y Stats (Combinada para limpieza)
   useEffect(() => {
     let unsubscribeStats: (() => void) | undefined;
+    
     const unsubscribeAuth = firebaseAuthService.subscribe((u) => {
       if (unsubscribeStats) unsubscribeStats();
+      
       if (!u) {
         setUser(null);
+        setIsStatsLoading(false);
       } else {
         setUser(u);
         unsubscribeStats = userStatsService.subscribe(u.uid, (newStats) => {
           setStats(newStats);
+          setIsStatsLoading(false);
         });
       }
     });
+
     return () => {
       unsubscribeAuth();
       if (unsubscribeStats) unsubscribeStats();
@@ -89,15 +92,22 @@ const ProfilePage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (user) {
-      const userRef = doc(db, 'users', user.uid);
-      getDoc(userRef).then(snap => {
+    if (!user) return;
+    
+    const fetchBackground = async () => {
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        const snap = await getDoc(userRef);
         if (snap.exists() && snap.data().profileBackground) {
           setProfileBackground(snap.data().profileBackground);
         }
-      });
-    }
-  }, [user]);
+      } catch (err) {
+        console.error("[Profile] Error fetching background:", err);
+      }
+    };
+    
+    fetchBackground();
+  }, [user?.uid]);
 
   const { showNSFW, setShowNSFW, nsfwPIN, setNsfwPIN } = useLibraryStore();
   

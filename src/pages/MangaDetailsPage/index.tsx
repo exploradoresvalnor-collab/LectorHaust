@@ -46,7 +46,8 @@ import {
   sparklesOutline,
   book,
   arrowForward,
-  swapVerticalOutline
+  swapVerticalOutline,
+  cloudDownloadOutline
 } from 'ionicons/icons';
 import { useParams, useLocation } from 'react-router-dom';
 import { mangaProvider, sanitizeDescription } from '../../services/mangaProvider';
@@ -213,11 +214,20 @@ const MangaDetailsPage: React.FC = () => {
               coverImage: rec.coverImage.large,
               score: rec.averageScore
             });
-            setVerifiedRecs([...results]);
+            // Update in chunks to avoid too many re-renders
+            if (results.length % 2 === 0) {
+              setVerifiedRecs([...results]);
+            }
           }
+          // Small safety delay between background searches if not cached
+          await new Promise(resolve => setTimeout(resolve, 100));
         } catch (err) {
           console.warn(`[Recs] Verify failed for: ${title}`, err);
         }
+      }
+      
+      if (!cancelled && results.length > 0) {
+        setVerifiedRecs([...results]);
       }
       
       if (!cancelled) {
@@ -607,24 +617,25 @@ const MangaDetailsPage: React.FC = () => {
               <IonIcon icon={bookOutline} className="header-filter-icon" />
               <IonSelect 
                 value={chapterLang} 
-                interface="popover" 
                 className="chapter-lang-select-v2"
                 onIonChange={e => handleLangChange(e.detail.value)}
+                interface="popover"
+                toggleIcon={swapVerticalOutline}
               >
                 {[
-                  { code: 'es', label: '🇪🇸 ES' },
-                  { code: 'es-la', label: '🇲🇽 LAT' },
-                  { code: 'en', label: '🇺🇸 EN' },
-                  { code: 'pt-br', label: '🇧🇷 BR' },
-                  { code: 'fr', label: '🇫🇷 FR' },
-                  { code: 'it', label: '🇮🇹 IT' },
-                  { code: 'de', label: '🇩🇪 DE' },
-                  { code: 'ru', label: '🇷🇺 RU' },
-                  { code: 'tr', label: '🇹🇷 TR' },
-                  { code: 'vi', label: '🇻🇳 VI' },
-                  { code: 'th', label: '🇹🇭 TH' },
-                  { code: 'zh', label: '🇨🇳 ZH' },
-                  { code: 'ja', label: '🇯🇵 JP' }
+                  { code: 'es', label: 'ES' },
+                  { code: 'es-la', label: 'LAT' },
+                  { code: 'en', label: 'EN' },
+                  { code: 'pt-br', label: 'BR' },
+                  { code: 'fr', label: 'FR' },
+                  { code: 'it', label: 'IT' },
+                  { code: 'de', label: 'DE' },
+                  { code: 'ru', label: 'RU' },
+                  { code: 'tr', label: 'TR' },
+                  { code: 'vi', label: 'VI' },
+                  { code: 'th', label: 'TH' },
+                  { code: 'zh', label: 'ZH' },
+                  { code: 'ja', label: 'JP' }
                 ].map(lang => (
                   <IonSelectOption key={lang.code} value={lang.code}>{lang.label}</IonSelectOption>
                 ))}
@@ -636,13 +647,51 @@ const MangaDetailsPage: React.FC = () => {
               className="order-toggle-btn-v2"
               onClick={() => {
                 hapticsService.lightImpact();
-                setChapterOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+                const nextOrder = chapterOrder === 'asc' ? 'desc' : 'asc';
+                setChapterOrder(nextOrder);
               }}
               aria-label={chapterOrder === 'asc' ? "Cambiar a orden descendente" : "Cambiar a orden ascendente"}
             >
               <IonIcon icon={chapterOrder === 'asc' ? playSkipForwardOutline : playSkipBackOutline} style={{ transform: 'rotate(90deg)' }} />
               <span>{chapterOrder === 'asc' ? 'Primero' : 'Último'}</span>
             </IonButton>
+
+            {!loadingChapters && chapters.length > 0 && (
+              <IonButton 
+                fill="clear" 
+                size="small"
+                className="download-all-btn-v2"
+                onClick={async () => {
+                  if (window.confirm(`¿Descargar los ${chapters.length} capítulos visibles para leer offline?`)) {
+                    for (const chapter of chapters) {
+                      if (downloadedChapters.has(chapter.id)) continue;
+                      
+                      setDownloadingChapters(prev => ({ ...prev, [chapter.id]: 0 }));
+                      try {
+                        const pagesData = await mangaProvider.getChapterPages(chapter.id);
+                        await offlineService.downloadChapter(
+                          chapter.id,
+                          id!,
+                          mangaProvider.getLocalizedTitle(manga!) as string,
+                          chapter.attributes.chapter,
+                          pagesData.pages,
+                          mangaProvider.getCoverUrl(manga!),
+                          (p) => setDownloadingChapters(prev => ({ ...prev, [chapter.id]: p.percent }))
+                        );
+                        setDownloadedChapters(prev => new Set([...prev, chapter.id]));
+                      } catch (err) {
+                        console.error('[DownloadAll] Error:', err);
+                      } finally {
+                        setDownloadingChapters(prev => { const n = { ...prev }; delete n[chapter.id]; return n; });
+                      }
+                    }
+                  }
+                }}
+              >
+                <IonIcon icon={cloudDownloadOutline} slot="start" />
+                <span>Descargar Todo</span>
+              </IonButton>
+            )}
           </div>
 
           {isOptimized ? (

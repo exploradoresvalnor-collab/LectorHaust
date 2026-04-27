@@ -415,7 +415,23 @@
 }
 
 .chapters-list-view {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
   animation: fadeIn 0.4s ease-in;
+}
+
+@media (min-width: 1024px) {
+  .chapters-list-view {
+    grid-template-columns: repeat(4, 1fr); /* Forzamos 4 columnas en PC */
+    gap: 12px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .chapters-list-view {
+    grid-template-columns: repeat(5, 1fr); /* 5 columnas en ultra-wide */
+  }
 }
 
 .recommendation-cover-wrapper .smart-image-wrapper {

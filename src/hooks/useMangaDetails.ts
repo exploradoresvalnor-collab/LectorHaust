@@ -76,7 +76,12 @@ export function useMangaDetails(id?: string, initialData?: any) {
   } = state;
 
   const setChapterOrder = useCallback((order: 'asc' | 'desc') => {
-    setState(prev => ({ ...prev, chapterOrder: order, loadingChapters: true }));
+    setState(prev => ({ 
+      ...prev, 
+      chapterOrder: order, 
+      loadingChapters: true,
+      chapters: [] // Limpiar capítulos inmediatamente para evitar desync visual
+    }));
   }, []);
 
 
@@ -108,7 +113,13 @@ export function useMangaDetails(id?: string, initialData?: any) {
         }
       }
 
-      setState(prev => ({ ...prev, loading: true }));
+      // Only set main loading to true if we don't have basic metadata yet
+      if (!manga) {
+        setState(prev => ({ ...prev, loading: true }));
+      } else {
+        // We have metadata, just show that chapters are loading
+        setState(prev => ({ ...prev, loadingChapters: true }));
+      }
 
       externalFallbackId.current = null; // Reset fallback on each load
 

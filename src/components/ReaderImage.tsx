@@ -32,6 +32,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
   const [retryCount, setRetryCount] = useState(0);
   const [hasError, setHasError] = useState(false);
   const [currentSrc, setCurrentSrc] = useState(src);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     setCurrentSrc(src);
@@ -76,16 +77,20 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
   }
 
   return (
-    <LazyLoadImage
-      src={currentSrc}
-      className={className}
-      alt={alt}
-      visibleByDefault={visibleByDefault}
-      effect={effect}
-      wrapperClassName={wrapperClassName}
-      threshold={threshold}
-      style={style}
-      onError={handleError}
-    />
+    <div className="reader-image-container">
+      {!isLoaded && !hasError && <div className="shimmer-placeholder" />}
+      <LazyLoadImage
+        src={currentSrc}
+        className={`${className} ${!isLoaded ? 'is-loading' : 'is-ready'}`}
+        alt={alt}
+        visibleByDefault={visibleByDefault}
+        effect={effect}
+        wrapperClassName={wrapperClassName}
+        threshold={threshold}
+        style={{ ...style, display: isLoaded ? 'block' : 'none' }}
+        onError={handleError}
+        onLoad={() => setIsLoaded(true)}
+      />
+    </div>
   );
 };

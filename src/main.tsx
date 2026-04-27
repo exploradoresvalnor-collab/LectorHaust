@@ -2,6 +2,18 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
+/**
+ * ConsoleGuard - Senior Log Management
+ * Silencia logs innecesarios en producción para limpieza y rendimiento.
+ */
+if (import.meta.env.PROD) {
+  const noop = () => {};
+  console.log = noop;
+  console.debug = noop;
+  console.info = noop;
+  // Mantenemos console.warn y console.error para debugging crítico en prod
+}
+
 // Detector de errores de Vite (Limpia la caché si hay actualización)
 window.addEventListener('vite:preloadError', (event) => {
   console.warn('[LectorHaus] Nueva versión detectada. Recargando...');

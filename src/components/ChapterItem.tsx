@@ -18,15 +18,21 @@ interface ChapterItemProps {
 }
 
 const ChapterItem: React.FC<ChapterItemProps> = ({ number, title, isRead, isDownloaded, downloadProgress, publishedAt, externalUrl, scanlationGroup, onClick, onToggleRead, onDownload }) => {
+  const normalizedTitle = title?.toLowerCase().trim() || '';
+  const normalizedNumber = String(number).toLowerCase().trim();
+  const isRedundant = normalizedTitle === `capitulo ${normalizedNumber}` || normalizedTitle === `capítulo ${normalizedNumber}`;
+
   return (
     <div className={`chapter-item-container ${isRead ? 'read' : ''}`}>
       <div className="chapter-item-content" onClick={onClick}>
         <div className="chapter-item-info">
           <span className="chapter-item-number">
-            {isDownloaded && <IonIcon icon={checkmarkDoneCircle} color="success" style={{ marginRight: '6px', fontSize: '0.9rem', verticalAlign: 'middle' }} />}
-            Capítulo {number}
+            {isDownloaded && <IonIcon icon={checkmarkDoneCircle} color="success" style={{ marginRight: '6px', fontSize: '0.85rem', verticalAlign: 'middle' }} />}
+            {typeof number === 'string' && number.toLowerCase().includes('cap') ? number : `Capítulo ${number}`}
           </span>
-          {title && <span className="chapter-item-title">{title}</span>}
+          {title && !isRedundant && (
+            <span className="chapter-item-title">{title}</span>
+          )}
         </div>
         
         <div className="chapter-item-meta">
