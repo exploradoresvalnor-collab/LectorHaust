@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback, ReactNode, use
 
 interface GlobalLoadingContextType {
   isLoading: boolean;
-  setIsLoading: (loading: boolean) => void;
+  setIsLoading: (loading: boolean, id?: string) => void;
   message?: string;
   setMessage: (message?: string) => void;
 }
@@ -10,16 +10,21 @@ interface GlobalLoadingContextType {
 const GlobalLoadingContext = createContext<GlobalLoadingContextType | undefined>(undefined);
 
 export const GlobalLoadingProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [loadingCount, setLoadingCount] = useState(0);
+  const [activeLoaders, setActiveLoaders] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<string | undefined>();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const setIsLoading = useCallback((loading: boolean) => {
-    setLoadingCount(prev => {
-      const next = loading ? prev + 1 : Math.max(0, prev - 1);
+  const setIsLoading = useCallback((loading: boolean, id: string = 'default') => {
+    setActiveLoaders(prev => {
+      const next = new Set(prev);
+      if (loading) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
       
-      // Auto-cleanup for safety
-      if (next === 0 && timeoutRef.current) {
+      // Auto-cleanup timeout if nothing is loading
+      if (next.size === 0 && timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
@@ -31,7 +36,7 @@ export const GlobalLoadingProvider: React.FC<{ children: ReactNode }> = ({ child
       // Safety: No loader should last more than 15s
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => {
-        setLoadingCount(0);
+        setActiveLoaders(new Set());
         console.warn('[GlobalLoading] Safety timeout triggered - Force clearing loader');
       }, 15000);
     }
@@ -51,7 +56,7 @@ export const GlobalLoadingProvider: React.FC<{ children: ReactNode }> = ({ child
   return (
     <GlobalLoadingContext.Provider
       value={{
-        isLoading: loadingCount > 0,
+        isLoading: activeLoaders.size > 0,
         setIsLoading,
         message,
         setMessage: setMessageCallback

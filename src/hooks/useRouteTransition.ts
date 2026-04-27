@@ -12,12 +12,12 @@ export const useRouteTransition = () => {
 
   useEffect(() => {
     // Mostrar loading brevemente al cambiar de ruta
-    setIsLoading(true);
-    const timer = setTimeout(() => setIsLoading(false), 300);
+    setIsLoading(true, 'route-transition');
+    const timer = setTimeout(() => setIsLoading(false, 'route-transition'), 300);
 
     return () => {
       clearTimeout(timer);
-      setIsLoading(false); // Garantizar limpieza del contador global
+      setIsLoading(false, 'route-transition'); // Garantizar limpieza del contador global
     };
   }, [location.pathname, setIsLoading]);
 };

@@ -101,7 +101,7 @@ const MangaDetailsPage: React.FC = () => {
 
   useIonViewWillEnter(() => {
     if (!isReady) {
-      setIsLoading(true);
+      setIsLoading(true, `details-${id}`);
     }
   });
 
@@ -131,9 +131,9 @@ const MangaDetailsPage: React.FC = () => {
 
   // Control de carga global: Una sola vez al montar/desmontar para evitar duplicados
   useEffect(() => {
-    setIsLoading(true);
-    return () => setIsLoading(false);
-  }, [setIsLoading]);
+    setIsLoading(true, `details-${id}`);
+    return () => setIsLoading(false, `details-${id}`);
+  }, [setIsLoading, id]);
 
   // Lógica para marcar la página como "lista" y liberar el cargador
   useEffect(() => {
@@ -143,7 +143,7 @@ const MangaDetailsPage: React.FC = () => {
     if (!loading) {
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
-        setIsLoading(false);
+        setIsLoading(false, `details-${id}`);
         setIsReady(true);
       }, 150);
     }
@@ -151,10 +151,10 @@ const MangaDetailsPage: React.FC = () => {
     if (!safetyTimerRef.current && !isReady) {
       safetyTimerRef.current = setTimeout(() => {
          if (!isReady) {
-           setIsLoading(false);
+           setIsLoading(false, `details-${id}`);
            setIsReady(true);
          }
-      }, 5000);
+      }, 8000);
     }
 
     return () => {
@@ -182,18 +182,21 @@ const MangaDetailsPage: React.FC = () => {
 
   // Sync global loading state with manga details page loading states
   useEffect(() => {
-    if (!aniData?.recommendations?.edges?.length) {
-      setVerifiedRecs([]);
+    if (!aniData?.recommendations?.edges?.length || !isReady) {
+      if (!isReady && aniData?.recommendations?.edges?.length) {
+          // Keep it empty until ready
+      } else {
+          setVerifiedRecs([]);
+      }
       return;
     }
 
     let cancelled = false;
     const verify = async () => {
       setLoadingRecs(true);
-      const edges = aniData.recommendations.edges.slice(0, 10);
+      const edges = aniData.recommendations.edges.slice(0, 6);
       const results: any[] = [];
 
-      // 🛑 DE-CONGESTION: Process recommendations SEQUENTIALLY to free up network for the Reader
       for (const edge of edges) {
         if (cancelled) break;
         const rec = edge.node.mediaRecommendation;
@@ -210,7 +213,6 @@ const MangaDetailsPage: React.FC = () => {
               coverImage: rec.coverImage.large,
               score: rec.averageScore
             });
-            // Update UI progressively as we find verified recs
             setVerifiedRecs([...results]);
           }
         } catch (err) {
@@ -225,7 +227,7 @@ const MangaDetailsPage: React.FC = () => {
 
     verify();
     return () => { cancelled = true; };
-  }, [aniData]);
+  }, [aniData, isReady]);
 
   // Pro-Level Prefetching Strategy
   useEffect(() => {

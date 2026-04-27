@@ -219,7 +219,9 @@ const knownMasterpieces: Record<string, string[]> = {
     'sssclass suicide hunter': ['hunter que vive para morir'],
     'the greatest estate developer': ['el mejor diseñador de fincas'],
     'bastard': [],
-    'sweet home': []
+    'sweet home': [],
+    'berserk': ['berserker'],
+    'berserker': ['berserk']
 };
 
 export const mangaProvider = {
@@ -289,32 +291,44 @@ export const mangaProvider = {
                 return mangadexService.searchManga(query, filters, limit, offset, order, allowNSFW);
             }
 
+            // --- Lógica de Corrección de Títulos (Haus Intelligence v3) ---
+            let effectiveQuery = query;
+            const queryLower = query.toLowerCase().trim();
+            const isTargetingBerserk = queryLower === 'berserk' || queryLower === 'berserker' || queryLower === 'berzerk';
+            
+            if (queryLower === 'berserker' || queryLower === 'berzerk') {
+                effectiveQuery = 'Berserk';
+                console.log(`[Search] Corrected "${queryLower}" to "Berserk"`);
+            }
+
             // --- Lógica de Priorización de Español (Default) ---
             
             // Etapa 1: MangaDex buscando estrictamente ESPAÑOL
-            const mdSpanishResults = await mangadexService.searchManga(query, { ...filters, lang: 'es' }, limit, offset, order, allowNSFW);
+            const mdSpanishResults = await mangadexService.searchManga(effectiveQuery, { ...filters, lang: 'es' }, limit, offset, order, allowNSFW || isTargetingBerserk);
             
             let allResults = mdSpanishResults.data || [];
             
             const hasStrictFilters = filters.demographic || filters.status || (filters.tags && filters.tags.length > 0) || filters.fullColor;
-            const hasQuery = query && query.trim().length > 1;
+            const hasQuery = effectiveQuery && effectiveQuery.trim().length > 1;
 
             // 🔄 HAUS INTELLIGENT SEARCH PROACTIVE (v3):
             // Lógica de detección proactiva: Solo disparar para títulos específicos (varias palabras)
             // para evitar saturar la red en búsquedas genéricas o de una sola palabra.
             // SI ES BACKGROUND (ej: recomendaciones), la desactivamos totalmente para no saturar.
-            const isSpecificSearch = hasQuery && query.trim().split(/\s+/).length >= 3;
+            const isSpecificSearch = hasQuery && (effectiveQuery.trim().split(/\s+/).length >= 3 || effectiveQuery.toLowerCase() === 'berserk');
             const isDeepSearch = filters.deep || false;
             
             if (!isBackground && (isSpecificSearch || isDeepSearch) && !hasStrictFilters) {
-                console.log(`[Search] Haus Intelligence v3: Proactive Parallel Search Activated for "${query}"`);
+                console.log(`[Search] Haus Intelligence v3: Proactive Parallel Search Activated for "${effectiveQuery}"`);
                 
+                const searchNSFW = allowNSFW || isTargetingBerserk;
+
                 const proactivePromises = [
-                    mangadexService.searchManga(query, { ...filters, lang: 'es' }, limit, offset, order, allowNSFW),
-                    mangadexService.searchManga(query, { ...filters, lang: 'en' }, limit, offset, order, allowNSFW),
-                    manhwawebService.searchManga(query, filters),
-                    weebcentralService.searchManga(query, { ...filters, order: order ? Object.keys(order)[0] : undefined }),
-                    mangapillService.searchManga(query, allowNSFW)
+                    mangadexService.searchManga(effectiveQuery, { ...filters, lang: 'es' }, limit, offset, order, searchNSFW),
+                    mangadexService.searchManga(effectiveQuery, { ...filters, lang: 'en' }, limit, offset, order, searchNSFW),
+                    manhwawebService.searchManga(effectiveQuery, filters),
+                    weebcentralService.searchManga(effectiveQuery, { ...filters, order: order ? Object.keys(order)[0] : undefined }),
+                    mangapillService.searchManga(effectiveQuery, searchNSFW)
                 ];
 
                 const results = await Promise.all(proactivePromises);
@@ -711,7 +725,7 @@ export const mangaProvider = {
                     searchTitle, // Original searchTitle as last resort
                     ...targetTitles
                 ])
-            ].filter(q => q && (q as string).length > 2).slice(0, 6);
+            ].filter(q => q && (q as string).length > 2).slice(0, 3); // Reducido de 6 a 3 para velocidad
             
             for (const query of prioritizedQueries) {
                 console.log(`[Intelligence] 🌐 Searching "${query}" on ALL sources in parallel...`);
@@ -731,9 +745,9 @@ export const mangaProvider = {
                     );
                 }
 
-                // Race with a 12s timeout to prevent infinite loading
+                // Race with a 8s timeout to prevent infinite loading
                 const timeoutPromise = new Promise<any[][]>(resolve => 
-                    setTimeout(() => resolve(searchPromises.map(() => [])), 25000)
+                    setTimeout(() => resolve(searchPromises.map(() => [])), 8000)
                 );
 
                 const results = await Promise.race([

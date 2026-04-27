@@ -74,7 +74,7 @@ const HomePage: React.FC = () => {
 
   useIonViewWillEnter(() => {
     if (!isReady) {
-      setIsLoading(true);
+      setIsLoading(true, 'home-view');
     }
   });
 
@@ -85,10 +85,11 @@ const HomePage: React.FC = () => {
     // Si ya tenemos datos (cache), marcamos como listo inmediatamente para evitar parpadeos
     if (latest.length > 0) {
       setIsReady(true);
-      setIsLoading(false);
+      setIsLoading(false, 'home-data');
+      setIsLoading(false, 'home-view');
     } else {
-      setIsLoading(true);
-      return () => setIsLoading(false);
+      setIsLoading(true, 'home-data');
+      return () => setIsLoading(false, 'home-data');
     }
   }, [setIsLoading, latest.length]);
 
@@ -99,7 +100,8 @@ const HomePage: React.FC = () => {
     if (!loading) {
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
-        setIsLoading(false);
+        setIsLoading(false, 'home-data');
+        setIsLoading(false, 'home-view');
         setIsReady(true);
       }, 150);
     }
@@ -107,10 +109,11 @@ const HomePage: React.FC = () => {
     if (!safetyTimerRef.current && !isReady) {
       safetyTimerRef.current = setTimeout(() => {
          if (!isReady) {
-           setIsLoading(false);
+           setIsLoading(false, 'home-data');
+           setIsLoading(false, 'home-view');
            setIsReady(true);
          }
-      }, 5000);
+      }, 8000);
     }
 
     return () => {

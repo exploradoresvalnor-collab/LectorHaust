@@ -166,6 +166,7 @@ export function useSearch() {
     },
     enabled: activeSegment === 'trending', // STAGGERED
     staleTime: 1000 * 60 * 15, // 15 mins
+    retry: false, // Prevents 15-minute hangs if proxy is down
   });
 
   const trending = useMemo(() => {
@@ -204,6 +205,7 @@ export function useSearch() {
     },
     enabled: activeSegment === 'completed', // STAGGERED
     staleTime: 1000 * 60 * 30, // 30 mins
+    retry: false,
   });
 
   const completedManga = useMemo(() => {
@@ -246,6 +248,7 @@ export function useSearch() {
     },
     enabled: activeSegment === 'search' && !!(query || activeFormat || activeGenre || activeStatus || activeDemographic || activeColor), // STAGGERED
     staleTime: 1000 * 60 * 5, // 5 mins
+    retry: false,
   });
 
   const results = useMemo(() => {

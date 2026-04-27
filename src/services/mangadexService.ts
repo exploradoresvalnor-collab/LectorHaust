@@ -92,7 +92,7 @@ function getProxyUrl(endpoint: string) {
  * 2. Main Fetcher with Timeout Fixed
  * The 12-15s timeout NOW STARTS AFTER the request is dispatched (not during queue wait)
  */
-async function apiFetch(endpoint: string, retries = 3, delay = 1500): Promise<any> {
+async function apiFetch(endpoint: string, retries = 1, delay = 1500): Promise<any> {
     const proxiedUrl = getProxyUrl(endpoint);
     const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
     const timeoutMs = isDev ? 15000 : 25000;
@@ -110,14 +110,8 @@ async function apiFetch(endpoint: string, retries = 3, delay = 1500): Promise<an
             clearTimeout(timeoutId);
             
             if (!response.ok) {
-                if (!isNative && (response.status === 403 || response.status === 404 || response.status >= 500)) {
+                if (!isNative && (response.status === 403 || response.status === 404)) {
                     throw new Error(`Primary Proxy Error: ${response.status}`);
-                }
-
-                if ((response.status >= 500 || response.status === 429) && retries > 0) {
-                    limiter.releaseTurn(); // Release before retry delay
-                    await new Promise(res => setTimeout(res, delay));
-                    return apiFetch(endpoint, retries - 1, delay * 2);
                 }
                 throw new Error(`MangaDex API Error: ${response.status}`);
             }
@@ -224,7 +218,7 @@ export const mangadexService = {
         if (forceSafe) return '&contentRating[]=safe';
         let params = '&contentRating[]=safe&contentRating[]=suggestive';
         if (allowNSFW) {
-            params += '&contentRating[]=erotica';
+            params += '&contentRating[]=erotica&contentRating[]=pornographic';
         }
         return params;
     },
