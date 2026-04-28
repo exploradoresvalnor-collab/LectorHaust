@@ -106,6 +106,18 @@ export function useHomeData() {
   const latestManhua = useMemo(() => extractUnique(rawManhua?.data || []), [rawManhua]);
 
 
+  // --- 4. FEATURED MANGA (BERSERK) ---
+  const { data: featuredBerserk } = useQuery({
+    queryKey: ['featuredBerserk'],
+    queryFn: () => mangaProvider.getMangaDetails('80151f79-35ff-4885-859b-371462007ae0'),
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours
+  });
+
+  const latestManga = useMemo(() => extractUnique(rawManga?.data || []), [rawManga]);
+  const latestManhwa = useMemo(() => extractUnique(rawManhwa?.data || []), [rawManhwa]);
+  const latestManhua = useMemo(() => extractUnique(rawManhua?.data || []), [rawManhua]);
+
+
   const loadingLatest = loadingManga;
 
   // Interleave for Hero and Rankings to guarantee variety
@@ -126,13 +138,31 @@ export function useHomeData() {
 
   // 1. Synchronous build of basic items for instant display
   const heroItems = useMemo(() => {
-    const animes: any[] = [];
-    const mangas: any[] = [];
     const final: any[] = [];
 
+    // Prepend Featured Berserk if available
+    if (featuredBerserk?.data) {
+      const b = featuredBerserk.data;
+      final.push({
+        id: b.id,
+        title: mangaProvider.getLocalizedTitle(b),
+        description: mangaProvider.getLocalizedDescription(b) || 'La obra maestra de Kentaro Miura.',
+        isTranslated: false,
+        image: mangaProvider.getCoverUrl(b, 'original'),
+        type: 'manga',
+        badge: 'LEYENDA',
+        status: 'En publicación',
+        link: `/manga/${b.id}`,
+        raw: b
+      });
+    }
+
     if (latest && latest.length > 0) {
-      latest.slice(0, 4).forEach((m: any) => {
-        mangas.push({
+      latest.slice(0, 5).forEach((m: any) => {
+        // Avoid duplication if Berserk happens to be in latest (unlikely but safe)
+        if (m.id === '80151f79-35ff-4885-859b-371462007ae0') return;
+
+        final.push({
           id: m.id,
           title: mangaProvider.getLocalizedTitle(m),
           description: mangaProvider.getLocalizedDescription(m) || 'Cargando detalles...',
@@ -146,15 +176,9 @@ export function useHomeData() {
         });
       });
     }
-
-    const maxLength = Math.max(animes.length, mangas.length);
-    for (let i = 0; i < maxLength; i++) {
-      if (animes[i]) final.push(animes[i]);
-      if (mangas[i]) final.push(mangas[i]);
-    }
     
     return final.slice(0, 8);
-  }, [latest]);
+  }, [latest, featuredBerserk]);
 
   // 2. Background Enrichment Effect
   useEffect(() => {
