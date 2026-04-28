@@ -113,10 +113,6 @@ export function useHomeData() {
     staleTime: 1000 * 60 * 60 * 24, // 24 hours
   });
 
-  const latestManga = useMemo(() => extractUnique(rawManga?.data || []), [rawManga]);
-  const latestManhwa = useMemo(() => extractUnique(rawManhwa?.data || []), [rawManhwa]);
-  const latestManhua = useMemo(() => extractUnique(rawManhua?.data || []), [rawManhua]);
-
 
   const loadingLatest = loadingManga;
 
