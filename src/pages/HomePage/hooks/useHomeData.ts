@@ -109,7 +109,7 @@ export function useHomeData() {
   // --- 4. FEATURED MANGA (BERSERK) ---
   const { data: featuredBerserk } = useQuery({
     queryKey: ['featuredBerserk'],
-    queryFn: () => mangaProvider.getMangaDetails('80151f79-35ff-4885-859b-371462007ae0'),
+    queryFn: () => mangaProvider.getMangaDetails('80d0af33-3bc7-400e-9004-1249b657492c'),
     staleTime: 1000 * 60 * 60 * 24, // 24 hours
   });
 
@@ -156,7 +156,7 @@ export function useHomeData() {
     if (latest && latest.length > 0) {
       latest.slice(0, 5).forEach((m: any) => {
         // Avoid duplication if Berserk happens to be in latest (unlikely but safe)
-        if (m.id === '80151f79-35ff-4885-859b-371462007ae0') return;
+        if (m.id === '80d0af33-3bc7-400e-9004-1249b657492c') return;
 
         final.push({
           id: m.id,
