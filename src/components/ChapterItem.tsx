@@ -33,6 +33,9 @@ const ChapterItem: React.FC<ChapterItemProps> = ({ number, title, isRead, isDown
           {title && !isRedundant && (
             <span className="chapter-item-title">{title}</span>
           )}
+          {externalUrl && (
+            <span className="chapter-external-badge">Enlace Oficial ↗</span>
+          )}
         </div>
         
         <div className="chapter-item-meta">

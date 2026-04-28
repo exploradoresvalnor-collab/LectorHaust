@@ -520,3 +520,121 @@
 .skeleton-rec .recommendation-cover-wrapper {
   background: rgba(255,255,255,0.05);
 }
+
+/* --- Pagination & Jump Bar Styles --- */
+.jump-to-chapter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 12px 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+}
+
+.jump-label {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--ion-color-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.jump-input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #fff;
+  font-weight: 700;
+  width: 80px;
+  outline: none;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.jump-input:focus {
+  border-color: var(--ion-color-secondary);
+  box-shadow: 0 0 15px rgba(var(--ion-color-secondary-rgb), 0.3);
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.pagination-container {
+  margin-top: 30px;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.pagination-info {
+  font-size: 0.9rem;
+  color: #888;
+}
+
+.pagination-info b {
+  color: var(--ion-color-secondary);
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.prev-next-btn {
+  --border-radius: 10px;
+  font-weight: 700;
+  text-transform: none;
+  height: 38px;
+  min-width: 80px;
+  margin: 0;
+}
+
+.page-numbers {
+  display: flex;
+  gap: 6px;
+}
+
+.page-num-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.page-num-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.page-num-btn.active {
+  background: var(--ion-color-secondary);
+  border-color: var(--ion-color-secondary);
+  color: #000;
+  box-shadow: 0 0 15px rgba(var(--ion-color-secondary-rgb), 0.4);
+}
+
+@media (max-width: 600px) {
+  .page-numbers {
+    display: none; /* Hide individual page numbers on small mobiles to save space */
+  }
+  .pagination-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .prev-next-btn {
+    flex: 1;
+  }
+}

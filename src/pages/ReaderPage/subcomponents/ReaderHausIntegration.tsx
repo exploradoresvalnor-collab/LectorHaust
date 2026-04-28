@@ -17,6 +17,7 @@ export interface ReaderPageHausProps {
   chapterId: string;
   chapterNumber: string;
   totalPages: number;
+  currentPage: number; // Added
   onPageChange?: (page: number) => void;
   onChapterComplete?: () => void;
 }
@@ -227,6 +228,8 @@ export const ReadingSessionInfo: React.FC<{
  * Uso: <ReaderHausIntegration {...props} />
  */
 export const ReaderHausIntegration: React.FC<ReaderPageHausProps> = ({
+  mangaId,      // Added
+  mangaTitle,   // Added
   chapterId,
   chapterNumber,
   totalPages,
@@ -273,7 +276,7 @@ export const ReaderHausIntegration: React.FC<ReaderPageHausProps> = ({
         isCompleted={isCompleted}
         onClick={() => {
           if (!isCompleted) {
-            handlePageChange(totalPages);
+            onPageChange?.(totalPages);
           }
         }}
       />

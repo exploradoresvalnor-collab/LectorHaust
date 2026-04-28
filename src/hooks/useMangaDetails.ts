@@ -274,23 +274,20 @@ export function useMangaDetails(id?: string, initialData?: any) {
   }, []);
 
 
-  const loadMoreChapters = useCallback(async (e?: any) => {
-    if (!id || currentPage >= totalPages || isFetchingMore) {
-      if (e) e.target.complete();
-      return;
-    }
+  const goToPage = useCallback(async (page: number) => {
+    if (!id || page < 1 || page > totalPages || isFetchingMore) return;
     
     setIsFetchingMore(true);
+    setState(prev => ({ ...prev, loadingChapters: true }));
+    
     try {
-      const nextPageIndex = currentPage + 1;
-      const offset = (nextPageIndex - 1) * 20;
-      // Use external fallback ID if available, otherwise use the original ID
+      const offset = (page - 1) * 20;
       const chapterId = externalFallbackId.current || id;
       
       let data: any;
       if (externalFallbackId.current) {
+          // If we are using a mirror, we might need the full list if the mirror doesn't support offset
           const extChaptersData = await mangaProvider.getMangaChapters(chapterId);
-          // Slice for pagination
           const slice = extChaptersData.data.slice(offset, offset + 20);
           data = {
               data: slice.map((c: any) => ({
@@ -298,7 +295,8 @@ export function useMangaDetails(id?: string, initialData?: any) {
                   attributes: {
                     chapter: c.attributes.chapter,
                     title: c.attributes.title,
-                    translatedLanguage: chapterLang
+                    translatedLanguage: chapterLang,
+                    scanlation_group: c.attributes.scanlation_group
                   }
               })),
               total: extChaptersData.total
@@ -306,24 +304,33 @@ export function useMangaDetails(id?: string, initialData?: any) {
       } else {
           data = await mangaProvider.getMangaChapters(chapterId, chapterLang, 20, offset, chapterOrder, showNSFW);
       }
+
       if (!isMounted.current) return;
 
-      const rawNewChapters = data.data || [];
       setState(prev => ({
         ...prev,
-        hasMoreChapters: nextPageIndex < totalPages,
-        chapters: deduplicateChapters([...prev.chapters, ...rawNewChapters]),
-        currentPage: nextPageIndex
+        chapters: deduplicateChapters(data.data || []),
+        currentPage: page,
+        hasMoreChapters: page < totalPages,
+        loadingChapters: false
       }));
-
       
     } catch (err) {
-      console.error('Error loading more chapters:', err);
+      console.error('Error jumping to page:', err);
+      setState(prev => ({ ...prev, loadingChapters: false }));
     } finally {
       if (isMounted.current) setIsFetchingMore(false);
-      if (e) e.target.complete();
     }
-  }, [id, chapterLang, chapterOrder, totalPages, currentPage, isFetchingMore, showNSFW]);
+  }, [id, chapterLang, chapterOrder, totalPages, isFetchingMore, showNSFW]);
+
+  const loadMoreChapters = useCallback(async (e?: any) => {
+    if (currentPage >= totalPages) {
+       if (e) e.target.complete();
+       return;
+    }
+    await goToPage(currentPage + 1);
+    if (e) e.target.complete();
+  }, [currentPage, totalPages, goToPage]);
 
   return {
     manga,
@@ -344,7 +351,8 @@ export function useMangaDetails(id?: string, initialData?: any) {
     isFetchingMore,
     setChapterOrder,
     handleLangChange,
-    loadMoreChapters
+    loadMoreChapters,
+    goToPage
   };
 }
 

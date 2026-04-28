@@ -766,10 +766,9 @@ export const mangadexService = {
 
             total = data.total || total;
 
-            // FILTRO ANTI-FALLOS: externalUrl === null y pages > 0
-            const validChapters = data.data.filter((ch: any) => 
-                ch.attributes.externalUrl === null && ch.attributes.pages > 0
-            );
+            // We no longer filter out external chapters, because we want to show the FULL history.
+            // The UI handles externalUrl by opening a new window.
+            const validChapters = data.data;
 
             allChapters = [...allChapters, ...validChapters];
 

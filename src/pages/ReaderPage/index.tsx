@@ -58,6 +58,7 @@ const ReaderPage: React.FC = () => {
     fitMode,
     setFitMode,
     initialScrollPage,
+    mangaTitle,
     setCurrentMangaPage,
     retry
   } = useMangaReader(chapterId);

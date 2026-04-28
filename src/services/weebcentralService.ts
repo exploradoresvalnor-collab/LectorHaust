@@ -4,17 +4,14 @@
  * Provides high-availability content when MangaDex/MangaPill fails.
  */
 
+import { proxyService } from './proxyService';
+
 const BASE_URL = 'https://weebcentral.com';
-const PROXY_BASE = 'https://manga-proxy.mchaustman.workers.dev/';
 
 export const weebcentralService = {
   
   async fetchHtml(url: string) {
-    const finalUrl = `${PROXY_BASE}?url=${encodeURIComponent(url)}`;
-    // REMOVED custom headers to avoid CORS Preflight blocks
-    const response = await fetch(finalUrl);
-    if (!response.ok) throw new Error(`WeebCentral fetch failed: ${response.status}`);
-    return await response.text();
+    return await proxyService.fetchProxied(url, 'html');
   },
 
   async searchManga(query: string, filters: { status?: string, origin?: string, order?: string } = {}) {
@@ -83,7 +80,7 @@ export const weebcentralService = {
         },
         relationships: cover ? [{
           type: 'cover_art',
-          attributes: { fileName: `${PROXY_BASE}?image=${encodeURIComponent(cover)}` }
+          attributes: { fileName: proxyService.proxyUrl(cover, 'image') }
         }] : []
       };
     });
@@ -114,7 +111,7 @@ export const weebcentralService = {
         },
         relationships: cover ? [{
           type: 'cover_art',
-          attributes: { fileName: `${PROXY_BASE}?image=${encodeURIComponent(cover)}` }
+          attributes: { fileName: proxyService.proxyUrl(cover, 'image') }
         }] : [],
         source: 'weebcentral' as const
       }
@@ -178,7 +175,7 @@ export const weebcentralService = {
     const imgMatches = [...html.matchAll(/src=['"](https:\/\/hot\.planeptune\.us\/manga\/[^'"]+)['"]/g)];
     
     const pages = [...new Set(imgMatches.map(m => m[1]))]
-      .map(url => `${PROXY_BASE}?image=${encodeURIComponent(url)}`);
+      .map(url => proxyService.proxyUrl(url, 'image'));
 
     return {
       pages,

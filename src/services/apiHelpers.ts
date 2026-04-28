@@ -47,8 +47,8 @@ export async function postGraphQL<T = any>(
 ): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
-  
-  const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
+    const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
+  const WORKER_PROXY_BASE = 'https://manga-proxy.mchaustman.workers.dev/?url=';
 
     try {
       const finalUrl = isNative
@@ -76,7 +76,6 @@ export async function postGraphQL<T = any>(
         // Only try fallback if proxy explicitly failed (not on native or prod)
         if (!isNative && import.meta.env.DEV && (response.status === 404 || response.status === 503)) {
            console.warn(`[AniList] Local Proxy returned ${response.status}. Attempting Tunnel Fallback...`);
-           const WORKER_PROXY_BASE = 'https://manga-proxy.mchaustman.workers.dev/?url=';
            const fallbackUrl = `${WORKER_PROXY_BASE}${encodeURIComponent(url)}`;
            
            try {
@@ -107,21 +106,22 @@ export async function postGraphQL<T = any>(
       // Re-intentar con tunel si el error fue de conexión directa
       if (!isNative && import.meta.env.DEV && err.name !== 'AbortError' && !err.message?.includes('429')) {
          try {
-            console.warn('[AniList] Connection error locally. Attempting Tunnel Fallback...');
-            const WORKER_PROXY_BASE = 'https://manga-proxy.mchaustman.workers.dev/?url=';
             const fallbackUrl = `${WORKER_PROXY_BASE}${encodeURIComponent(url)}`;
+            const SECONDARY_PROXY = 'https://api.allorigins.win/raw?url=';
+            
+            console.warn('[AniList] Connection error locally. Attempting Tunnel Fallback...');
             const fallbackResp = await fetch(fallbackUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query, variables }),
-                signal: AbortSignal.timeout(8000)
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ query, variables }),
+               signal: AbortSignal.timeout(8000)
             });
+
             if (fallbackResp.ok) {
-              console.log('[AniList] ✅ Worker Fallback succeeded');
-              return await fallbackResp.json();
+               return await fallbackResp.json();
             }
+            throw new Error(`Worker Proxy Status: ${fallbackResp.status}`);
          } catch (fallbackErr) {
-            /* ignore fallback error, throw original */
             console.warn('[AniList] Worker Fallback also failed');
          }
       }

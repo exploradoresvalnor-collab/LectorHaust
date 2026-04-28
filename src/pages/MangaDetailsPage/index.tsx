@@ -124,7 +124,8 @@ const MangaDetailsPage: React.FC = () => {
     isFetchingMore,
     setChapterOrder,
     handleLangChange,
-    loadMoreChapters
+    loadMoreChapters,
+    goToPage
   } = useMangaDetails(id, initialData);
 
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -736,23 +737,52 @@ const MangaDetailsPage: React.FC = () => {
                 </IonNote>
               </div>
             </div>
-          ) : (
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '8px', 
-              padding: '10px 15px', 
-              background: 'rgba(255, 196, 9, 0.1)', 
-              borderLeft: '4px solid #ffc409',
-              margin: '10px 0 20px',
-              borderRadius: '4px'
-            }}>
-              <IonIcon icon={informationCircleOutline} style={{ color: '#ffc409', fontSize: '24px' }} />
-              <IonNote style={{ color: '#ddd', fontSize: '0.8rem', lineHeight: '1.2' }}>
-                Algunos capítulos pueden faltar o estar incompletos debido a licencias oficiales o eliminación por derechos de autor.
-              </IonNote>
+            ) : (
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                padding: '10px 15px', 
+                background: 'rgba(255, 196, 9, 0.1)', 
+                borderLeft: '4px solid #ffc409',
+                margin: '10px 0 20px',
+                borderRadius: '4px'
+              }}>
+                <IonIcon icon={informationCircleOutline} style={{ color: '#ffc409', fontSize: '24px' }} />
+                <IonNote style={{ color: '#ddd', fontSize: '0.8rem', lineHeight: '1.2' }}>
+                  Algunos capítulos pueden faltar o estar incompletos debido a licencias oficiales o eliminación por derechos de autor en MangaDex.
+                </IonNote>
+              </div>
+            )}
+
+            {/* Jump to Chapter Quick-Bar */}
+            <div className="jump-to-chapter-bar">
+               <div className="jump-label">Ir al Cap.</div>
+               <input 
+                 type="number" 
+                 placeholder="Ej: 150" 
+                 className="jump-input"
+                 onKeyDown={(e) => {
+                   if (e.key === 'Enter') {
+                     const val = (e.target as HTMLInputElement).value;
+                     const num = parseFloat(val);
+                     if (!isNaN(num)) {
+                        // Estimate page (20 chapters per page)
+                        // If order is desc (newest first), and total is 370, 
+                        // chapter 1 is at the end (Page ~19)
+                        let targetPage = 1;
+                        if (chapterOrder === 'desc') {
+                          targetPage = Math.max(1, Math.ceil((totalChapters - num) / 20));
+                        } else {
+                          targetPage = Math.max(1, Math.ceil(num / 20));
+                        }
+                        goToPage(targetPage);
+                        (e.target as HTMLInputElement).value = '';
+                     }
+                   }
+                 }}
+               />
             </div>
-          )}
 
           <div className="chapters-container">
             {loadingChapters ? (
@@ -854,17 +884,80 @@ const MangaDetailsPage: React.FC = () => {
               </div>
             )}
             
-            {/* Advanced Pro Infinite Pagination */}
+            {/* Advanced Pro Pagination Bar */}
             {!loadingChapters && totalPages > 1 && (
-              <>
-                <div className="total-info-badge animate-fade-in" style={{ margin: '15px auto', display: 'flex', justifyContent: 'center' }}>
-                  {totalChapters} Capítulos encontrados
+              <div className="pagination-container animate-fade-in">
+                <div className="pagination-info">
+                   Página <b>{currentPage}</b> de {totalPages}
                 </div>
-                <IonInfiniteScroll disabled={currentPage >= totalPages} onIonInfinite={loadMoreChapters} threshold="200px">
-                  <IonInfiniteScrollContent loadingSpinner="bubbles" loadingText="Cargando más capítulos..." />
-                </IonInfiniteScroll>
-              </>
+                <div className="pagination-controls">
+                  <IonButton 
+                    fill="clear" 
+                    size="small" 
+                    disabled={currentPage === 1}
+                    onClick={() => goToPage(1)}
+                  >
+                    «
+                  </IonButton>
+                  <IonButton 
+                    fill="solid" 
+                    size="small" 
+                    color="light"
+                    disabled={currentPage === 1}
+                    onClick={() => goToPage(currentPage - 1)}
+                    className="prev-next-btn"
+                  >
+                    Anterior
+                  </IonButton>
+                  
+                  <div className="page-numbers">
+                    {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                      // Logic to show a sliding window of pages
+                      let pageNum = currentPage;
+                      if (currentPage <= 3) pageNum = i + 1;
+                      else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+                      else pageNum = currentPage - 2 + i;
+                      
+                      if (pageNum < 1 || pageNum > totalPages) return null;
+
+                      return (
+                        <button 
+                          key={pageNum}
+                          className={`page-num-btn ${currentPage === pageNum ? 'active' : ''}`}
+                          onClick={() => goToPage(pageNum)}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <IonButton 
+                    fill="solid" 
+                    size="small" 
+                    color="light"
+                    disabled={currentPage === totalPages}
+                    onClick={() => goToPage(currentPage + 1)}
+                    className="prev-next-btn"
+                  >
+                    Siguiente
+                  </IonButton>
+                  <IonButton 
+                    fill="clear" 
+                    size="small" 
+                    disabled={currentPage === totalPages}
+                    onClick={() => goToPage(totalPages)}
+                  >
+                    »
+                  </IonButton>
+                </div>
+              </div>
             )}
+            
+            {/* Infinite Scroll fallback for smooth transition */}
+            <IonInfiniteScroll disabled={currentPage >= totalPages} onIonInfinite={loadMoreChapters} threshold="100px">
+              <IonInfiniteScrollContent loadingSpinner="bubbles" loadingText="Cargando más..." />
+            </IonInfiniteScroll>
           </div>
 
           {/* Recommendations Section - Smart Verified */}

@@ -58,7 +58,12 @@ async function rateLimitedFetch(query: string, variables: any): Promise<any> {
     });
 
     requestQueue = fetchPromise.catch(() => {});
-    return fetchPromise;
+    try {
+        return await fetchPromise;
+    } catch (err: any) {
+        console.error(`[AniList] Final Queue Failure: ${err.message}`);
+        throw err;
+    }
 }
 
 const TRENDING_QUERY = `

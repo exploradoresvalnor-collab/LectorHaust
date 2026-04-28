@@ -13,16 +13,17 @@
  *   /manhwa/rank      - Rankings
  */
 
+import { proxyService } from './proxyService';
+
 const API_BASE = 'https://manhwawebbackend-production.up.railway.app';
-const PROXY_URL = 'https://manga-proxy.mchaustman.workers.dev/?image=';
 
 async function apiFetch(endpoint: string): Promise<any> {
-  const url = `${API_BASE}${endpoint}`;
-  const resp = await fetch(url, {
-    headers: { 'Accept': 'application/json' }
-  });
-  if (!resp.ok) throw new Error(`ManhwaWeb API Error: ${resp.status}`);
-  return resp.json();
+    const url = `${API_BASE}${endpoint}`;
+    const resp = await fetch(url, {
+        headers: { 'Accept': 'application/json' }
+    });
+    if (!resp.ok) throw new Error(`ManhwaWeb API Error: ${resp.status}`);
+    return resp.json();
 }
 
 export const manhwawebService = {
@@ -157,7 +158,7 @@ export const manhwawebService = {
 
     const pages = data.chapter.img
       .filter((url: string) => url && url.startsWith('http'))
-      .map((url: string) => `${PROXY_URL}${encodeURIComponent(url)}`);
+      .map((url: string) => proxyService.proxyUrl(url, 'image'));
     return { pages };
   },
 
@@ -259,6 +260,6 @@ export const manhwawebService = {
   getCoverUrl(manga: any): string {
     const rawUrl = manga?._mwebCover || '';
     if (!rawUrl) return '';
-    return `${PROXY_URL}${encodeURIComponent(rawUrl)}`;
+    return proxyService.proxyUrl(rawUrl, 'image');
   }
 };
