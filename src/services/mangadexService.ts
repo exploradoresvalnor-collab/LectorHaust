@@ -599,9 +599,10 @@ export const mangadexService = {
     },
 
     async getLatestUpdatedManga(limit = 24, offset = 0, lang = 'es', type = 'all', allowNSFW = false, forceSafe = false) {
-        // CASE 1: Specific Language Filter (Best served via /chapter to ensure the update IS in that language)
+        // CASE 1: Specific Language Filter
         if (lang !== 'all') {
-            let url = `/chapter?limit=100&offset=${offset * 2}&order[readableAt]=desc&includes[]=manga`;
+            // In this mode, offset is CHAPTER-BASED to ensure we don't miss anything
+            let url = `/chapter?limit=100&offset=${offset}&order[readableAt]=desc&includes[]=manga`;
             url += this.getContentRatingParams(allowNSFW, forceSafe);
 
             if (lang === 'es') {
@@ -610,7 +611,6 @@ export const mangadexService = {
                 url += `&translatedLanguage[]=${lang}`;
             }
 
-            // Filter by origin if requested
             if (type !== 'all') {
                 const typeMap: Record<string, string> = { 'manga': 'ja', 'manhwa': 'ko', 'manhua': 'zh' };
                 url += `&originalLanguage[]=${typeMap[type] || type}`;
@@ -621,29 +621,37 @@ export const mangadexService = {
                 const chapters = resp.data || [];
                 
                 const seenIds = new Set<string>();
-                const uniqueMangaIds: string[] = [];
+                const results: any[] = [];
                 const idToChapterInfo: Record<string, any> = {};
 
                 for (const ch of chapters) {
                     const mRel = ch.relationships.find((r: any) => r.type === 'manga');
                     if (mRel && !seenIds.has(mRel.id)) {
                         seenIds.add(mRel.id);
-                        uniqueMangaIds.push(mRel.id);
+                        results.push(mRel.id); // Temporary store IDs
                         idToChapterInfo[mRel.id] = {
                             num: ch.attributes.chapter,
                             time: ch.attributes.readableAt
                         };
-                        if (uniqueMangaIds.length >= limit) break;
+                        if (results.length >= limit) break;
                     }
                 }
 
-                if (uniqueMangaIds.length === 0) return { data: [] };
+                if (results.length === 0) {
+                    // Even if we found nothing in this 100-block, we allow one more jump if there's more feed
+                    const hasMoreFeed = resp.total > offset + 100;
+                    return { 
+                        data: [], 
+                        nextOffset: hasMoreFeed ? offset + 100 : undefined 
+                    };
+                }
 
+                // Fetch full manga data for the unique IDs found
                 let mangaUrl = `/manga?limit=${limit}&includes[]=cover_art&includes[]=author`;
-                uniqueMangaIds.forEach(id => mangaUrl += `&ids[]=${id}`);
+                results.forEach(id => mangaUrl += `&ids[]=${id}`);
                 
                 const mResp = await apiFetch(mangaUrl);
-                const results = (mResp.data || []).map((m: any) => ({
+                const finalMangas = (mResp.data || []).map((m: any) => ({
                     ...m,
                     attributes: {
                         ...m.attributes,
@@ -656,14 +664,18 @@ export const mangadexService = {
                     new Date(a.attributes.latestChapterReadableAt).getTime()
                 );
 
-                return { data: results, total: resp.total, offset };
+                return { 
+                    data: finalMangas, 
+                    nextOffset: offset + 100, // Move 100 chapters forward
+                    total: resp.total 
+                };
             } catch (err) {
                 console.error('Error fetching language-specific latest:', err);
-                return { data: [] };
+                return { data: [], nextOffset: undefined };
             }
         }
 
-        // CASE 2: Global "All Languages" (Best served via /manga for maximum variety)
+        // CASE 2: Global "All Languages" (Manga-based offset works fine here)
         let url = `/manga?limit=${limit}&offset=${offset}&includes[]=cover_art&includes[]=author&order[latestUploadedChapter]=desc`;
         url += this.getContentRatingParams(allowNSFW, forceSafe);
 
@@ -683,10 +695,14 @@ export const mangadexService = {
                     mangaType: this.getMangaType(m)
                 }
             }));
-            return { data: results, total: data.total, offset: data.offset };
+            return { 
+                data: results, 
+                nextOffset: offset + limit, 
+                total: data.total 
+            };
         } catch (err) {
             console.error('Error fetching global latest:', err);
-            return { data: [] };
+            return { data: [], nextOffset: undefined };
         }
     },
 

@@ -278,8 +278,12 @@ export function useSearch() {
     queryFn: ({ pageParam = 0 }) => 
       mangaProvider.getLatestUpdatedManga(24, pageParam as number, latestLang, latestFormat, false, true),
     initialPageParam: 0,
-    getNextPageParam: (lastPage: any, allPages: any[]) => {
-      return lastPage.data?.length === 24 ? allPages.length * 24 : undefined;
+    getNextPageParam: (lastPage: any) => {
+      // If we got no data or no next offset, we've reached the end
+      if (!lastPage || !lastPage.data || lastPage.data.length === 0 || lastPage.nextOffset === undefined) {
+        return undefined;
+      }
+      return lastPage.nextOffset;
     },
     enabled: activeSegment === 'latest',
     staleTime: 1000 * 60, // 1 min (EN VIVO feel)
