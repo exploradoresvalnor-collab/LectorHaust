@@ -25,8 +25,7 @@ if (!getApps().length) {
 export const auth = getAuth(app);
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()}),
-  experimentalForceLongPolling: true, // Force HTTP Long Polling instead of QUIC (which gets blocked)
-  experimentalAutoDetectLongPolling: true // Automatically fallback to long polling if QUIC/WebSockets fail
+  experimentalForceLongPolling: true // Force HTTP Long Polling instead of QUIC (which gets blocked)
 });
 
 export default app;
