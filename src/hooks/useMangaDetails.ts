@@ -145,6 +145,20 @@ export function useMangaDetails(id?: string, initialData?: any) {
         // 2. Set initial state immediately with original description
         const rawDesc = mangaProvider.getLocalizedDescription(mangaObj);
         
+        // --- MIRROR DETECTION ---
+        // If the first page of chapters came from a mirror (e.g. MangaPill), 
+        // we MUST stick to it for pagination, otherwise page 2+ would fall back to MangaDex.
+        if (chaptersData.data && chaptersData.data.length > 0) {
+          const firstChapter = chaptersData.data[0];
+          if (firstChapter.id?.startsWith('mp:')) {
+            const parts = firstChapter.id.split('@');
+            if (parts.length > 1) {
+              externalFallbackId.current = 'mp:' + parts[1];
+              console.log(`[Intelligence] 🔗 Stuck to mirror for pagination: ${externalFallbackId.current}`);
+            }
+          }
+        }
+
         if (isMounted.current) {
           setState(prev => ({
             ...prev,
