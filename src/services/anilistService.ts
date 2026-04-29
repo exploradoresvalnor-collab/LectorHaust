@@ -33,26 +33,31 @@ async function rateLimitedFetch(query: string, variables: any): Promise<any> {
         // Almacenamiento bloqueado por el navegador (Tracking Prevention)
     }
 
-    // 2. Queue & Throttle (Strict 800ms spacing to avoid 429 - optimized for LectorHaus)
+    // 2. Queue & Throttle (Increased to 1200ms to avoid 429)
     const fetchPromise = requestQueue.then(async () => {
         const elapsed = Date.now() - lastRequestTime;
-        if (elapsed < 800) {
-            await new Promise(r => setTimeout(r, 800 - elapsed));
+        const MIN_SPACING = 1200; // Increased from 800ms
+        if (elapsed < MIN_SPACING) {
+            await new Promise(r => setTimeout(r, MIN_SPACING - elapsed));
         }
         
         // Update time BEFORE fetch, preventing concurrent queues from skipping the wait if they somehow leak
         lastRequestTime = Date.now(); 
         
         try {
-            const response = await postGraphQL(BASE_URL, query, variables);
+            const response = await postGraphQL(BASE_URL, query, variables, 3000);
             try {
                 if (response?.data) {
                     localStorage.setItem(cacheKey, JSON.stringify({ data: response, timestamp: Date.now() }));
                 }
             } catch (e) { /* Storage blocked */ }
             return response;
-        } catch (err) {
-            // El error es esperado si Cloudflare o AniList rechazan la IP/proxy.
+        } catch (err: any) {
+            // Handle 429 gracefully
+            if (err.message?.includes('429')) {
+              console.warn(`[AniList] Rate limited (429) - returning empty`);
+              return { data: null };
+            }
             throw err;
         }
     });
@@ -61,7 +66,9 @@ async function rateLimitedFetch(query: string, variables: any): Promise<any> {
     try {
         return await fetchPromise;
     } catch (err: any) {
-        console.error(`[AniList] Final Queue Failure: ${err.message}`);
+        if (!err.message?.includes('429')) {
+          console.error(`[AniList] Final Queue Failure: ${err.message}`);
+        }
         throw err;
     }
 }

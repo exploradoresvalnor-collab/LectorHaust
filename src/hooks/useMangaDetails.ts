@@ -80,7 +80,7 @@ export function useMangaDetails(id?: string, initialData?: any) {
       ...prev, 
       chapterOrder: order, 
       loadingChapters: true,
-      chapters: [] // Limpiar capítulos inmediatamente para evitar desync visual
+      chapters: [] // Limpiar capÃ­tulos inmediatamente para evitar desync visual
     }));
   }, []);
 
@@ -92,7 +92,7 @@ export function useMangaDetails(id?: string, initialData?: any) {
         return;
       }
       
-      console.log(`[Details] 🔷 useEffect triggered for manga: ${id}, lang: ${chapterLang}`);
+      console.log(`[Details] ðŸ”· useEffect triggered for manga: ${id}, lang: ${chapterLang}`);
       
       const cacheKey = `${id}_${chapterLang}_${chapterOrder}`;
       if (detailsMemoryCache.has(cacheKey)) {
@@ -154,7 +154,7 @@ export function useMangaDetails(id?: string, initialData?: any) {
             const parts = firstChapter.id.split('@');
             if (parts.length > 1) {
               externalFallbackId.current = 'mp:' + parts[1];
-              console.log(`[Intelligence] 🔗 Stuck to mirror for pagination: ${externalFallbackId.current}`);
+              console.log(`[Intelligence] ðŸ”— Stuck to mirror for pagination: ${externalFallbackId.current}`);
             }
           }
         }
@@ -208,17 +208,6 @@ export function useMangaDetails(id?: string, initialData?: any) {
             .catch(() => {}),
 
           (async () => {
-            if (!title) return;
-            try {
-              const aniListResults = await anilistService.searchManga(title as string);
-              if (isMounted.current && aniListResults && aniListResults.length > 0) {
-                const detail = await anilistService.getMangaDetails(aniListResults[0].id);
-                if (isMounted.current) setState(prev => ({ ...prev, aniData: detail }));
-              }
-            } catch (err) {}
-          })(),
-
-          (async () => {
              const allLangs = await mangaProvider.getMangaChapters(id, null as any, 100);
              if (isMounted.current && allLangs.data) {
                 const langs = [...new Set(allLangs.data.map((c: any) => c.attributes?.translatedLanguage))] as string[];
@@ -227,8 +216,26 @@ export function useMangaDetails(id?: string, initialData?: any) {
           })()
         ]);
 
+        // === AniList SEPARATE - doesn't block UI ===
+        (async () => {
+          if (!title || !isMounted.current) return;
+          try {
+            console.log('[Details] 🌐 AniList fetch in background');
+            const aniListResults = await anilistService.searchManga(title as string);
+            if (isMounted.current && aniListResults && aniListResults.length > 0) {
+              const detail = await anilistService.getMangaDetails(aniListResults[0].id);
+              if (isMounted.current) {
+                console.log('[Details] ✅ AniList loaded');
+                setState(prev => ({ ...prev, aniData: detail }));
+              }
+            }
+          } catch (err: any) {
+            console.warn('[Details] ⚠️ AniList failed (non-blocking):', err?.message);
+          }
+        })();
+
       } catch (error: any) {
-        console.error('[Details] ❌ Error fetching manga details:', error?.message || error);
+        console.error('[Details] âŒ Error fetching manga details:', error?.message || error);
         if (isMounted.current) {
           setState(prev => ({ ...prev, manga: null }));
         }

@@ -1,6 +1,6 @@
 /**
  * Shared HTTP helpers for secondary APIs (AniList, Jikan, Kitsu, Consumet).
- * MangaDex uses its own apiFetch with rate-limiting and retries — DO NOT replace it.
+ * MangaDex uses its own apiFetch with rate-limiting and retries Ã¢â‚¬â€ DO NOT replace it.
  */
 import { Capacitor } from '@capacitor/core';
 
@@ -72,6 +72,12 @@ export async function postGraphQL<T = any>(
       console.log(`[postGraphQL] Response: ${response.status}`);
 
       if (!response.ok) {
+        // Handle 429 rate limit - don't retry
+        if (response.status === 429) {
+          console.warn(`[postGraphQL] Rate Limited (429) - Aborting`);
+          throw new Error(`GraphQL HTTP 429: ${url}`);
+        }
+        
         // --- EMERGENCY FALLBACK TO WORKER (Local Dev Fix) ---
         // Only try fallback if proxy explicitly failed (not on native or prod)
         if (!isNative && import.meta.env.DEV && (response.status === 404 || response.status === 503)) {
@@ -83,11 +89,11 @@ export async function postGraphQL<T = any>(
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query, variables }),
-                signal: AbortSignal.timeout(8000) // 8s timeout for fallback
+                signal: AbortSignal.timeout(6000) // 8s timeout for fallback
              });
              
              if (fallbackResp.ok) {
-               console.log('[AniList] ✅ Worker Fallback succeeded');
+               console.log('[AniList] Ã¢Å“â€¦ Worker Fallback succeeded');
                return await fallbackResp.json();
              } else {
                console.warn(`[AniList] Worker Fallback returned ${fallbackResp.status}`);
@@ -100,10 +106,10 @@ export async function postGraphQL<T = any>(
       }
 
       const data = await response.json();
-      console.log(`[postGraphQL] ✅ Success`);
+      console.log(`[postGraphQL] Ã¢Å“â€¦ Success`);
       return data;
     } catch (err: any) {
-      // Re-intentar con tunel si el error fue de conexión directa
+      // Re-intentar con tunel si el error fue de conexiÃƒÂ³n directa
       if (!isNative && import.meta.env.DEV && err.name !== 'AbortError' && !err.message?.includes('429')) {
          try {
             const fallbackUrl = `${WORKER_PROXY_BASE}${encodeURIComponent(url)}`;
@@ -114,7 +120,7 @@ export async function postGraphQL<T = any>(
                method: 'POST',
                headers: { 'Content-Type': 'application/json' },
                body: JSON.stringify({ query, variables }),
-               signal: AbortSignal.timeout(8000)
+               signal: AbortSignal.timeout(6000)
             });
 
             if (fallbackResp.ok) {
@@ -127,10 +133,10 @@ export async function postGraphQL<T = any>(
       }
 
       if (err.name === 'AbortError') {
-        console.error(`[postGraphQL] ⏱️ Timeout (${timeoutMs}ms): ${url}`);
+        console.error(`[postGraphQL] Ã¢ÂÂ±Ã¯Â¸Â Timeout (${timeoutMs}ms): ${url}`);
         throw new Error(`GraphQL Timeout (${timeoutMs}ms): ${url}`);
       }
-      console.error(`[postGraphQL] ❌ Error:`, err.message);
+      console.error(`[postGraphQL] Ã¢ÂÅ’ Error:`, err.message);
       throw err;
     } finally {
       clearTimeout(timer);
