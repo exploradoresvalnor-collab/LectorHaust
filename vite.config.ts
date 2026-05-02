@@ -20,7 +20,7 @@ export default defineConfig({
           'react-vendor': ['react', 'react-dom', 'react-router', 'react-router-dom'],
           'ionic-vendor': ['@ionic/react', '@ionic/react-router', 'ionicons'],
           'firebase-vendor': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
-          'ui-vendor': ['react-lazy-load-image-component', 'react-zoom-pan-pinch', 'swiper']
+          'ui-vendor': ['react-lazy-load-image-component', 'react-zoom-pan-pinch']
         }
       }
     },
