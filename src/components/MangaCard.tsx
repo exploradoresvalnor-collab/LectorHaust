@@ -113,4 +113,4 @@ const MangaCard: React.FC<MangaCardProps> = ({
   );
 };
 
-export default MangaCard;
+export default React.memo(MangaCard);

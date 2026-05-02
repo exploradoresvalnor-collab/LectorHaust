@@ -24,8 +24,8 @@ const SmartImage: React.FC<SmartImageProps> = ({
   className = '', 
   wrapperClassName = '',
   onClick,
-  timeout = 10000,
-  placeholder = 'https://placehold.co/512x768/222222/cccccc?text=Error',
+  timeout = 15000,
+  placeholder = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 768%22%3E%3Crect fill=%22%231a1a1a%22 width=%22512%22 height=%22768%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-family=%22Arial%22 font-size=%2224%22 fill=%22%23555%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22%3ELoading...%3C/text%3E%3C/svg%3E',
   children,
   width,
   height,
@@ -63,7 +63,7 @@ const SmartImage: React.FC<SmartImageProps> = ({
   const finalSrc = (!proxiedSrc || status === 'error') ? placeholder : proxiedSrc;
   const isCritical = loading === 'eager';
 
-  if (!src) return null; // Or handle empty src gracefully
+  if (!src) return <div className={`smart-image-wrapper ${wrapperClassName}`} style={{ background: '#1a1a1a', aspectRatio: '2/3' }}></div>;
 
   return (
     <div 

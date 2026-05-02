@@ -13,6 +13,19 @@ export default defineConfig({
   plugins: [
     react()
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router', 'react-router-dom'],
+          'ionic-vendor': ['@ionic/react', '@ionic/react-router', 'ionicons'],
+          'firebase-vendor': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
+          'ui-vendor': ['react-lazy-load-image-component', 'react-zoom-pan-pinch', 'swiper']
+        }
+      }
+    },
+    chunkSizeWarningLimit: 800
+  },
   server: {
     host: '0.0.0.0', // Explicitly listen on all interfaces for Windows stability
     port: 5173,

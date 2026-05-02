@@ -232,9 +232,10 @@ export function useSearch() {
     isError: searchError,
     error: searchErrorInfo
   } = useInfiniteQuery({
-    queryKey: ['searchManga', query, activeFormat, activeGenre, activeStatus, activeDemographic, activeOrder, activeColor, showNSFW],
+    queryKey: ['searchManga', query.trim(), activeFormat, activeGenre, activeStatus, activeDemographic, activeOrder, activeColor, showNSFW],
     queryFn: async ({ pageParam = 0 }) => {
-      if (!query && !activeFormat && !activeGenre && !activeStatus && !activeDemographic && !activeColor) {
+      const cleanQuery = query.trim();
+      if (!cleanQuery && !activeFormat && !activeGenre && !activeStatus && !activeDemographic && !activeColor) {
         return { data: [] };
       }
       const filters: any = { fullColor: activeColor };
@@ -242,15 +243,14 @@ export function useSearch() {
       if (activeGenre && activeGenre !== 'Todos' && genreMapping[activeGenre]) filters.tags = [genreMapping[activeGenre]];
       if (activeStatus) filters.status = activeStatus;
       if (activeDemographic) filters.demographic = activeDemographic;
-      
+
       const orderParam: any = { [activeOrder]: 'desc' };
-      return mangaProvider.searchManga(query, filters, 16, pageParam as number, orderParam, showNSFW);
-    },
-    initialPageParam: 0,
+      return mangaProvider.searchManga(cleanQuery, filters, 16, pageParam as number, orderParam, showNSFW);
+    },    initialPageParam: 0,
     getNextPageParam: (lastPage: any, allPages: any[]) => {
       return lastPage.data?.length === 16 ? allPages.length * 16 : undefined;
     },
-    enabled: activeSegment === 'search' && !!(query || activeFormat || activeGenre || activeStatus || activeDemographic || activeColor), // STAGGERED
+    enabled: activeSegment === 'search' && !!(query.trim() || activeFormat || activeGenre || activeStatus || activeDemographic || activeColor), // STAGGERED
     staleTime: 1000 * 60 * 5, // 5 mins
     retry: false,
   });

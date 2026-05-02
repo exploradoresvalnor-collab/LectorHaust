@@ -3,7 +3,7 @@
   height: 100%;
   position: relative;
   overflow: hidden;
-  display: block;
+  display: block !important;
   border-radius: inherit;
 }
 

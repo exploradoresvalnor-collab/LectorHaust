@@ -66,9 +66,10 @@ export const mangapillService = {
     },
 
     async getMangaDetails(id: string, allowNSFW = false) {
-        const cleanId = id.startsWith('mp:') ? id.substring(3) : id;
+        const cleanId = id.replace(/^(mp:)+/, '');
         const [numId, slug] = cleanId.includes('$') ? cleanId.split('$') : cleanId.includes('/') ? cleanId.split('/') : [cleanId, ''];
         const url = `${BASE_URL}/manga/${numId}/${slug}`;
+        console.log(`[DEBUG: MangaPill] Fetching details: ${url}`);
         const html = await fetchHtml(url);
 
         // Extract Title (H1)
@@ -99,10 +100,10 @@ export const mangapillService = {
                            html.match(/<img[^>]*src="([^"]+)"/i);
         const coverUrl = coverMatch ? coverMatch[1] : null;
 
-        return {
-            data: {
-                id: `mp:${id}`,
-                type: 'manga',
+            return {
+                data: {
+                    id: id.startsWith('mp:') ? id : `mp:${id}`,
+                    type: 'manga',
                 attributes: {
                     title: { en: title },
                     description: { en: description },
@@ -123,9 +124,10 @@ export const mangapillService = {
 
 
     async getMangaChapters(mangaId: string, _lang: string | null = 'en', _limit = 500, _offset = 0, _order: 'asc' | 'desc' = 'desc') {
-        const cleanMangaId = mangaId.startsWith('mp:') ? mangaId.substring(3) : mangaId;
+        const cleanMangaId = mangaId.replace(/^(mp:)+/, '');
         const [numId, slug] = cleanMangaId.includes('$') ? cleanMangaId.split('$') : cleanMangaId.includes('/') ? cleanMangaId.split('/') : [cleanMangaId, ''];
         const url = `${BASE_URL}/manga/${numId}/${slug}`;
+        console.log(`[DEBUG: MangaPill] Fetching chapters: ${url}`);
         const html = await fetchHtml(url);
         
         const chapterMatches = [...html.matchAll(/href="\/chapters\/(\d+-\d+)\/([^"]+)"/g)];
@@ -164,7 +166,7 @@ export const mangapillService = {
         // chapterId is like "5323-10162000"
         // We need to return an object that looks like MangaDex's response
         // chapterId could be "mp:5323-10162000$slug@mangaId"
-        const cleanChapterId = chapterId.startsWith('mp:') ? chapterId.substring(3) : chapterId;
+        const cleanChapterId = chapterId.replace(/^(mp:)+/, '');
         const [coreId, _extra] = cleanChapterId.includes('@') ? cleanChapterId.split('@') : [cleanChapterId, ''];
         const numIdOnly = coreId.includes('$') ? coreId.split('$')[0] : coreId;
         
@@ -184,7 +186,7 @@ export const mangapillService = {
     },
 
     async getChapterPages(chapterId: string) {
-        const rawId = chapterId.startsWith('mp:') ? chapterId.substring(3) : chapterId;
+        const rawId = chapterId.replace(/^(mp:)+/, '');
         const cleanChapterId = rawId.includes('@') ? rawId.split('@')[0] : rawId;
         const [numId, chapterSlug] = cleanChapterId.includes('$') ? cleanChapterId.split('$') : [cleanChapterId, 'chapter'];
         const url = `${BASE_URL}/chapters/${numId}/${chapterSlug}`;

@@ -214,9 +214,10 @@ const SearchPage: React.FC = () => {
               </div>
 
               <div className={`filters-container-pro ${showFilters ? 'expanded' : 'collapsed'}`}>
-                <div className="filter-grid-pro glass-effect">
-                  <div className="filter-item-pro">
-                    <span className="filter-label-v2">Tipo de Obra</span>
+                <div className="filter-grid-pro-inner">
+                  <div className="filter-grid-pro glass-effect">
+                    <div className="filter-item-pro">
+                      <span className="filter-label-v2">Tipo de Obra</span>
                     <IonSelect 
                       value={activeFormat} 
                       placeholder="Cualquiera"
@@ -304,6 +305,7 @@ const SearchPage: React.FC = () => {
                       APLICAR FILTROS
                     </IonButton>
                   </div>
+                </div>
                 </div>
               </div>
             </div>

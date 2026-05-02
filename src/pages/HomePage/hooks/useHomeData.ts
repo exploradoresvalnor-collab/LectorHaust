@@ -11,9 +11,18 @@ import { tioanimeService } from '../../../services/tioanimeService';
 import { translationService } from '../../../services/translationService';
 import { anilistService } from '../../../services/anilistService';
 
+// Movido fuera del hook para evitar recrear la función en cada render (Optimización de Memoria)
+const extractUnique = (rawList: any[]) => {
+  const seen = new Set();
+  return rawList.filter((m: any) => {
+    if (seen.has(m.id)) return false;
+    seen.add(m.id);
+    return true;
+  });
+};
+
 export function useHomeData() {
   const queryClient = useQueryClient();
-  const [heroIndex, setHeroIndex] = useState(0);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showLoginHint, setShowLoginHint] = useState(true);
   const [latestLang, setLatestLang] = useState<any>(getDefaultLanguage());
@@ -43,15 +52,6 @@ export function useHomeData() {
   const trendingAnime: any = null;
 
   // --- 3. LATEST UPDATES BY CATEGORY (SILOS) ---
-  
-  const extractUnique = (rawList: any[]) => {
-    const seen = new Set();
-    return rawList.filter((m: any) => {
-      if (seen.has(m.id)) return false;
-      seen.add(m.id);
-      return true;
-    });
-  };
 
   const {
     data: rawManga,
@@ -85,19 +85,19 @@ export function useHomeData() {
     enabled: enableManhuaLoading,
   });
 
-  // Chain loading triggers
+  // Chain loading triggers (Staggered to prevent rate limits)
+  // We trigger the next load when the previous query finishes loading, regardless of whether it succeeded or returned 0 results.
   useEffect(() => {
-    if (rawManga?.data && rawManga.data.length > 0) {
-      // Si ya hay data (cache), activamos el siguiente bloque inmediatamente
+    if (!loadingManga) {
       setEnableManhwaLoading(true);
     }
-  }, [rawManga]);
+  }, [loadingManga]);
 
   useEffect(() => {
-    if (rawManhwa?.data && rawManhwa.data.length > 0) {
+    if (!loadingManhwa) {
       setEnableManhuaLoading(true);
     }
-  }, [rawManhwa]);
+  }, [loadingManhwa]);
 
 
 
@@ -162,7 +162,6 @@ export function useHomeData() {
 
     if (latest && latest.length > 0) {
       latest.slice(0, 5).forEach((m: any) => {
-        // Avoid duplication if Berserk happens to be in latest (unlikely but safe)
         if (featuredBerserk?.data?.id && m.id === featuredBerserk.data.id) return;
 
         final.push({
@@ -195,26 +194,42 @@ export function useHomeData() {
 
       setIsHeroReady(true); // Base items are ready immediately
 
-      // Parallel Enrichment
-      Promise.all(heroItems.map(async (item) => {
-        if (!mounted) return;
+      // Staggered Enrichment to respect rate limits (Only first 5 items)
+      const itemsToEnrich = heroItems.slice(0, 5);
+      
+      for (const item of itemsToEnrich) {
+        if (!mounted) break;
         try {
           let updatedItem = { ...item };
-          // Background translation
-          const { text: desc, isTranslated } = await translationService.translateToSpanish(updatedItem.description || '');
-          updatedItem.description = desc;
-          updatedItem.isTranslated = isTranslated;
-
-          // AniList Enrichment
-          try {
-            const cleanedTitle = anilistService.cleanTitle(updatedItem.title);
-            let aniRes = await anilistService.searchManga(cleanedTitle);
-            if (aniRes && aniRes.length > 0) {
-              const fullAni = await anilistService.getMangaDetails(aniRes[0].id);
-              const aniCover = fullAni?.coverImage?.extraLarge || fullAni?.coverImage?.large;
-              if (aniCover) updatedItem.image = mangaProvider.getCoverUrl(item.raw, 'original', aniCover);
-            }
-          } catch (e) {}
+          
+          // Parallel background tasks for a single item
+          await Promise.all([
+             // 1. Background translation
+             (async () => {
+               const { text: desc, isTranslated } = await translationService.translateToSpanish(updatedItem.description || '');
+               updatedItem.description = desc;
+               updatedItem.isTranslated = isTranslated;
+             })(),
+             
+             // 2. AniList Enrichment (Spaced out by the loop)
+             (async () => {
+               try {
+                 const cleanedTitle = anilistService.cleanTitle(updatedItem.title);
+                 let aniRes = await anilistService.searchManga(cleanedTitle);
+                 if (aniRes && aniRes.length > 0) {
+                   // bannerImage is already in search results - use it directly (saves an API call)
+                   if (aniRes[0].bannerImage) updatedItem.banner = aniRes[0].bannerImage;
+                   
+                   // Only fetch full details if we need chapters count
+                   if (!updatedItem.totalChapters) {
+                     const fullAni = await anilistService.getMangaDetails(aniRes[0].id);
+                     if (fullAni?.bannerImage && !updatedItem.banner) updatedItem.banner = fullAni.bannerImage;
+                     if (fullAni?.chapters) updatedItem.totalChapters = fullAni.chapters;
+                   }
+                 }
+               } catch (e) {}
+             })()
+          ]);
 
           if (mounted) {
             setEnrichedHeroItems(prev => {
@@ -224,8 +239,11 @@ export function useHomeData() {
               return newItems;
             });
           }
+          
+          // Safety delay between items to avoid burst
+          await new Promise(r => setTimeout(r, 800));
         } catch (e) {}
-      }));
+      }
     };
 
     enrich();
@@ -267,19 +285,6 @@ export function useHomeData() {
     if (e && e.target) e.target.complete();
   }, []);
 
-  // Hero rotation
-  useEffect(() => {
-    const calculateIndex = () => {
-      if (heroItems.length === 0) return 0;
-      return Math.floor(Date.now() / 60000) % heroItems.length;
-    };
-    setHeroIndex(calculateIndex());
-    const timer = setInterval(() => {
-      setHeroIndex(calculateIndex());
-    }, 60000); 
-    return () => clearInterval(timer);
-  }, [heroItems]);
-
   // Firebase auth
   useEffect(() => {
     let unsubsNotif: (() => void) | null = null;
@@ -309,8 +314,6 @@ export function useHomeData() {
 
   return {
     heroItems: displayHeroItems,
-    heroIndex,
-    setHeroIndex,
     latest,
     latestManga,
     latestManhwa,

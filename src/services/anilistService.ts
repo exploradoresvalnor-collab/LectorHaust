@@ -12,7 +12,19 @@ const CACHE_TTL = 1000 * 60 * 60; // 1 hour
 let lastRequestTime = 0;
 let requestQueue = Promise.resolve();
 
+// Circuit Breaker for 429 errors
+let isRateLimited = false;
+let rateLimitResetTime = 0;
+
 async function rateLimitedFetch(query: string, variables: any): Promise<any> {
+    // 0. Circuit Breaker Check
+    if (isRateLimited) {
+        if (Date.now() < rateLimitResetTime) {
+            return { data: null }; // Silent fail to avoid spam
+        }
+        isRateLimited = false; // Reset after time passed
+    }
+
     // 1. Check Cache
     const raw = query + JSON.stringify(variables);
     let hash = 0;
@@ -30,32 +42,38 @@ async function rateLimitedFetch(query: string, variables: any): Promise<any> {
             if (Date.now() - timestamp < CACHE_TTL) return data;
         }
     } catch (e) {
-        // Almacenamiento bloqueado por el navegador (Tracking Prevention)
+        // Storage blocked
     }
 
-    // 2. Queue & Throttle (Increased to 1200ms to avoid 429)
+    // 2. Queue & Throttle
     const fetchPromise = requestQueue.then(async () => {
         const elapsed = Date.now() - lastRequestTime;
-        const MIN_SPACING = 1200; // Increased from 800ms
+        const MIN_SPACING = 1500; // Increased to 1.5s for safety
         if (elapsed < MIN_SPACING) {
             await new Promise(r => setTimeout(r, MIN_SPACING - elapsed));
         }
         
-        // Update time BEFORE fetch, preventing concurrent queues from skipping the wait if they somehow leak
         lastRequestTime = Date.now(); 
         
         try {
-            const response = await postGraphQL(BASE_URL, query, variables, 3000);
+            const response = await postGraphQL(BASE_URL, query, variables, 5000);
             try {
                 if (response?.data) {
                     localStorage.setItem(cacheKey, JSON.stringify({ data: response, timestamp: Date.now() }));
                 }
-            } catch (e) { /* Storage blocked */ }
+            } catch (e) {}
             return response;
         } catch (err: any) {
-            // Handle 429 gracefully
+            // Handle 429 specifically
             if (err.message?.includes('429')) {
-              console.warn(`[AniList] Rate limited (429) - returning empty`);
+              console.warn(`[AniList] ðŸ›‘ Rate limited (429). Blocking requests for 60s.`);
+              isRateLimited = true;
+              rateLimitResetTime = Date.now() + 60000;
+              return { data: null };
+            }
+            
+            if (err.message?.includes('Timeout')) {
+              console.warn(`[AniList] â±ï¸ Timeout - returning empty`);
               return { data: null };
             }
             throw err;
@@ -69,7 +87,7 @@ async function rateLimitedFetch(query: string, variables: any): Promise<any> {
         if (!err.message?.includes('429')) {
           console.error(`[AniList] Final Queue Failure: ${err.message}`);
         }
-        throw err;
+        return { data: null };
     }
 }
 

@@ -34,6 +34,9 @@ const AnimeCardItem: React.FC<AnimeCardItemProps> = ({ anime, onClick, index = 0
           src={anime.image} 
           alt={anime.title || anime.name} 
           className="card-img"
+          loading="lazy"
+          fetchPriority="low"
+          timeout={15000}
         />
         <div className="card-overlay">
           <div className="card-tags-container">

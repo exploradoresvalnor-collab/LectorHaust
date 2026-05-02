@@ -66,7 +66,6 @@ const HomePage: React.FC = () => {
   }, [latestManga, latestManhwa, latestManhua]);
 
   const { setIsLoading } = useGlobalLoading();
-  const [imagesLoaded, setImagesLoaded] = React.useState(0);
   const [isReady, setIsReady] = React.useState(false);
 
   // Umbral de imágenes críticas (Hero + primeras de cada sección)
@@ -89,8 +88,12 @@ const HomePage: React.FC = () => {
       setIsLoading(false, 'home-view');
     } else {
       setIsLoading(true, 'home-data');
-      return () => setIsLoading(false, 'home-data');
     }
+    
+    return () => {
+      setIsLoading(false, 'home-data');
+      setIsLoading(false, 'home-view');
+    };
   }, [setIsLoading, latest.length]);
 
   useEffect(() => {
@@ -127,7 +130,7 @@ const HomePage: React.FC = () => {
 
 
   const handleImageLoad = React.useCallback(() => {
-    setImagesLoaded(prev => prev + 1);
+    // Disabled to prevent infinite re-renders. Component is marked ready on data fetch.
   }, []);
   
   const handleLatestClick = (manga: any) => {
@@ -148,46 +151,26 @@ const HomePage: React.FC = () => {
 
   return (
     <IonPage className="home-page-container">
-      <IonHeader className="ion-no-border desktop-header-ref" translucent={true}>
-        <IonToolbar className="main-header">
-          <div className="header-inner-content">
-            {/* Logo Section */}
-            <div 
-              className="brand-container" 
-              onClick={() => fetchData(true)}
-              role="button"
-              tabIndex={0}
-              aria-label="Refrescar portada"
-            >
-              <img src="/logolh.webp" alt="Lector Haus Logo" className="brand-logo-img" width="38" height="34" />
-              <div className="brand-text-wrapper">
-                <span className="brand-name-main">Lector</span>
-                <span className="brand-name-sub">Haus</span>
-              </div>
+      {/* Integrated Floating Header (Overlay) */}
+      <div className="floating-home-header animate-fade-in">
+        <div className="header-float-left" onClick={() => fetchData(true)}>
+          <img src="/logolh.webp" alt="LH" className="mini-float-logo" />
+          <span className="mini-float-text">Lector Haus</span>
+        </div>
+        <div className="header-float-right">
+          {currentUser ? (
+            <div className="profile-btn-float" onClick={handleProfileClick}>
+              <UserAvatar user={currentUser} size={36} className="profile-avatar-wrapper" />
             </div>
+          ) : (
+            <button className="login-btn-float" onClick={() => router.push('/profile')}>
+              <IonIcon icon={lockClosedOutline} />
+            </button>
+          )}
+        </div>
+      </div>
 
-
-
-
-
-            {/* User/Login Section */}
-            <div className="header-actions">
-              {currentUser ? (
-                <div className="profile-btn" onClick={handleProfileClick}>
-                  <UserAvatar user={currentUser} size={32} className="profile-avatar-wrapper" />
-                </div>
-              ) : (
-                <button className="login-btn-tmo" onClick={() => router.push('/profile')}>
-                  <IonIcon icon={lockClosedOutline} />
-                  <span>Login</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </IonToolbar>
-      </IonHeader>
-
-      <IonContent fullscreen className="ion-padding home-main-content-area">
+      <IonContent fullscreen className="home-main-content-area no-top-padding">
         {/* Minimalist Floating Login Pill */}
         {showLoginHint && (!currentUser || currentUser.isAnonymous) && (
           <div slot="fixed" className="login-pill-wrapper">

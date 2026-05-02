@@ -21,6 +21,8 @@ const GENRES = [
   "Terror", "Vampiros", "Yaoi", "Yuri"
 ];
 
+const ITEMS_PER_PAGE = 24;
+
 const AnimeDirectoryPage: React.FC = () => {
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,7 +56,7 @@ const AnimeDirectoryPage: React.FC = () => {
     
     try {
       let newItems: any[] = [];
-      newItems = await tioanimeService.search(query);
+      newItems = await tioanimeService.search(query, { genre, type, year, sort }, targetPage);
       // If specific provider, also inject metadata for consistent UI
       if (provider !== 'default') {
           newItems = newItems.map(item => ({

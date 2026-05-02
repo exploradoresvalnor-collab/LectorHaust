@@ -1,5 +1,23 @@
 /* Global styles for KamiReader */
 
+/* ===== PERFORMANCE: Kill Ionic page transition animations ===== */
+ion-router-outlet > .ion-page-hidden {
+  display: none !important;
+}
+
+ion-router-outlet > *:not(.ion-page-hidden) {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Disable ALL Ionic transition delays */
+.ion-page,
+ion-router-outlet > .ion-page {
+  --ion-page-transition-duration: 0ms !important;
+  contain: layout style;
+  will-change: auto;
+}
+
 /* body { font-family: 'Inter', sans-serif; } is moved below */
 
 body {
@@ -139,9 +157,40 @@ ion-tab-bar {
 /* --- Adaptación Web/Desktop (Navegación PC) --- */
 @media (min-width: 768px) {
   ion-tab-bar {
-    max-width: 420px;
-    height: 58px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    max-width: 360px;
+    height: 50px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    --background: rgba(14, 18, 25, 0.25); /* Ultra-transparent glass */
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+  }
+  
+  ion-tab-button ion-icon {
+    font-size: 1.2rem; /* Smaller icons for PC */
+    transform: none; /* Prevent large scaling */
+  }
+  
+  ion-tab-button.tab-selected ion-icon {
+    transform: translateY(-2px) scale(1.1); /* Subtle active scale */
+  }
+
+  ion-tab-button ion-label {
+    font-size: 0.55rem;
+    margin-top: 0px;
+    opacity: 0.7; /* Make labels less prominent */
+  }
+  
+  ion-tab-button.tab-selected ion-label {
+    opacity: 1;
+  }
+  
+  /* Smaller active indicator on PC */
+  ion-tab-button.tab-selected::before {
+    width: 15px;
+    height: 3px;
+    box-shadow: 0 1px 5px var(--ion-color-primary);
   }
 }
 

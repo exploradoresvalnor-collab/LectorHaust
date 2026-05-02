@@ -9,7 +9,8 @@ import {
   IonButton,
   IonIcon,
   IonRange,
-  useIonRouter
+  useIonRouter,
+  IonBadge
 } from '@ionic/react';
 import { 
   chevronBackOutline, 

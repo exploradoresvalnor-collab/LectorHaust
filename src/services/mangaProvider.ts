@@ -2,6 +2,7 @@ import { mangadexService } from './mangadexService';
 import { mangapillService } from './mangapillService';
 import { weebcentralService } from './weebcentralService';
 import { manhwawebService } from './manhwawebService';
+import { inmangaService } from './inmangaService';
 
 /**
  * Sanitiza las descripciones crudas de MangaDex y otras fuentes con lógica agresiva.
@@ -32,7 +33,7 @@ export function sanitizeDescription(text: string): string {
     return clean;
 }
 
-export type MangaSource = 'mangadex' | 'mangapill' | 'weebcentral' | 'manhwaweb';
+export type MangaSource = 'mangadex' | 'mangapill' | 'weebcentral' | 'manhwaweb' | 'inmanga';
 
 export interface MangaItem {
   id: string;
@@ -156,15 +157,19 @@ const mergeResults = (results: MangaItem[]): MangaItem[] => {
 
     const source: MangaSource = item.id.startsWith('mp:') ? 'mangapill' : 
                                 item.id.startsWith('wc:') ? 'weebcentral' : 
-                                item.id.startsWith('mweb:') ? 'manhwaweb' : 'mangadex';
+                                item.id.startsWith('mweb:') ? 'manhwaweb' : 
+                                item.id.startsWith('inm:') ? 'inmanga' : 'mangadex';
+
+    console.log(`[DEBUG: Merge] Processing: "${titleStr}" | Source: ${source} | ID: ${item.id}`);
 
     if (existing) {
         // FUSIONAR: Añadir fuente y IDs alternativos
-        if (!existing.sources) existing.sources = [existing.id.startsWith('mp:') ? 'mangapill' : existing.id.startsWith('wc:') ? 'weebcentral' : existing.id.startsWith('mweb:') ? 'manhwaweb' : 'mangadex'];
+        if (!existing.sources) existing.sources = [existing.id.startsWith('mp:') ? 'mangapill' : existing.id.startsWith('wc:') ? 'weebcentral' : existing.id.startsWith('mweb:') ? 'manhwaweb' : existing.id.startsWith('inm:') ? 'inmanga' : 'mangadex'];
         if (!existing.sources.includes(source)) {
             existing.sources.push(source);
             if (!existing.alternativeIds) existing.alternativeIds = {};
             existing.alternativeIds[source] = item.id;
+            console.log(`[DEBUG: Merge] Added mirror source ${source} to "${titleStr}"`);
         }
         
         // Mantener la mejor descripción si la actual es corta
@@ -221,7 +226,8 @@ const knownMasterpieces: Record<string, string[]> = {
     'bastard': [],
     'sweet home': [],
     'berserk': ['berserker'],
-    'berserker': ['berserk']
+    'berserker': ['berserk'],
+    'love hina': ['lovehina', 'love hina again']
 };
 
 export const mangaProvider = {
@@ -243,16 +249,17 @@ export const mangaProvider = {
     },
 
     isExternalId(id: string) {
-        return id && (id.startsWith('mp:') || id.startsWith('wc:') || id.startsWith('mweb:'));
+        return id && (id.startsWith('mp:') || id.startsWith('wc:') || id.startsWith('mweb:') || id.startsWith('inm:'));
     },
 
     // --- UTILS ---
     
     getInternalId(id: string) {
         if (!id) return id;
-        if (id.startsWith('mp:')) return id.substring(3);
-        if (id.startsWith('wc:')) return id.substring(3);
-        if (id.startsWith('mweb:')) return id.substring(5);
+        if (id.startsWith('mp:')) return id.replace(/^mp:mp:/, 'mp:').substring(3);
+        if (id.startsWith('wc:')) return id.replace(/^wc:wc:/, 'wc:').substring(3);
+        if (id.startsWith('mweb:')) return id.replace(/^mweb:mweb:/, 'mweb:').substring(5);
+        if (id.startsWith('inm:')) return id.replace(/^inm:inm:/, 'inm:').substring(4);
         return id;
     },
 
@@ -261,6 +268,7 @@ export const mangaProvider = {
         if (id.startsWith('mp:')) return mangapillService as any;
         if (id.startsWith('wc:')) return weebcentralService as any;
         if (id.startsWith('mweb:')) return manhwawebService as any;
+        if (id.startsWith('inm:')) return inmangaService as any;
         return mangadexService;
     },
 
@@ -305,28 +313,30 @@ export const mangaProvider = {
             
             // Etapa 1: MangaDex buscando estrictamente ESPAÑOL
             const mdSpanishResults = await mangadexService.searchManga(effectiveQuery, { ...filters, lang: 'es' }, limit, offset, order, allowNSFW || isTargetingBerserk);
-            
+
             let allResults = mdSpanishResults.data || [];
-            
-            const hasStrictFilters = filters.demographic || filters.status || (filters.tags && filters.tags.length > 0) || filters.fullColor;
+
+            const hasStrictFilters = filters.demographic || (filters.tags && filters.tags.length > 0) || filters.fullColor;
             const hasQuery = effectiveQuery && effectiveQuery.trim().length > 1;
 
             // 🔄 HAUS INTELLIGENT SEARCH PROACTIVE (v3):
-            // Lógica de detección proactiva: Solo disparar para títulos específicos (varias palabras)
-            // para evitar saturar la red en búsquedas genéricas o de una sola palabra.
-            // SI ES BACKGROUND (ej: recomendaciones), la desactivamos totalmente para no saturar.
-            const isSpecificSearch = hasQuery && (effectiveQuery.trim().split(/\s+/).length >= 3 || effectiveQuery.toLowerCase() === 'berserk');
+            // Lógica mejorada: Disparar si el usuario busca algo específico (>= 2 palabras), o si es un título conocido, 
+            // O SI LA BÚSQUEDA EN ESPAÑOL NO DEVOLVIÓ NADA y hay una consulta activa.
+            const queryWords = effectiveQuery.trim().split(/\s+/).length;
+            const isKnownTitle = Object.keys(knownMasterpieces).some(key => effectiveQuery.toLowerCase().includes(key));
+            const isSpecificSearch = hasQuery && (queryWords >= 2 || isKnownTitle);
             const isDeepSearch = filters.deep || false;
-            
-            if (!isBackground && (isSpecificSearch || isDeepSearch) && !hasStrictFilters) {
-                console.log(`[Search] Haus Intelligence v3: Proactive Parallel Search Activated for "${effectiveQuery}"`);
-                
+            const fallbackNeeded = hasQuery && allResults.length === 0;
+
+            if (!isBackground && (isSpecificSearch || isDeepSearch || fallbackNeeded) && !hasStrictFilters) {
+                console.log(`[Search] Haus Intelligence v3: Proactive Parallel Search Activated for "${effectiveQuery}"`);                
                 const searchNSFW = allowNSFW || isTargetingBerserk;
 
                 const proactivePromises = [
                     mangadexService.searchManga(effectiveQuery, { ...filters, lang: 'es' }, limit, offset, order, searchNSFW),
                     mangadexService.searchManga(effectiveQuery, { ...filters, lang: 'en' }, limit, offset, order, searchNSFW),
                     manhwawebService.searchManga(effectiveQuery, filters),
+                    inmangaService.searchManga(effectiveQuery),
                     weebcentralService.searchManga(effectiveQuery, { ...filters, order: order ? Object.keys(order)[0] : undefined }),
                     mangapillService.searchManga(effectiveQuery, searchNSFW)
                 ];
@@ -517,6 +527,7 @@ export const mangaProvider = {
     },
 
     async getMangaChapters(mangaId: string, lang: string | null = 'es', limit = 20, offset = 0, order: 'asc' | 'desc' = 'desc', allowNSFW = false) {
+        console.log(`[DEBUG: Provider] getMangaChapters for ${mangaId} | Lang: ${lang} | Offset: ${offset}`);
         if (this.isExternalId(mangaId)) {
             const providerStr = mangaId.split(':')[0];
             let rawData: any = { data: [], total: 0 };
@@ -527,6 +538,8 @@ export const mangaProvider = {
                 rawData = await weebcentralService.getMangaChapters(mangaId);
             } else if (providerStr === 'mweb' || mangaId.startsWith('mweb:')) {
                 rawData = await manhwawebService.getMangaChapters(mangaId);
+            } else if (providerStr === 'inm' || mangaId.startsWith('inm:')) {
+                rawData = await inmangaService.getMangaChapters(mangaId);
             }
             
             // Client-side sorting for external providers that return everything at once
@@ -788,7 +801,9 @@ export const mangaProvider = {
                 const searchPromises: Promise<any[]>[] = [
                     // 1. ManhwaWeb (ES) - highest priority for Spanish content
                     manhwawebService.searchManga(query as string).catch(() => []),
-                    // 2. MangaPill (EN) 
+                    // 2. InManga (ES)
+                    inmangaService.searchManga(query as string).catch(() => []),
+                    // 3. MangaPill (EN) 
                     mangapillService.searchManga(query as string).catch(() => [])
                 ];
                 
@@ -809,10 +824,11 @@ export const mangaProvider = {
                     timeoutPromise
                 ]);
 
-                const [mwebResults, mpResults, wcResults] = results;
+                const [mwebResults, inmResults, mpResults, wcResults] = results;
 
                 // Match and collect candidates
                 if (mwebResults?.length) candidates.push(...matchResults(mwebResults));
+                if (inmResults?.length) candidates.push(...matchResults(inmResults));
                 if (wcResults?.length) candidates.push(...matchResults(wcResults));
                 if (mpResults?.length) candidates.push(...matchResults(mpResults));
                 

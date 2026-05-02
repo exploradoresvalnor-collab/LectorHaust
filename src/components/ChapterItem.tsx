@@ -28,7 +28,7 @@ const ChapterItem: React.FC<ChapterItemProps> = ({ number, title, isRead, isDown
         <div className="chapter-item-info">
           <span className="chapter-item-number">
             {isDownloaded && <IonIcon icon={checkmarkDoneCircle} color="success" style={{ marginRight: '6px', fontSize: '0.85rem', verticalAlign: 'middle' }} />}
-            {typeof number === 'string' && number.toLowerCase().includes('cap') ? number : `Capítulo ${number}`}
+            {(!number || number === 'null') ? 'Especial' : (typeof number === 'string' && number.toLowerCase().includes('cap')) ? number : `Capítulo ${number}`}
           </span>
           {title && !isRedundant && (
             <span className="chapter-item-title">{title}</span>

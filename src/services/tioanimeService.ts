@@ -119,21 +119,37 @@ export const tioanimeService = {
     }
   },
 
-  async search(query: string = '') {
+  async search(query: string = '', filters: any = {}, page: number = 1) {
     try {
-      const url = `${BASE_URL}/directorio?q=${encodeURIComponent(query)}`;
+      let url = `${BASE_URL}/directorio?p=${page}`;
+      if (query && query.trim() !== '') {
+        url += `&q=${encodeURIComponent(query.trim())}`;
+      }
+      if (filters.genre && filters.genre !== 'all') {
+        url += `&genero[]=${encodeURIComponent(filters.genre.toLowerCase())}`;
+      }
+      if (filters.year && filters.year !== 'all') {
+        url += `&year=${encodeURIComponent(filters.year)}`;
+      }
+      if (filters.type && filters.type !== 'all') {
+        url += `&tipo[]=${encodeURIComponent(filters.type === 'Movie' ? 'pelicula' : filters.type.toLowerCase())}`;
+      }
+      if (filters.sort && filters.sort !== 'default') {
+        url += `&sort=${encodeURIComponent(filters.sort)}`; // recientes, agregados, etc.
+      }
+
       const html = await fetchHtml(url);
-      
+
       const results: any[] = [];
       // Pattern: <article class="anime"> ... <a href="/anime/slug"> ... <img src="/uploads/portadas/slug.jpg" ... <h3 class="title">Anime Name</h3>
       const regex = /<article class="anime">[\s\S]*?<a href="\/anime\/([^"]+)">[\s\S]*?<img src="([^"]+)"[\s\S]*?<h3 class="title">([^<]+)<\/h3>/gi;
-      
+
       let match;
       while ((match = regex.exec(html)) !== null) {
-        let imgUrl = match[2];
-        if (imgUrl.startsWith('/')) imgUrl = `${BASE_URL}${imgUrl}`;
-        const proxiedImg = imgUrl;
-        
+        let proxiedImg = match[2];
+        if (proxiedImg.startsWith('/')) {
+            proxiedImg = `${BASE_URL}${proxiedImg}`;
+        }
         results.push({
           id: match[1],
           title: match[3],
@@ -143,6 +159,15 @@ export const tioanimeService = {
           hasDub: true
         });
       }
+
+      // Try to parse total pages or results to return them (optional enhancement)
+      let totalCount = results.length;
+      if (html.includes('nav aria-label="Page navigation"')) {
+         totalCount = 100; // Fake total if pagination exists but hard to parse
+      }
+
+      (results as any).totalCount = totalCount * page; // rough estimate
+
       return results;
     } catch (e) {
       console.error('[S-T] Search error:', e);

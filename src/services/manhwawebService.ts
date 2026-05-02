@@ -84,7 +84,7 @@ export const manhwawebService = {
    * Get manga details by slug
    */
   async getMangaDetails(slug: string) {
-    const cleanSlug = slug.replace('mweb:', '');
+    const cleanSlug = slug.replace(/^(mweb:)+/, '');
     const data = await apiFetch(`/manhwa/see/${cleanSlug}`);
     if (!data) throw new Error('No data');
 
@@ -118,7 +118,7 @@ export const manhwawebService = {
    * Get chapters for a manga
    */
   async getMangaChapters(slug: string) {
-    const cleanSlug = slug.replace('mweb:', '');
+    const cleanSlug = slug.replace(/^(mweb:)+/, '');
     const data = await apiFetch(`/manhwa/see/${cleanSlug}`);
     if (!data?.chapters) return { data: [], total: 0 };
 
@@ -148,7 +148,7 @@ export const manhwawebService = {
    * Get chapter page images
    */
   async getChapterPages(chapterId: string): Promise<{ pages: string[] }> {
-    const cleanId = chapterId.replace('mweb:', '');
+    const cleanId = chapterId.replace(/^(mweb:)+/, '');
     const data = await apiFetch(`/chapters/see/${cleanId}`);
     
     if (!data?.chapter?.img) {
@@ -166,7 +166,7 @@ export const manhwawebService = {
    * Get single chapter metadata
    */
   async getChapter(chapterId: string): Promise<any> {
-    const cleanId = chapterId.replace('mweb:', '');
+    const cleanId = chapterId.replace(/^(mweb:)+/, '');
     const data = await apiFetch(`/chapters/see/${cleanId}`);
     
     return {

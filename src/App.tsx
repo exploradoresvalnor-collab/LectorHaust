@@ -65,7 +65,10 @@ import '@ionic/react/css/palettes/dark.system.css';
 import './theme/variables.css';
 import './theme/global.css';
 
-setupIonicReact();
+setupIonicReact({
+  mode: 'ios',
+  animated: false, // Disable all page transition animations for instant navigation
+});
 
 const AppContent: React.FC = () => {
   const { favorites } = useLibraryStore();
@@ -327,10 +330,12 @@ const AppContent: React.FC = () => {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5,
-      gcTime: 1000 * 60 * 30,
-      retry: 2,
+      staleTime: 1000 * 60 * 10,        // 10 min (was 5) - reduce refetches
+      gcTime: 1000 * 60 * 60,            // 1 hour (was 30 min) - keep data longer
+      retry: 1,                           // 1 retry (was 2) - fail faster
       refetchOnWindowFocus: false,
+      refetchOnReconnect: false,          // Don't refetch on reconnect
+      structuralSharing: true,            // Efficient data diffing
     },
   },
 });

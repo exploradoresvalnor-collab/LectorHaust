@@ -87,7 +87,8 @@ export const weebcentralService = {
   },
 
   async getMangaDetails(fullId: string) {
-    const [id, slug] = fullId.replace('wc:', '').split('$');
+    const cleanId = fullId.replace(/^(wc:)+/, '');
+    const [id, slug] = cleanId.split('$');
     const url = `${BASE_URL}/series/${id}/${slug}`;
     const html = await this.fetchHtml(url);
     
@@ -119,9 +120,11 @@ export const weebcentralService = {
   },
 
   async getMangaChapters(fullId: string) {
-    const [id, slug] = fullId.replace('wc:', '').split('$');
+    const cleanId = fullId.replace(/^(wc:)+/, '');
+    const [id, slug] = cleanId.split('$');
     // HTMX endpoint for full chapter list
     const url = `${BASE_URL}/series/${id}/full-chapter-list`;
+    console.log(`[DEBUG: WeebCentral] Fetching chapters: ${url}`);
     const html = await this.fetchHtml(url);
     
     // Pattern: href="https://weebcentral.com/chapters/01J76XZ666GREP4DQDKEP1YDZG"><span>Chapter 200</span>
@@ -143,7 +146,8 @@ export const weebcentralService = {
   },
 
   async getChapter(chapterId: string): Promise<any> {
-    const parts = chapterId.replace('wc:', '').split('$');
+    const cleanId = chapterId.replace(/^(wc:)+/, '');
+    const parts = cleanId.split('$');
     const id = parts.length > 2 ? parts[2] : parts[0]; 
     return {
       data: {
@@ -166,7 +170,8 @@ export const weebcentralService = {
   },
 
   async getChapterPages(fullChapterId: string) {
-    const parts = fullChapterId.replace('wc:', '').split('$');
+    const cleanId = fullChapterId.replace(/^(wc:)+/, '');
+    const parts = cleanId.split('$');
     const id = parts.length > 2 ? parts[2] : parts[0]; 
     const url = `${BASE_URL}/chapters/${id}`;
     const html = await this.fetchHtml(url);

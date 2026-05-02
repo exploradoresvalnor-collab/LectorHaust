@@ -31,6 +31,7 @@ import {
 import { tioanimeService } from '../../services/tioanimeService';
 import { anilistService } from '../../services/anilistService';
 import { hapticsService } from '../../services/hapticsService';
+import { proxifyImage } from '../../utils/imageUtils';
 import AnimeCardItem from '../../components/AnimeCardItem';
 import HausSkeleton from '../../components/HausSkeleton';
 import '../../theme/CinematicHero.css';
@@ -77,35 +78,58 @@ const AnimePage: React.FC = () => {
           tioanimeService.getLatestEpisodes()
       ]);
       
-      const topTrending = (trendingAnimes || []).slice(0, 5);
-      const enhancedTrending = await Promise.all(topTrending.map(async (anime: any) => {
-         const anilistInfo = await anilistService.getAnimeDetailsByName(anime.title);
-         if (anilistInfo) {
-             const data = { ...anime };
-             data.image = anilistInfo.bannerImage || anilistInfo.coverImage?.extraLarge || data.image;
-             (data as any).coverImage = anilistInfo.coverImage?.extraLarge || data.image;
-             data.description = anilistInfo.description || data.description;
-             (data as any).rating = anilistInfo.averageScore ? `${anilistInfo.averageScore}%` : (data as any).rating;
-             return data;
-         }
-         return anime;
-      }));
-      
-      const finalSpotlight = [...enhancedTrending, ...(trendingAnimes || []).slice(5)];
+      // Set basic data immediately so UI doesn't block
+      const finalSpotlight = [...(trendingAnimes || [])];
       setSpotlightAnimes(finalSpotlight);
       setLatestEpisodes(recentEpisodes || []);
       setLoadingPrimary(false);
-
-      // Save to cache
-      try {
-        localStorage.setItem(HERO_CACHE_KEY, JSON.stringify({
-          data: finalSpotlight.slice(0, 5), // Only cache top 5 for size
-          timestamp: Date.now()
-        }));
-      } catch { /* storage full - ignore */ }
-
-      await new Promise(r => setTimeout(r, 150));
       setLoadingSecondary(false);
+
+      // Sequential Background Enrichment to respect rate limits
+      const topTrending = finalSpotlight.slice(0, 5);
+      
+      (async () => {
+        try {
+          const enhancedTrending = [];
+          for (const anime of topTrending) {
+             try {
+                 const anilistInfo = await anilistService.getAnimeDetailsByName(anime.title);
+                 if (anilistInfo) {
+                     const data = { ...anime };
+                     data.image = anilistInfo.bannerImage || anilistInfo.coverImage?.extraLarge || data.image;
+                     (data as any).coverImage = anilistInfo.coverImage?.extraLarge || data.image;
+                     data.description = anilistInfo.description || data.description;
+                     (data as any).rating = anilistInfo.averageScore ? `${anilistInfo.averageScore}%` : (data as any).rating;
+                     enhancedTrending.push(data);
+                 } else {
+                     enhancedTrending.push(anime);
+                 }
+             } catch (e) {
+                 enhancedTrending.push(anime);
+             }
+             // Small stagger delay
+             await new Promise(r => setTimeout(r, 500));
+          }
+          
+          if (enhancedTrending.length > 0) {
+              setSpotlightAnimes(prev => {
+                  const updated = [...prev];
+                  for (let i = 0; i < enhancedTrending.length; i++) {
+                      updated[i] = enhancedTrending[i];
+                   }
+                  return updated;
+              });
+
+              // Save to cache after enrichment
+              try {
+                localStorage.setItem(HERO_CACHE_KEY, JSON.stringify({
+                  data: enhancedTrending,
+                  timestamp: Date.now()
+                }));
+              } catch { /* storage full */ }
+          }
+        } catch (e) {}
+      })();
 
       try {
         if (activeFilter === 'latino') {
@@ -243,7 +267,17 @@ const AnimePage: React.FC = () => {
                 <HausSkeleton type="hero" />
             ) : spotlight ? (
                 <div className="hero-spotlight animate-fade-in">
-                    <img src={spotlight.image} alt={spotlight.title} className="hero-bg-img" loading="eager" />
+                    <img 
+                        src={spotlight.image ? proxifyImage(spotlight.image) : 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 1920 1080%22%3E%3Crect fill=%22%231a1a1a%22 width=%221920%22 height=%221080%22/%3E%3C/svg%3E'} 
+                        alt={spotlight.title} 
+                        className="hero-bg-img" 
+                        loading="eager" 
+                        fetchPriority="high"
+                        decoding="sync"
+                        onError={(e: any) => {
+                          e.target.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 1920 1080%22%3E%3Crect fill=%22%231a1a1a%22 width=%221920%22 height=%221080%22/%3E%3C/svg%3E';
+                        }}
+                    />
                     <div className="hero-gradient"></div>
                     
                     <div className="hero-info-stack">
@@ -270,7 +304,7 @@ const AnimePage: React.FC = () => {
             ) : null}
 
             {/* CATALOG SECTIONS */}
-            <div className="catalog-sections animate-fade-in" style={{ marginTop: '-40px', position: 'relative', zIndex: 10, paddingBottom: '40px' }}>
+            <div className="catalog-sections animate-fade-in" style={{ marginTop: '-30px', position: 'relative', zIndex: 10, paddingBottom: '30px' }}>
               <div className="main-content-wrapper">
                 
                 {/* FILTER CHIPS */}
@@ -362,8 +396,8 @@ const AnimePage: React.FC = () => {
                   )}
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'center', margin: '40px 0' }}>
-                   <IonButton fill="solid" color="primary" onClick={() => router.push('/browse-anime')} style={{ '--border-radius': '15px', fontWeight: 900, height: '50px', paddingInline: '30px', '--box-shadow': '0 10px 25px rgba(var(--ion-color-primary-rgb), 0.3)' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', margin: '30px 0' }}>
+                   <IonButton fill="solid" color="primary" onClick={() => router.push('/browse-anime')} style={{ '--border-radius': '15px', fontWeight: 900, height: '48px', paddingInline: '28px', '--box-shadow': '0 10px 25px rgba(var(--ion-color-primary-rgb), 0.3)', fontSize: '0.95rem' }}>
                       EXPLORAR TODO EL CATÁLOGO
                    </IonButton>
                 </div>

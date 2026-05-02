@@ -22,6 +22,8 @@ interface HeroItem {
   type?: string;
   isTranslated?: boolean;
   episodes?: any;
+  banner?: string;
+  totalChapters?: number;
   raw?: any;
 }
 
@@ -35,7 +37,7 @@ const HeroGrid: React.FC<HeroGridProps> = ({ heroItems, onItemClick, onImageLoad
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 1024);
-  const itemsPerView = isMobile ? 1 : 2;
+  const itemsPerView = 1;
 
   React.useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 1024);
@@ -68,13 +70,17 @@ const HeroGrid: React.FC<HeroGridProps> = ({ heroItems, onItemClick, onImageLoad
   // Helper to extract metadata (since real data might vary)
   const getMetadata = (item: HeroItem) => {
     const episodesVal = item.episodes || item.raw?.episodes || item.raw?.attributes?.episodes;
-    const chaptersVal = item.raw?.attributes?.lastChapter || 
+    const chaptersVal = item.totalChapters || 
+                        item.raw?.attributes?.lastChapter || 
                         item.raw?.attributes?.latestChapterNumber || 
                         item.raw?.attributes?.calculatedTotalChapters;
 
-    const chapters = item.type === 'anime' 
-      ? `episodios ${episodesVal || '?'}`
-      : `capítulos ${chaptersVal || '?'}`;
+    let chapters = '';
+    if (item.type === 'anime') {
+      chapters = episodesVal ? `episodios ${episodesVal}` : 'en emisión';
+    } else {
+      chapters = chaptersVal ? `capítulos ${chaptersVal}` : 'en emisión';
+    }
     
     const genres = item.type === 'anime'
       ? (item.raw?.genres || []).slice(0, 2).reduce((acc: string, g: any) => `${acc} ${typeof g === 'string' ? g : g.name || ''}`, '').trim()
@@ -113,7 +119,7 @@ const HeroGrid: React.FC<HeroGridProps> = ({ heroItems, onItemClick, onImageLoad
             >
               <div 
                 className="hero-carousel-bg" 
-                style={{ backgroundImage: `url(${item.image})` }}
+                style={{ backgroundImage: `url(${item.banner || item.image})` }}
               />
               
               <div className="hero-carousel-overlay" />
@@ -141,9 +147,6 @@ const HeroGrid: React.FC<HeroGridProps> = ({ heroItems, onItemClick, onImageLoad
                 </button>
               </div>
 
-              <div className="hero-carousel-poster-v3">
-                <img src={item.image} alt={item.title} onLoad={onImageLoad} />
-              </div>
             </div>
           );
         })}

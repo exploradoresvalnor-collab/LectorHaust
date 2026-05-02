@@ -153,7 +153,8 @@ export function useMangaDetails(id?: string, initialData?: any) {
           if (firstChapter.id?.startsWith('mp:')) {
             const parts = firstChapter.id.split('@');
             if (parts.length > 1) {
-              externalFallbackId.current = 'mp:' + parts[1];
+              // The parts[1] already contains the prefixed mangaId (e.g. mp:...)
+              externalFallbackId.current = parts[1];
               console.log(`[Intelligence] ðŸ”— Stuck to mirror for pagination: ${externalFallbackId.current}`);
             }
           }
@@ -284,17 +285,18 @@ export function useMangaDetails(id?: string, initialData?: any) {
   const goToPage = useCallback(async (page: number) => {
     if (!id || page < 1 || page > totalPages || isFetchingMore) return;
     
+    const offset = (page - 1) * 20;
+    const chapterId = externalFallbackId.current || id;
+    console.log(`[DEBUG: Details] goToPage: ${page} | Offset: ${offset} | TargetID: ${chapterId}`);
+    
     setIsFetchingMore(true);
     setState(prev => ({ ...prev, loadingChapters: true }));
     
     try {
-      const offset = (page - 1) * 20;
-      const chapterId = externalFallbackId.current || id;
-      
       let data: any;
       if (externalFallbackId.current) {
-          // If we are using a mirror, we might need the full list if the mirror doesn't support offset
-          const extChaptersData = await mangaProvider.getMangaChapters(chapterId);
+          // Fetch a large enough chunk to allow slicing (mirrors usually return all anyway)
+          const extChaptersData = await mangaProvider.getMangaChapters(chapterId, chapterLang, 2000, 0, chapterOrder, showNSFW);
           const slice = extChaptersData.data.slice(offset, offset + 20);
           data = {
               data: slice.map((c: any) => ({

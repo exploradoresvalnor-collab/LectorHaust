@@ -18,7 +18,7 @@ interface ReaderImageProps {
   maxRetries?: number;
 }
 
-export const ReaderImage: React.FC<ReaderImageProps> = ({
+export const ReaderImage: React.FC<ReaderImageProps> = React.memo(({
   src,
   alt,
   className = '',
@@ -93,4 +93,4 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
       />
     </div>
   );
-};
+});
