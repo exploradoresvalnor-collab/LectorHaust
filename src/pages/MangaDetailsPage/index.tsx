@@ -759,63 +759,92 @@ const MangaDetailsPage: React.FC = () => {
                     );
                   }
 
-                  return filtered.map((chapter: any) => {
-                    const scanlationGroupRel = chapter.relationships?.find((r: any) => r.type === 'scanlation_group');
-                    const scanlationGroupName = scanlationGroupRel?.attributes?.name;
-                    
-                    return (
-                      <ChapterItem 
-                        key={chapter.id}
-                        number={chapter.attributes?.chapter}
-                        title={chapter.attributes?.title}
-                        publishedAt={chapter.attributes?.readableAt}
-                        externalUrl={chapter.attributes?.externalUrl}
-                        scanlationGroup={scanlationGroupName}
-                        isRead={isRead(chapter.id)}
-                        isDownloaded={downloadedChapters.has(chapter.id)}
-                        downloadProgress={downloadingChapters[chapter.id]}
-                        onDownload={async (e) => {
-                          e.stopPropagation();
-                          if (downloadedChapters.has(chapter.id)) return;
-                          hapticsService.lightImpact();
-                          setDownloadingChapters(prev => ({ ...prev, [chapter.id]: 0 }));
-                          try {
-                            const data = await mangaProvider.getChapterPages(chapter.id);
-                            if (data?.pages) {
-                              const title = mangaProvider.getLocalizedTitle(manga);
-                              const cover = mangaProvider.getCoverUrl(manga);
-                              await offlineService.downloadChapter(
-                                chapter.id, id || '', title, chapter.attributes?.chapter || '?', data.pages, cover,
-                                (progress) => setDownloadingChapters(prev => ({ ...prev, [chapter.id]: progress.percent }))
-                              );
-                              setDownloadedChapters(prev => new Set([...prev, chapter.id]));
-                            }
-                          } catch (err) {
-                            console.error('[Download] Failed:', err);
-                          } finally {
-                            setDownloadingChapters(prev => { const n = { ...prev }; delete n[chapter.id]; return n; });
-                          }
-                        }}
-                        onToggleRead={(e) => {
-                          e.stopPropagation();
-                          toggleRead(chapter.id);
-                        }}
-                        onClick={() => {
-                          if (document.activeElement instanceof HTMLElement) {
-                            document.activeElement.blur();
-                          }
-                          hapticsService.lightImpact();
-                          setTimeout(() => {
-                            if (chapter.attributes.externalUrl) {
-                              window.open(chapter.attributes.externalUrl, '_blank');
-                            } else {
-                              router.push(`/reader/${chapter.id}`);
-                            }
-                          }, 150);
-                        }}
-                      />
-                    );
+                  // Agrupar por Tomos (Volumes)
+                  const groupedByVolume = filtered.reduce((acc, chapter) => {
+                    const volume = chapter.attributes?.volume || 'Sin Tomo';
+                    if (!acc[volume]) acc[volume] = [];
+                    acc[volume].push(chapter);
+                    return acc;
+                  }, {} as Record<string, any[]>);
+
+                  // Ordenar los tomos basado en chapterOrder
+                  const volumeKeys = Object.keys(groupedByVolume).sort((a, b) => {
+                    if (a === 'Sin Tomo') return 1; // "Sin Tomo" al final siempre
+                    if (b === 'Sin Tomo') return -1;
+                    const numA = parseFloat(a);
+                    const numB = parseFloat(b);
+                    if (isNaN(numA) || isNaN(numB)) return a.localeCompare(b);
+                    return chapterOrder === 'asc' ? numA - numB : numB - numA;
                   });
+
+                  return volumeKeys.map(vol => (
+                    <div key={`vol-${vol}`} className="volume-group animate-fade-in">
+                      <div className="volume-header">
+                        <IonIcon icon={book} className="volume-icon" />
+                        <span className="volume-title">{vol === 'Sin Tomo' ? 'Capítulos Sueltos' : `Tomo ${vol}`}</span>
+                        <IonBadge color="light" mode="ios" className="volume-count">{groupedByVolume[vol].length}</IonBadge>
+                      </div>
+                      <div className="volume-chapters">
+                        {groupedByVolume[vol].map((chapter: any) => {
+                          const scanlationGroupRel = chapter.relationships?.find((r: any) => r.type === 'scanlation_group');
+                          const scanlationGroupName = scanlationGroupRel?.attributes?.name;
+                          
+                          return (
+                            <ChapterItem 
+                              key={chapter.id}
+                              number={chapter.attributes?.chapter}
+                              title={chapter.attributes?.title}
+                              publishedAt={chapter.attributes?.readableAt}
+                              externalUrl={chapter.attributes?.externalUrl}
+                              scanlationGroup={scanlationGroupName}
+                              isRead={isRead(chapter.id)}
+                              isDownloaded={downloadedChapters.has(chapter.id)}
+                              downloadProgress={downloadingChapters[chapter.id]}
+                              onDownload={async (e) => {
+                                e.stopPropagation();
+                                if (downloadedChapters.has(chapter.id)) return;
+                                hapticsService.lightImpact();
+                                setDownloadingChapters(prev => ({ ...prev, [chapter.id]: 0 }));
+                                try {
+                                  const data = await mangaProvider.getChapterPages(chapter.id);
+                                  if (data?.pages) {
+                                    const title = mangaProvider.getLocalizedTitle(manga);
+                                    const cover = mangaProvider.getCoverUrl(manga);
+                                    await offlineService.downloadChapter(
+                                      chapter.id, id || '', title as string, chapter.attributes?.chapter || '?', data.pages, cover,
+                                      (progress) => setDownloadingChapters(prev => ({ ...prev, [chapter.id]: progress.percent }))
+                                    );
+                                    setDownloadedChapters(prev => new Set([...prev, chapter.id]));
+                                  }
+                                } catch (err) {
+                                  console.error('[Download] Failed:', err);
+                                } finally {
+                                  setDownloadingChapters(prev => { const n = { ...prev }; delete n[chapter.id]; return n; });
+                                }
+                              }}
+                              onToggleRead={(e) => {
+                                e.stopPropagation();
+                                toggleRead(chapter.id);
+                              }}
+                              onClick={() => {
+                                if (document.activeElement instanceof HTMLElement) {
+                                  document.activeElement.blur();
+                                }
+                                hapticsService.lightImpact();
+                                setTimeout(() => {
+                                  if (chapter.attributes.externalUrl) {
+                                    window.open(chapter.attributes.externalUrl, '_blank');
+                                  } else {
+                                    router.push(`/reader/${chapter.id}`);
+                                  }
+                                }, 150);
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ));
                 })()}
               </div>
             ) : (

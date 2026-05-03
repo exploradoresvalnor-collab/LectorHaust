@@ -170,12 +170,12 @@ ion-segment-button::part(indicator-background) {
 .filter-grid-pro {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-    padding: 15px;
+    gap: 8px;
+    padding: 10px 15px;
     background: rgba(30, 30, 35, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
 .filter-item-pro {
@@ -196,12 +196,12 @@ ion-segment-button::part(indicator-background) {
 .custom-select-pro {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 2px 12px;
+    border-radius: 8px;
+    padding: 0px 8px;
     color: #fff;
     font-weight: 600;
-    font-size: 0.85rem;
-    height: 48px;
+    font-size: 0.75rem;
+    height: 34px;
     transition: all 0.3s ease;
 }
 
@@ -216,7 +216,9 @@ ion-segment-button::part(indicator-background) {
 
 .filter-action-item {
     grid-column: span 2;
-    margin-top: 5px;
+    margin-top: 0px;
+    display: flex;
+    align-items: flex-end;
 }
 
 @media (max-width: 480px) {
@@ -275,11 +277,19 @@ ion-segment-button::part(indicator-background) {
 
 @media (min-width: 1024px) {
     .filter-grid-pro {
-        grid-template-columns: repeat(8, 1fr);
+        display: flex;
+        flex-wrap: nowrap;
         align-items: flex-end;
+        gap: 10px;
+        justify-content: flex-start;
+    }
+    .filter-item-pro {
+        flex: 0 1 140px; /* Base width of 140px, can shrink but not grow wildly */
     }
     .filter-action-item {
         grid-column: span 1;
+        flex: 0 0 auto;
+        margin-left: auto; /* Push to right edge */
     }
 }
 
@@ -447,14 +457,15 @@ ion-segment-button.segment-button-checked {
 .haus-toggle-row {
     display: flex;
     align-items: center;
-    height: 48px;
+    height: 34px;
 }
 
 .haus-chip {
     --background: rgba(255, 255, 255, 0.05);
     --color: rgba(255, 255, 255, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    height: 36px;
+    height: 32px;
+    font-size: 0.75rem;
     font-weight: 700;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     margin: 0;
@@ -469,12 +480,15 @@ ion-segment-button.segment-button-checked {
 
 .elite-search-btn {
     --background: linear-gradient(90deg, var(--ion-color-primary) 0%, #8b5cf6 100%);
-    --border-radius: 16px;
-    --box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
-    height: 54px;
-    font-weight: 900;
-    letter-spacing: 1px;
-    margin-top: 10px;
+    --border-radius: 8px;
+    --box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+    height: 34px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    margin-top: 0;
+    font-size: 0.75rem;
+    width: auto;
+    padding: 0 20px;
 }
 
 /* Premium Empty State */
@@ -644,6 +658,33 @@ ion-segment-button.segment-button-checked {
     display: flex;
     justify-content: center;
     padding: 50px;
+}
+
+/* Empty State Mascot (Owl) adjustments */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 20px;
+    width: 100%;
+}
+
+.empty-mascot-wrapper {
+    width: 120px;
+    height: 120px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.empty-mascot {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    opacity: 0.8;
 }
 
 .animate-fade-in {

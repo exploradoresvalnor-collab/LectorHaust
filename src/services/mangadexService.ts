@@ -339,7 +339,8 @@ export const mangadexService = {
         // BLIND SEARCH: Only show manga with available chapters in user's languages
         url += '&hasAvailableChapters=true';
         if (!filters.lang) {
-            url += '&availableTranslatedLanguage[]=es&availableTranslatedLanguage[]=es-la&availableTranslatedLanguage[]=en';
+            // Default: Solo español (la app es Spanish-first)
+            url += '&availableTranslatedLanguage[]=es&availableTranslatedLanguage[]=es-la';
         }
 
         if (order) {

@@ -78,26 +78,29 @@ const AnimePage: React.FC = () => {
           tioanimeService.getLatestEpisodes()
       ]);
       
-      // Set basic data immediately so UI doesn't block
       const finalSpotlight = [...(trendingAnimes || [])];
       setSpotlightAnimes(finalSpotlight);
       setLatestEpisodes(recentEpisodes || []);
       setLoadingPrimary(false);
       setLoadingSecondary(false);
 
-      // Sequential Background Enrichment to respect rate limits
+      // Background enrichment: Hero spotlight + Episode covers
       const topTrending = finalSpotlight.slice(0, 5);
       
       (async () => {
         try {
+          // --- Enrich Hero Spotlight with AniList HD ---
           const enhancedTrending: any[] = [];
           for (const anime of topTrending) {
              try {
                  const anilistInfo = await anilistService.getAnimeDetailsByName(anime.title);
                  if (anilistInfo) {
                      const data = { ...anime };
-                     data.image = anilistInfo.bannerImage || anilistInfo.coverImage?.extraLarge || data.image;
-                     (data as any).coverImage = anilistInfo.coverImage?.extraLarge || data.image;
+                     // CRITICAL: Separate banner (panoramic) from cover (poster)
+                     (data as any).bannerImage = anilistInfo.bannerImage || null;
+                     (data as any).coverImage = anilistInfo.coverImage?.extraLarge || anilistInfo.coverImage?.large || null;
+                     // image = poster for cards, banner for hero bg
+                     data.image = (data as any).coverImage || data.image;
                      data.description = anilistInfo.description || data.description;
                      (data as any).rating = anilistInfo.averageScore ? `${anilistInfo.averageScore}%` : (data as any).rating;
                      enhancedTrending.push(data);
@@ -107,7 +110,6 @@ const AnimePage: React.FC = () => {
              } catch (e) {
                  enhancedTrending.push(anime);
              }
-             // Small stagger delay
              await new Promise(r => setTimeout(r, 500));
           }
           
@@ -119,8 +121,6 @@ const AnimePage: React.FC = () => {
                    }
                   return updated;
               });
-
-              // Save to cache after enrichment
               try {
                 localStorage.setItem(HERO_CACHE_KEY, JSON.stringify({
                   data: enhancedTrending,
@@ -128,14 +128,35 @@ const AnimePage: React.FC = () => {
                 }));
               } catch { /* storage full */ }
           }
+
+          // --- Enrich Episode Cards with AniList HD Posters ---
+          const enrichedEps: any[] = [...(recentEpisodes || [])];
+          const enrichedNames = new Set<string>();
+          for (let i = 0; i < enrichedEps.length; i++) {
+            const ep = enrichedEps[i];
+            const name = ep.animeName || ep.title;
+            if (!name || enrichedNames.has(name)) continue;
+            enrichedNames.add(name);
+            try {
+              const info = await anilistService.getAnimeDetailsByName(name);
+              if (info?.coverImage?.extraLarge) {
+                // Apply HD poster to ALL episodes of this anime
+                for (let j = i; j < enrichedEps.length; j++) {
+                  if ((enrichedEps[j].animeName || enrichedEps[j].title) === name) {
+                    enrichedEps[j] = { ...enrichedEps[j], animePoster: info.coverImage.extraLarge };
+                  }
+                }
+              }
+            } catch {}
+            await new Promise(r => setTimeout(r, 600));
+          }
+          setLatestEpisodes([...enrichedEps]);
         } catch (e) {}
       })();
 
       try {
         if (activeFilter === 'latino') {
           const latino = await tioanimeService.getLatestAnimes();
-          // Filter by title containing "latino" or "español latino" if possible, 
-          // or just show them all with the latino badge if that's what's available
           setLatinoAnimes(latino.map(a => ({ ...a, language: 'latino', hasDub: true })));
         }
       } catch { /* Latino es opcional */ }
@@ -267,17 +288,28 @@ const AnimePage: React.FC = () => {
                 <HausSkeleton type="hero" />
             ) : spotlight ? (
                 <div className="hero-spotlight animate-fade-in">
-                    <img 
-                        src={spotlight.image ? proxifyImage(spotlight.image) : 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 1920 1080%22%3E%3Crect fill=%22%231a1a1a%22 width=%221920%22 height=%221080%22/%3E%3C/svg%3E'} 
+                    {/* Background: Use bannerImage (panoramic HD) if available, else blur the cover */}
+                    {spotlight.bannerImage ? (
+                      <img 
+                        src={proxifyImage(spotlight.bannerImage)} 
                         alt={spotlight.title} 
                         className="hero-bg-img" 
                         loading="eager" 
                         fetchPriority="high"
                         decoding="sync"
-                        onError={(e: any) => {
-                          e.target.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 1920 1080%22%3E%3Crect fill=%22%231a1a1a%22 width=%221920%22 height=%221080%22/%3E%3C/svg%3E';
-                        }}
-                    />
+                        onError={(e: any) => { e.target.style.display = 'none'; }}
+                      />
+                    ) : (
+                      <img 
+                        src={spotlight.coverImage ? proxifyImage(spotlight.coverImage) : (spotlight.image ? proxifyImage(spotlight.image) : '')} 
+                        alt={spotlight.title} 
+                        className="hero-bg-img hero-bg-fallback" 
+                        loading="eager" 
+                        fetchPriority="high"
+                        decoding="sync"
+                        onError={(e: any) => { e.target.style.display = 'none'; }}
+                      />
+                    )}
                     <div className="hero-gradient"></div>
                     
                     <div className="hero-info-stack">

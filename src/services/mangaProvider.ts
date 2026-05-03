@@ -337,14 +337,20 @@ export const mangaProvider = {
                 console.log(`[Search] Haus Intelligence v3: Proactive Parallel Search Activated for "${effectiveQuery}"`);                
                 const searchNSFW = allowNSFW || isTargetingBerserk;
 
-                const proactivePromises = [
+                const proactivePromises: any[] = [
                     mangadexService.searchManga(effectiveQuery, { ...filters, lang: 'es' }, limit, offset, order, searchNSFW),
-                    mangadexService.searchManga(effectiveQuery, { ...filters, lang: 'en' }, limit, offset, order, searchNSFW),
                     manhwawebService.searchManga(effectiveQuery, filters),
-                    inmangaService.searchManga(effectiveQuery),
-                    weebcentralService.searchManga(effectiveQuery, { ...filters, order: order ? Object.keys(order)[0] : undefined }),
-                    mangapillService.searchManga(effectiveQuery, searchNSFW)
+                    inmangaService.searchManga(effectiveQuery)
                 ];
+
+                // Solo buscar en inglés si el usuario EXPLÍCITAMENTE seleccionó un idioma no-español
+                if (userLang && userLang !== 'es') {
+                    proactivePromises.push(
+                        mangadexService.searchManga(effectiveQuery, { ...filters, lang: 'en' }, limit, offset, order, searchNSFW),
+                        weebcentralService.searchManga(effectiveQuery, { ...filters, order: order ? Object.keys(order)[0] : undefined }),
+                        mangapillService.searchManga(effectiveQuery, searchNSFW)
+                    );
+                }
 
                 const results = await Promise.all(proactivePromises);
                 

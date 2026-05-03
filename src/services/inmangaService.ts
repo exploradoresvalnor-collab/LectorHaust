@@ -171,6 +171,9 @@ export const inmangaService = {
     }
   },
 
+  // Cache de capítulos para evitar re-descargas masivas
+  _chaptersCache: new Map<string, any[]>(),
+
   async getChapterPages(fullId: string) {
     // fullId: inm:MANGA_ID$CHAPTER_ID$CHAPTER_NUMBER
     const cleanId = fullId.replace(/^(inm:)+/, '');
@@ -182,27 +185,33 @@ export const inmangaService = {
     const chapterNum = parts[2];
     
     try {
-      // InManga images follow a strict pattern:
-      // https://pack-yak.inmanga.com/manga/page/Image/{manga_id}/{chapter_id}/{index}
-      
-      // We need to know the page count. We usually get it from getChapters.
-      // If we don't have it, we might need to fetch it.
-      
-      const chaptersRes = await this.getMangaChapters(mangaId);
-      const currentChapter = chaptersRes.data.find(c => c.id === fullId);
-      const pageCount = currentChapter?.attributes.pagesCount || 0;
-      
+      let pageCount = 0;
+
+      // 1. Intentar obtener el pageCount del cache primero
+      const cached = this._chaptersCache.get(mangaId);
+      if (cached) {
+        const ch = cached.find(c => c.id === fullId || c.id === `inm:${fullId}`);
+        if (ch) pageCount = ch.attributes.pagesCount || 0;
+      }
+
+      // 2. Si no hay cache, hacer la petición (y guardar en cache)
       if (pageCount === 0) {
-          // Scrape the chapter page to find page count if API failed
-          // https://inmanga.com/ver/manga/Name/Num/ChapterID
-          // But usually we have it.
+        const chaptersRes = await this.getMangaChapters(mangaId);
+        if (chaptersRes.data && chaptersRes.data.length > 0) {
+          this._chaptersCache.set(mangaId, chaptersRes.data);
+          const currentChapter = chaptersRes.data.find((c: any) => c.id === fullId || c.id === `inm:${fullId}`);
+          pageCount = currentChapter?.attributes.pagesCount || 0;
+        }
+      }
+
+      // 3. Si aún no tenemos pageCount, intentar con un rango razonable (probe hasta 100)
+      if (pageCount === 0) {
+        console.warn('[InManga] Page count unknown, probing up to 60 pages...');
+        pageCount = 60; // Fallback razonable
       }
 
       const pages = [];
       for (let i = 1; i <= pageCount; i++) {
-        // InManga uses 1-based indexing for pages in the URL usually
-        // Actually, let's verify if it's 1-based or 0-based.
-        // Subagent said: i=1, 2, 3...
         const imageUrl = `https://pack-yak.inmanga.com/manga/page/Image/${mangaId}/${chapterId}/${i}`;
         pages.push(proxyService.proxyUrl(imageUrl, 'image'));
       }

@@ -39,8 +39,8 @@ const ChapterItem: React.FC<ChapterItemProps> = ({ number, title, isRead, isDown
         </div>
         
         <div className="chapter-item-meta">
-          {publishedAt && <span>{new Date(publishedAt).toLocaleDateString()}</span>}
-          {scanlationGroup && <span className="chapter-fansub-badge" style={{ marginLeft: '8px', fontSize: '0.75rem', padding: '2px 6px', background: 'var(--ion-color-medium)', color: '#fff', borderRadius: '4px', opacity: 0.9 }}>{scanlationGroup}</span>}
+          {publishedAt && <span className="chapter-date">{new Date(publishedAt).toLocaleDateString()}</span>}
+          {scanlationGroup && <span className="chapter-fansub-badge">{scanlationGroup}</span>}
         </div>
 
         {/* Download progress bar */}

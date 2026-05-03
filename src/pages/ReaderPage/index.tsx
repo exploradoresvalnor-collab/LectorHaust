@@ -25,7 +25,6 @@ import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { useParams } from 'react-router-dom';
 import { ReaderImage } from '../../components/ReaderImage';
 import 'react-lazy-load-image-component/src/effects/blur.css';
-import { mangaProvider } from '../../services/mangaProvider';
 import CommentSection from '../../components/CommentSection';
 import UniversalEngagementBar from '../../components/UniversalEngagementBar';
 import { useMangaReader } from '../../hooks/useMangaReader';
@@ -207,13 +206,13 @@ const ReaderPage: React.FC = () => {
                   <div key={index} className="page-wrapper" data-index={index} style={{ contentVisibility: 'auto' }}>
                     {page ? (
                       <ReaderImage
-                        src={typeof page === 'string' && page.includes('mangadex') ? mangaProvider.getOptimizedUrl(page) : page} 
+                        src={page} 
                         className="manga-page loaded" 
                         alt={`Página ${index + 1}`}
-                        visibleByDefault={index < 3}
+                        visibleByDefault={index < 4}
                         effect="blur"
                         wrapperClassName="lazy-react-wrapper"
-                        threshold={800} 
+                        threshold={1200} 
                       />
                     ) : null}
                   </div>
@@ -248,9 +247,10 @@ const ReaderPage: React.FC = () => {
                           <div className={`image-centering-container ${fitMode}`}>
                             {pages.length > 0 && pages[currentMangaPage] ? (
                               <ReaderImage
-                                src={typeof pages[currentMangaPage] === 'string' && pages[currentMangaPage].includes('mangadex') ? mangaProvider.getOptimizedUrl(pages[currentMangaPage]) : pages[currentMangaPage]} 
+                                src={pages[currentMangaPage]} 
                                 className={`manga-page-single loaded page-flip-anim ${fitMode}`} 
                                 alt={`Página ${currentMangaPage + 1}`}
+                                visibleByDefault={true}
                                 effect="blur"
                                 wrapperClassName="lazy-react-wrapper"
                                 threshold={400}
@@ -262,15 +262,13 @@ const ReaderPage: React.FC = () => {
                       )}
                     </TransformWrapper>
                     
-                    {/* Precargador remains outside TransformWrapper for efficiency */}
-                    {currentMangaPage + 1 < pages.length && pages[currentMangaPage + 1] && (
-                      <link 
-                        rel="preload" 
-                        as="image" 
-                        href={typeof pages[currentMangaPage + 1] === 'string' && pages[currentMangaPage + 1].includes('mangadex') ? mangaProvider.getOptimizedUrl(pages[currentMangaPage + 1]) : pages[currentMangaPage + 1]} 
-                        fetchPriority="high"
-                      />
-                    )}
+                    {/* Precarga inteligente: 2 páginas adelante */}
+                    {[1, 2].map(offset => {
+                      const idx = currentMangaPage + offset;
+                      return idx < pages.length && pages[idx] ? (
+                        <link key={`preload-${idx}`} rel="preload" as="image" href={pages[idx]} fetchPriority={offset === 1 ? 'high' : 'low'} />
+                      ) : null;
+                    })}
                   </div>
                 ) : (
                   // Cuando se acaba el manga, mostramos los comentarios y botones
