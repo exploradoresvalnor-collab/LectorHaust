@@ -36,11 +36,11 @@ interface HeroGridProps {
 const HeroGrid: React.FC<HeroGridProps> = ({ heroItems, onItemClick, onImageLoad }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 1024);
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
   const itemsPerView = 1;
 
   React.useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -119,7 +119,7 @@ const HeroGrid: React.FC<HeroGridProps> = ({ heroItems, onItemClick, onImageLoad
             >
               <div 
                 className="hero-carousel-bg" 
-                style={{ backgroundImage: `url(${item.banner || item.image})` }}
+                style={{ backgroundImage: `url(${item.image})` }}
               />
               
               <div className="hero-carousel-overlay" />

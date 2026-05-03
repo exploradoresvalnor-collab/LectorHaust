@@ -43,6 +43,7 @@ const HomeSectionGrid: React.FC<HomeSectionGridProps> = ({
               <MangaCard 
                 title={mangaProvider.getLocalizedTitle(manga)}
                 coverUrl={mangaProvider.getCoverUrl(manga)}
+                year={manga.attributes?.year}
                 rating={manga.attributes?.averageRating || manga.attributes?.rating}
                 status={manga.attributes?.status === 'completed' ? 'Finalizado' : 'En emisión'}
                 chapters={manga.attributes?.lastChapter || manga.attributes?.latestChapterNumber}

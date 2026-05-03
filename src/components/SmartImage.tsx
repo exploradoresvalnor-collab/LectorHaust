@@ -16,6 +16,7 @@ interface SmartImageProps {
   loading?: 'lazy' | 'eager';
   fetchPriority?: 'high' | 'low' | 'auto';
   onLoad?: () => void;
+  onError?: () => void;
 }
 
 const SmartImage: React.FC<SmartImageProps> = ({ 
@@ -31,7 +32,8 @@ const SmartImage: React.FC<SmartImageProps> = ({
   height,
   loading = 'lazy',
   fetchPriority = 'auto',
-  onLoad
+  onLoad,
+  onError
 }) => {
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
   const imgRef = useRef<HTMLImageElement>(null);
@@ -81,7 +83,10 @@ const SmartImage: React.FC<SmartImageProps> = ({
             setStatus('loaded');
             if (onLoad) onLoad();
           }}
-          onError={() => setStatus('error')}
+          onError={() => {
+            setStatus('error');
+            if (onError) onError();
+          }}
           width={width}
           height={height}
           fetchPriority={fetchPriority}

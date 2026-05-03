@@ -265,17 +265,17 @@ ion-segment-button::part(indicator-background) {
 
 @media (min-width: 768px) {
     .filter-grid-pro {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(4, 1fr);
         gap: 15px;
     }
     .filter-action-item {
-        grid-column: span 3;
+        grid-column: span 4;
     }
 }
 
 @media (min-width: 1024px) {
     .filter-grid-pro {
-        grid-template-columns: repeat(6, 1fr);
+        grid-template-columns: repeat(8, 1fr);
         align-items: flex-end;
     }
     .filter-action-item {

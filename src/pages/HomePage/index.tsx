@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { 
   IonContent, 
   IonHeader, 
@@ -11,8 +11,7 @@ import {
   IonIcon,
   useIonRouter,
   IonButton,
-  IonToast,
-  useIonViewWillEnter
+  IonToast
 } from '@ionic/react';
 import { 
   chevronDownOutline, 
@@ -27,7 +26,6 @@ import EmptyState from '../../components/EmptyState';
 import LoadingScreen from '../../components/LoadingScreen';
 import UserAvatar from '../../components/UserAvatar';
 import { useHomeData } from './hooks/useHomeData';
-import { useGlobalLoading } from '../../contexts/GlobalLoadingContext';
 import { useReadingMood } from '../../hooks/useReadingMood';
 import { hapticsService } from '../../services/hapticsService';
 import { getTranslation } from '../../utils/translations';
@@ -64,69 +62,6 @@ const HomePage: React.FC = () => {
   const allManga = React.useMemo(() => {
     return [...latestManga, ...latestManhwa, ...latestManhua];
   }, [latestManga, latestManhwa, latestManhua]);
-
-  const { setIsLoading } = useGlobalLoading();
-  const [isReady, setIsReady] = React.useState(false);
-
-  // Umbral de imágenes críticas (Hero + primeras de cada sección)
-  const CRITICAL_IMAGES_COUNT = 2;
-
-  useIonViewWillEnter(() => {
-    if (!isReady) {
-      setIsLoading(true, 'home-view');
-    }
-  });
-
-  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const safetyTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    // Si ya tenemos datos (cache), marcamos como listo inmediatamente para evitar parpadeos
-    if (latest.length > 0) {
-      setIsReady(true);
-      setIsLoading(false, 'home-data');
-      setIsLoading(false, 'home-view');
-    } else {
-      setIsLoading(true, 'home-data');
-    }
-    
-    return () => {
-      setIsLoading(false, 'home-data');
-      setIsLoading(false, 'home-view');
-    };
-  }, [setIsLoading, latest.length]);
-
-  useEffect(() => {
-    if (isReady) return;
-
-    // Si la data terminó de cargar (sin importar las imágenes para máxima velocidad)
-    if (!loading) {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => {
-        setIsLoading(false, 'home-data');
-        setIsLoading(false, 'home-view');
-        setIsReady(true);
-      }, 150);
-    }
-    
-    if (!safetyTimerRef.current && !isReady) {
-      safetyTimerRef.current = setTimeout(() => {
-         if (!isReady) {
-           setIsLoading(false, 'home-data');
-           setIsLoading(false, 'home-view');
-           setIsReady(true);
-         }
-      }, 8000);
-    }
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      if (safetyTimerRef.current) {
-        clearTimeout(safetyTimerRef.current);
-        safetyTimerRef.current = null;
-      }
-    };
-  }, [loading, setIsLoading, isReady]);
 
 
   const handleImageLoad = React.useCallback(() => {

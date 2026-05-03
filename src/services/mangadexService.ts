@@ -354,6 +354,9 @@ export const mangadexService = {
 
         if (filters.lang && filters.lang !== 'all') {
             url += `&availableTranslatedLanguage[]=${filters.lang}`;
+            if (filters.lang === 'es') {
+                url += `&availableTranslatedLanguage[]=es-la`;
+            }
         }
 
         if (filters.tags && filters.tags.length > 0) {

@@ -313,6 +313,7 @@ const LibraryPage: React.FC = () => {
                               <MangaCard 
                                 title={manga.attributes.title.en || Object.values(manga.attributes.title)[0]}
                                 coverUrl={mangaProvider.getCoverUrl(manga)}
+                                year={manga.attributes?.year}
                                 progressLabel={history[manga.id] ? `Cap. ${history[manga.id].chapterNumber}` : undefined}
                                 onClick={() => router.push(`/manga/${manga.id}`)}
                               />

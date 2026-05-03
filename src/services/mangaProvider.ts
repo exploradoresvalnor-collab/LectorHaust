@@ -179,6 +179,11 @@ const mergeResults = (results: MangaItem[]): MangaItem[] => {
             existing.attributes.description = item.attributes.description;
         }
 
+        // Actualizar el año si el existente no tiene o si el nuevo viene de MangaDex
+        if (item.attributes.year && (!existing.attributes.year || source === 'mangadex')) {
+            existing.attributes.year = item.attributes.year;
+        }
+
         // Si el item nuevo tiene una portada y no teníamos, o es de mangadex (mejor metadata), la usamos
         if (source === 'mangadex' && !existing.id.startsWith('md:')) {
             // Prioridad a MangaDex para metadatos base
@@ -290,12 +295,12 @@ export const mangaProvider = {
         try {
             console.log(`[Search] Cascade for: "${query}" | Filters:`, filters);
             
-            // Si el usuario ha seleccionado un idioma ESPECÍFICO (es, en, etc.), lo respetamos estrictamente.
-            // No hacemos cascada de idiomas si hay una elección explícita.
+            // Si el usuario ha seleccionado un idioma ESPECÍFICO (es, en, etc.), lo respetamos.
+            // NOTA: Si es 'es', permitimos la cascada a fuentes nativas españolas (InManga/ManhwaWeb).
             const userLang = filters.lang || null;
             
-            if (userLang && userLang !== 'all') {
-                console.log(`[Search] Using explicit language filter: ${userLang}`);
+            if (userLang && userLang !== 'all' && userLang !== 'es') {
+                console.log(`[Search] Using explicit language filter (non-es): ${userLang}`);
                 return mangadexService.searchManga(query, filters, limit, offset, order, allowNSFW);
             }
 
@@ -526,7 +531,7 @@ export const mangaProvider = {
         return this.getMangaDetails(id); 
     },
 
-    async getMangaChapters(mangaId: string, lang: string | null = 'es', limit = 20, offset = 0, order: 'asc' | 'desc' = 'desc', allowNSFW = false) {
+    async getMangaChapters(mangaId: string, lang: string | null = 'es', limit = 20, offset = 0, order: 'asc' | 'desc' = 'desc', allowNSFW = false): Promise<any> {
         console.log(`[DEBUG: Provider] getMangaChapters for ${mangaId} | Lang: ${lang} | Offset: ${offset}`);
         if (this.isExternalId(mangaId)) {
             const providerStr = mangaId.split(':')[0];
@@ -589,7 +594,7 @@ export const mangaProvider = {
                         for (const source of externalSources) {
                             try {
                                 console.log(`[Intelligence] 🎯 Trying mirror from: ${source.source} (${source.id})`);
-                                const extChapters = await this.getMangaChapters(source.id, lang, limit, offset, order, allowNSFW);
+                                const extChapters: any = await this.getMangaChapters(source.id, lang, limit, offset, order, allowNSFW);
                                 
                                 if (extChapters.data && extChapters.data.length > 0) {
                                     const latestExtChapter = parseFloat(extChapters.data[0]?.attributes?.chapter || '0');

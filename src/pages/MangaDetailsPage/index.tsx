@@ -23,8 +23,7 @@ import {
   IonModal,
   useIonToast,
   IonInfiniteScroll,
-  IonInfiniteScrollContent,
-  useIonViewWillEnter
+  IonInfiniteScrollContent
 } from '@ionic/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { 
@@ -52,7 +51,6 @@ import {
 import { useParams, useLocation } from 'react-router-dom';
 import { mangaProvider, sanitizeDescription } from '../../services/mangaProvider';
 import { useLibraryStore } from '../../store/useLibraryStore';
-import { useGlobalLoading } from '../../contexts/GlobalLoadingContext';
 import ChapterItem from '../../components/ChapterItem';
 import LoadingScreen from '../../components/LoadingScreen';
 import CommentSection from '../../components/CommentSection';
@@ -96,16 +94,6 @@ const MangaDetailsPage: React.FC = () => {
   const showNSFW = useLibraryStore(state => state.showNSFW);
   const progress = id ? getProgress(id) : null;
 
-  const { setIsLoading } = useGlobalLoading();
-  const [coverLoaded, setCoverLoaded] = React.useState(false);
-  const [isReady, setIsReady] = React.useState(false);
-
-  useIonViewWillEnter(() => {
-    if (!isReady) {
-      setIsLoading(true, `details-${id}`);
-    }
-  });
-
   const {
     manga,
     aniData,
@@ -128,45 +116,7 @@ const MangaDetailsPage: React.FC = () => {
     goToPage
   } = useMangaDetails(id, initialData);
 
-  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const safetyTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Control de carga global: Una sola vez al montar/desmontar para evitar duplicados
-  useEffect(() => {
-    setIsLoading(true, `details-${id}`);
-    return () => setIsLoading(false, `details-${id}`);
-  }, [setIsLoading, id]);
-
-  // Lógica para marcar la página como "lista" y liberar el cargador
-  useEffect(() => {
-    if (isReady) return;
-
-    // Si la data terminó de cargar (sin importar las imágenes para máxima velocidad)
-    if (!loading) {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => {
-        setIsLoading(false, `details-${id}`);
-        setIsReady(true);
-      }, 150);
-    }
-    
-    if (!safetyTimerRef.current && !isReady) {
-      safetyTimerRef.current = setTimeout(() => {
-         if (!isReady) {
-           setIsLoading(false, `details-${id}`);
-           setIsReady(true);
-         }
-      }, 8000);
-    }
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      if (safetyTimerRef.current) {
-        clearTimeout(safetyTimerRef.current);
-        safetyTimerRef.current = null;
-      }
-    };
-  }, [loading, setIsLoading, isReady]);
+  const [coverLoaded, setCoverLoaded] = React.useState(false);
 
 
   // Smart recommendations state
@@ -183,14 +133,9 @@ const MangaDetailsPage: React.FC = () => {
   const parsedTitle = manga ? mangaProvider.getLocalizedTitle(manga) : null;
   const { crossMedia, loadingCrossMedia } = useCrossMedia(parsedTitle as string, 'MANGA');
 
-  // Sync global loading state with manga details page loading states
   useEffect(() => {
-    if (!aniData?.recommendations?.edges?.length || !isReady) {
-      if (!isReady && aniData?.recommendations?.edges?.length) {
-          // Keep it empty until ready
-      } else {
-          setVerifiedRecs([]);
-      }
+    if (!aniData?.recommendations?.edges?.length || loading) {
+      setVerifiedRecs([]);
       return;
     }
 
@@ -239,7 +184,7 @@ const MangaDetailsPage: React.FC = () => {
 
     verify();
     return () => { cancelled = true; };
-  }, [aniData, isReady]);
+  }, [aniData, loading]);
 
   // Pro-Level Prefetching Strategy
   useEffect(() => {

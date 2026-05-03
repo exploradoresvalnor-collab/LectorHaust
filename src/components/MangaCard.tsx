@@ -17,6 +17,7 @@ interface MangaCardProps {
   chapters?: number | string;
   mangaType?: string;
   updatedAt?: string;
+  year?: number | string;
   onLoad?: () => void;
 }
 
@@ -33,6 +34,7 @@ const MangaCard: React.FC<MangaCardProps> = ({
   chapters,
   mangaType,
   updatedAt,
+  year,
   onLoad
 }) => {
   const getBadgeInfo = () => {
@@ -61,6 +63,11 @@ const MangaCard: React.FC<MangaCardProps> = ({
     >
       <div className="manga-card-tmo animate-fade-in">
         <div className="card-thumb-column">
+          {year && (
+            <div className="card-year-badge">
+              {year}
+            </div>
+          )}
           <SmartImage 
             src={coverUrl} 
             alt={title} 

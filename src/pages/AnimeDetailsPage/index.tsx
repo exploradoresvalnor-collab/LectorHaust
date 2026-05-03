@@ -42,8 +42,12 @@ import { hapticsService } from '../../services/hapticsService';
 import { useLocation } from 'react-router-dom';
 import { tioanimeService } from '../../services/tioanimeService';
 import { translationService } from '../../services/translationService';
+import { LRUCache } from '../../utils/LRUCache';
 
 const EPISODES_PER_PAGE = 30;
+
+// Professional LRU Cache: bounded memory (max 15 anime), auto-expires after 10 min
+const animeCache = new LRUCache<string, any>(15, 10 * 60 * 1000);
 
 const AnimeDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -58,15 +62,20 @@ const AnimeDetailsPage: React.FC = () => {
   const location = useLocation();
   const epListRef = useRef<HTMLDivElement>(null);
 
-  const [anime, setAnime] = useState<any | null>(null);
-  const [initialData, setInitialData] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Synchronous cache lookup to prevent loading flashes
+  const cacheKey = id || '';
+  const cached = cacheKey ? animeCache.get(cacheKey) : null;
+  const navData = (location.state as any)?.anime || (location.state as any)?.manga;
+
+  const [anime, setAnime] = useState<any | null>(cached?.anime || navData || null);
+  const [initialData, setInitialData] = useState<any | null>(cached?.anime || navData || null);
+  const [loading, setLoading] = useState(!(cached?.anime || navData));
   const [selectedEpisode, setSelectedEpisode] = useState<any>(null);
   const [showPlayer, setShowPlayer] = useState(false);
   const [episodePage, setEpisodePage] = useState(0);
   const [episodeOrder, setEpisodeOrder] = useState<'desc' | 'asc'>('desc');
   const [episodeSearch, setEpisodeSearch] = useState('');
-  const [isTranslated, setIsTranslated] = useState(false);
+  const [isTranslated, setIsTranslated] = useState(cached?.isTranslated || false);
   
   // Initialize with detected prefix provider to avoid ghost proxy fetches on mount
   const initialProvider = urlPrefixProvider as any || 'tioanime';
@@ -138,11 +147,13 @@ const AnimeDetailsPage: React.FC = () => {
                (data as any).rating = finalAnilist.averageScore ? `${finalAnilist.averageScore}%` : (data as any).rating;
             }
 
+            let wasTranslated = false;
             // AI Translation to Spanish
             if (data.description && data.description !== 'Sin descripción') {
                try {
-                  const { text: translated, isTranslated: wasTranslated } = await translationService.translateToSpanish(data.description);
-                  data.description = translated;
+                  const result = await translationService.translateToSpanish(data.description);
+                  data.description = result.text;
+                  wasTranslated = result.isTranslated;
                   setIsTranslated(wasTranslated);
                } catch (err) {
                   console.error("Translation error:", err);
@@ -150,6 +161,9 @@ const AnimeDetailsPage: React.FC = () => {
             }
 
             setAnime(data);
+            if (id) {
+              animeCache.set(id, { anime: data, isTranslated: wasTranslated });
+            }
         }
       } catch (err) {
         console.error("Failed to fetch anime info:", err);

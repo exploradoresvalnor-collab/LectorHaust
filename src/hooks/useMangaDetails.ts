@@ -4,6 +4,7 @@ import { useLibraryStore } from '../store/useLibraryStore';
 import { mangapillService } from '../services/mangapillService';
 import { anilistService } from '../services/anilistService';
 import { translationService } from '../services/translationService';
+import { LRUCache } from '../utils/LRUCache';
 
 // Helper to deduplicate chapters by chapter number with proper normalization
 export const deduplicateChapters = (chaptersArray: any[]) => {
@@ -24,10 +25,16 @@ export const deduplicateChapters = (chaptersArray: any[]) => {
   });
 };
 
-// Zero-latency Memory Cache for Screen Transitions (Details <-> Reader)
-const detailsMemoryCache = new Map<string, any>();
+// Professional LRU Cache: bounded memory (max 30 manga), auto-expires after 10 min
+const detailsCache = new LRUCache<string, any>(30, 10 * 60 * 1000);
 
 export function useMangaDetails(id?: string, initialData?: any) {
+  // Synchronous cache lookup to prevent loading flashes
+  const defaultLang = 'es';
+  const defaultOrder = 'desc';
+  const cacheKey = id ? `${id}_${defaultLang}_${defaultOrder}` : '';
+  const cached = cacheKey ? detailsCache.get(cacheKey) : null;
+
   const [state, setState] = useState<{
     manga: any | null;
     aniData: any | null;
@@ -45,21 +52,21 @@ export function useMangaDetails(id?: string, initialData?: any) {
     isOptimized: boolean;
     isTranslated: boolean;
   }>({
-    manga: initialData || null,
-    aniData: null,
-    chapters: [],
-    loading: !initialData,
-    loadingChapters: true,
-    currentPage: 1,
-    totalChapters: 0,
-    totalPages: 0,
-    hasMoreChapters: true,
-    availableLangs: [],
-    mdStats: { rating: null, follows: 0 },
-    chapterLang: 'es',
-    chapterOrder: 'desc',
-    isOptimized: false,
-    isTranslated: false
+    manga: cached?.manga || initialData || null,
+    aniData: cached?.aniData || null,
+    chapters: cached?.chapters || [],
+    loading: !(cached?.manga || initialData),
+    loadingChapters: !(cached?.chapters && cached.chapters.length > 0),
+    currentPage: cached?.currentPage || 1,
+    totalChapters: cached?.totalChapters || 0,
+    totalPages: cached?.totalPages || 0,
+    hasMoreChapters: cached?.hasMoreChapters ?? true,
+    availableLangs: cached?.availableLangs || [],
+    mdStats: cached?.mdStats || { rating: null, follows: 0 },
+    chapterLang: defaultLang,
+    chapterOrder: defaultOrder,
+    isOptimized: cached?.isOptimized || false,
+    isTranslated: cached?.isTranslated || false
   });
 
   const [isFetchingMore, setIsFetchingMore] = useState(false);
@@ -92,33 +99,29 @@ export function useMangaDetails(id?: string, initialData?: any) {
         return;
       }
       
-      console.log(`[Details] ðŸ”· useEffect triggered for manga: ${id}, lang: ${chapterLang}`);
-      
+      // === STALE-WHILE-REVALIDATE ===
+      // If we have cached data, render it immediately but still refresh in background
       const cacheKey = `${id}_${chapterLang}_${chapterOrder}`;
-      if (detailsMemoryCache.has(cacheKey)) {
-        const c = detailsMemoryCache.get(cacheKey);
-        if (c.manga && c.chapters && c.chapters.length > 0) {
-          if (isMounted.current) {
-            setState(prev => ({
-              ...prev,
-              ...c,
-              loading: false,
-              loadingChapters: false
-            }));
-          }
-          return;
-        } else {
-          detailsMemoryCache.delete(cacheKey);
-          console.warn(`[Cache] Corrupted cache detected for ${cacheKey}, retrying...`);
+      const staleData = detailsCache.getStale(cacheKey);
+      const isFreshCache = detailsCache.has(cacheKey); // has() checks TTL
+      
+      if (staleData?.manga && staleData?.chapters?.length > 0) {
+        if (isMounted.current) {
+          setState(prev => ({
+            ...prev,
+            ...staleData,
+            loading: false,
+            loadingChapters: false
+          }));
         }
+        // If cache is still fresh (within TTL), skip network fetch entirely
+        if (isFreshCache) return;
+        // Otherwise, continue to background refresh (stale-while-revalidate)
       }
 
-      // Only set main loading to true if we don't have basic metadata yet
-      if (!manga) {
+      // Only show loading UI if we have no data at all (cold start)
+      if (!staleData?.manga && !manga) {
         setState(prev => ({ ...prev, loading: true }));
-      } else {
-        // We have metadata, just show that chapters are loading
-        setState(prev => ({ ...prev, loadingChapters: true }));
       }
 
       externalFallbackId.current = null; // Reset fallback on each load
@@ -260,16 +263,17 @@ export function useMangaDetails(id?: string, initialData?: any) {
     };
   }, [id, chapterLang, chapterOrder]);
 
-  // Save to Memory Cache whenever essential data stabilizes
+  // Persist to LRU Cache whenever essential data stabilizes
   useEffect(() => {
     if (manga && chapters.length > 0 && id) {
       const cacheKey = `${id}_${chapterLang}_${chapterOrder}`;
-      detailsMemoryCache.set(cacheKey, {
+      detailsCache.set(cacheKey, {
         manga, aniData, chapters, totalChapters, totalPages, 
-        hasMoreChapters, availableLangs, mdStats, currentPage
+        hasMoreChapters, availableLangs, mdStats, currentPage,
+        isOptimized, isTranslated
       });
     }
-  }, [manga, aniData, chapters, totalChapters, totalPages, hasMoreChapters, availableLangs, mdStats, currentPage, id, chapterLang, chapterOrder]);
+  }, [manga, aniData, chapters, totalChapters, totalPages, hasMoreChapters, availableLangs, mdStats, currentPage, id, chapterLang, chapterOrder, isOptimized, isTranslated]);
 
   const handleLangChange = useCallback((newLang: string) => {
     setState(prev => ({

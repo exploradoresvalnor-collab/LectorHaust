@@ -105,6 +105,7 @@ export function useSearch() {
   
   // Search Filters
   const [activeFormat, setActiveFormat] = useState<string | null>(null);
+  const [activeLang, setActiveLang] = useState<string | null>(null);
   const [activeGenre, setActiveGenre] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState<string | null>(null);
   const [activeDemographic, setActiveDemographic] = useState<string | null>(null);
@@ -232,13 +233,13 @@ export function useSearch() {
     isError: searchError,
     error: searchErrorInfo
   } = useInfiniteQuery({
-    queryKey: ['searchManga', query.trim(), activeFormat, activeGenre, activeStatus, activeDemographic, activeOrder, activeColor, showNSFW],
+    queryKey: ['searchManga', query.trim(), activeFormat, activeLang, activeGenre, activeStatus, activeDemographic, activeOrder, activeColor, showNSFW],
     queryFn: async ({ pageParam = 0 }) => {
       const cleanQuery = query.trim();
-      if (!cleanQuery && !activeFormat && !activeGenre && !activeStatus && !activeDemographic && !activeColor) {
+      if (!cleanQuery && !activeFormat && !activeLang && !activeGenre && !activeStatus && !activeDemographic && !activeColor) {
         return { data: [] };
       }
-      const filters: any = { fullColor: activeColor };
+      const filters: any = { fullColor: activeColor, lang: activeLang };
       if (activeFormat) filters.origin = activeFormat;
       if (activeGenre && activeGenre !== 'Todos' && genreMapping[activeGenre]) filters.tags = [genreMapping[activeGenre]];
       if (activeStatus) filters.status = activeStatus;
@@ -250,7 +251,7 @@ export function useSearch() {
     getNextPageParam: (lastPage: any, allPages: any[]) => {
       return lastPage.data?.length === 16 ? allPages.length * 16 : undefined;
     },
-    enabled: activeSegment === 'search' && !!(query.trim() || activeFormat || activeGenre || activeStatus || activeDemographic || activeColor), // STAGGERED
+    enabled: activeSegment === 'search' && !!(query.trim() || activeFormat || activeLang || activeGenre || activeStatus || activeDemographic || activeColor), // STAGGERED
     staleTime: 1000 * 60 * 5, // 5 mins
     retry: false,
   });
@@ -315,6 +316,7 @@ export function useSearch() {
   }, []);
 
   const setFormatFilter = useCallback((format: string | null) => setActiveFormat(format), []);
+  const setLangFilter = useCallback((lang: string | null) => setActiveLang(lang), []);
   const setGenreFilter = useCallback((genre: string | null) => setActiveGenre(prev => prev === genre ? null : genre), []);
   const setStatusFilter = useCallback((status: string | null) => setActiveStatus(prev => prev === status ? null : status), []);
   const setDemographicFilter = useCallback((demographic: string | null) => setActiveDemographic(prev => prev === demographic ? null : demographic), []);
@@ -360,6 +362,8 @@ export function useSearch() {
     loadingLatest,
     isLatestDone: !hasNextLatest,
     activeFormat,
+    activeLang,
+    setActiveLang,
     activeGenre,
     activeStatus,
     activeDemographic,
@@ -381,6 +385,7 @@ export function useSearch() {
     loadMoreCompleted,
     handleSearch,
     setFormatFilter,
+    setLangFilter,
     setGenreFilter,
     setStatusFilter,
     setDemographicFilter,

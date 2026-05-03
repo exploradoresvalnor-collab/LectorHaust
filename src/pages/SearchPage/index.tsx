@@ -102,6 +102,7 @@ const SearchPage: React.FC = () => {
     latestLang, setLatestLang,
     latestFormat, setLatestFormat,
     activeDemographic, activeOrder, setActiveOrder, activeColor, setActiveColor,
+    activeLang, setLangFilter,
     completedColor, setCompletedColor, showFilters, setShowFilters,
     favorites, loadMoreCompleted,
     handleSearch, setFormatFilter, setGenreFilter, setStatusFilter,
@@ -226,6 +227,20 @@ const SearchPage: React.FC = () => {
                       onIonChange={(e: any) => setFormatFilter(e.detail.value)}
                     >
                       {FORMATS.map(f => <IonSelectOption key={f.label} value={f.value}>{f.label}</IonSelectOption>)}
+                    </IonSelect>
+                  </div>
+
+                  <div className="filter-item-pro">
+                    <span className="filter-label-v2">Idioma</span>
+                    <IonSelect 
+                      value={activeLang} 
+                      placeholder="Todos"
+                      interface="popover"
+                      className="custom-select-pro haus-select"
+                      onIonChange={(e: any) => setLangFilter(e.detail.value)}
+                    >
+                      <IonSelectOption value={null}>Todos</IonSelectOption>
+                      {LANGUAGES.map(l => <IonSelectOption key={l.value} value={l.value}>{l.label}</IonSelectOption>)}
                     </IonSelect>
                   </div>
 
@@ -355,6 +370,7 @@ const SearchPage: React.FC = () => {
                           title={mangaProvider.getLocalizedTitle(manga)}
                           coverUrl={mangaProvider.getCoverUrl(manga)}
                           format={manga.attributes.originalLanguage}
+                          year={manga.attributes?.year}
                           sources={manga.sources || []}
                           status={mangaProvider.getLocalizedStatus?.(manga) || 'En emisión'}
                           chapters={manga.attributes.calculatedTotalChapters || manga.attributes.lastChapter || manga.attributes.latestChapterNumber}
@@ -373,6 +389,7 @@ const SearchPage: React.FC = () => {
                           title={mangaProvider.getLocalizedTitle(manga)}
                           coverUrl={mangaProvider.getCoverUrl(manga)}
                           format={manga.attributes.originalLanguage}
+                          year={manga.attributes?.year}
                           sources={manga.sources || []}
                           status={mangaProvider.getLocalizedStatus?.(manga) || 'En emisión'}
                           chapters={manga.attributes.calculatedTotalChapters || manga.attributes.lastChapter || manga.attributes.latestChapterNumber}
@@ -456,6 +473,7 @@ const SearchPage: React.FC = () => {
                           title={mangaProvider.getLocalizedTitle(m)}
                           coverUrl={mangaProvider.getCoverUrl(m)}
                           format={m.attributes.originalLanguage}
+                          year={m.attributes?.year}
                           sources={m.sources || []}
                           status={mangaProvider.getLocalizedStatus?.(m) || 'En emisión'}
                           chapters={m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber}
@@ -473,6 +491,7 @@ const SearchPage: React.FC = () => {
                           title={mangaProvider.getLocalizedTitle(m)}
                           coverUrl={mangaProvider.getCoverUrl(m)}
                           format={m.attributes.originalLanguage}
+                          year={m.attributes?.year}
                           sources={m.sources || []}
                           status={mangaProvider.getLocalizedStatus?.(m) || 'En emisión'}
                           chapters={m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber}
@@ -522,11 +541,12 @@ const SearchPage: React.FC = () => {
                   {suggestions.filter((m: any) => (m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber || 1) > 0).map((m: any) => (
                     <IonCol size="6" sizeSm="6" sizeMd="4" style={{ flex: '0 0 20%', maxWidth: '20%' }} className="ion-hide-md-down" key={m.id}>
                       <MangaCard 
-                        title={mangaProvider.getLocalizedTitle(m)}
-                        coverUrl={mangaProvider.getCoverUrl(m)}
-                        format={m.attributes.originalLanguage}
-                        sources={m.sources || []}
-                        status={mangaProvider.getLocalizedStatus?.(m) || 'En emisión'}
+                          title={mangaProvider.getLocalizedTitle(m)}
+                          coverUrl={mangaProvider.getCoverUrl(m)}
+                          format={m.attributes.originalLanguage}
+                          year={m.attributes?.year}
+                          sources={m.sources || []}
+                          status={mangaProvider.getLocalizedStatus?.(m) || 'En emisión'}
                         chapters={m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber}
                         tags={m.attributes.tags
                           ?.filter((t: any) => t.attributes?.group === 'genre')
@@ -539,11 +559,12 @@ const SearchPage: React.FC = () => {
                   {suggestions.filter((m: any) => (m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber || 1) > 0).map((m: any) => (
                     <IonCol size="6" sizeSm="6" sizeMd="4" className="ion-hide-lg-up" key={m.id + '_mobile'}>
                       <MangaCard 
-                        title={mangaProvider.getLocalizedTitle(m)}
-                        coverUrl={mangaProvider.getCoverUrl(m)}
-                        format={m.attributes.originalLanguage}
-                        sources={m.sources || []}
-                        status={mangaProvider.getLocalizedStatus?.(m) || 'En emisión'}
+                          title={mangaProvider.getLocalizedTitle(m)}
+                          coverUrl={mangaProvider.getCoverUrl(m)}
+                          format={m.attributes.originalLanguage}
+                          year={m.attributes?.year}
+                          sources={m.sources || []}
+                          status={mangaProvider.getLocalizedStatus?.(m) || 'En emisión'}
                         chapters={m.attributes.calculatedTotalChapters || m.attributes.lastChapter || m.attributes.latestChapterNumber}
                         tags={m.attributes.tags
                           ?.filter((t: any) => t.attributes?.group === 'genre')
@@ -621,6 +642,7 @@ const SearchPage: React.FC = () => {
                           title={mangaProvider.getLocalizedTitle(m)}
                           coverUrl={mangaProvider.getCoverUrl(m)}
                           format={m.attributes.originalLanguage}
+                          year={m.attributes?.year}
                           status={mangaProvider.getLocalizedStatus?.(m)}
                           chapters={m.attributes.lastChapter || m.attributes.latestChapterNumber}
                           updatedAt={m.attributes.latestChapterReadableAt}
@@ -744,6 +766,7 @@ const SearchPage: React.FC = () => {
                             title={mangaProvider.getLocalizedTitle(manga)}
                             coverUrl={mangaProvider.getCoverUrl(manga)}
                             format={manga.attributes.mangaType || manga.attributes.originalLanguage}
+                            year={manga.attributes?.year}
                             sources={manga.sources || []}
                             status={mangaProvider.getLocalizedStatus?.(manga) || 'En emisión'}
                             chapters={manga.attributes.calculatedTotalChapters || manga.attributes.lastChapter || manga.attributes.latestChapterNumber}
@@ -759,6 +782,7 @@ const SearchPage: React.FC = () => {
                             title={mangaProvider.getLocalizedTitle(manga)}
                             coverUrl={mangaProvider.getCoverUrl(manga)}
                             format={manga.attributes.mangaType || manga.attributes.originalLanguage}
+                            year={manga.attributes?.year}
                             sources={manga.sources || []}
                             status={mangaProvider.getLocalizedStatus?.(manga) || 'En emisión'}
                             chapters={manga.attributes.calculatedTotalChapters || manga.attributes.lastChapter || manga.attributes.latestChapterNumber}

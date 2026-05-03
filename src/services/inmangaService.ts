@@ -12,10 +12,25 @@ export const inmangaService = {
   
   async searchManga(query: string) {
     try {
-      // InManga uses a GET request for search
-      const url = `${API_BASE}/manga/getMangasConsult?name=${encodeURIComponent(query)}`;
+      // InManga uses a POST request for search with specific filters
+      const url = `${API_BASE}/manga/getMangasConsultResult`;
+      
+      const formData = new URLSearchParams();
+      formData.append('filter[generes][]', '-1');
+      formData.append('filter[queryString]', query);
+      formData.append('filter[skip]', '0');
+      formData.append('filter[take]', '10');
+      formData.append('filter[sortby]', '1');
+      formData.append('filter[broadcastStatus]', '0');
+      formData.append('filter[onlyFavorites]', 'false');
+
       const rawText = await proxyService.fetchProxied(url, 'html', {
-          'X-Requested-With': 'XMLHttpRequest'
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: formData.toString()
       });
       
       if (!rawText || rawText.trim().startsWith('<!DOCTYPE')) {
@@ -27,12 +42,12 @@ export const inmangaService = {
       try {
           data = JSON.parse(rawText);
       } catch (e) {
+          console.warn('[InManga] Failed to parse JSON response:', e);
           return [];
       }
       
       if (!data || !data.result) return [];
 
-      // The result is a JSON string inside a JSON object sometimes, or just the array
       let results = data.result;
       if (typeof results === 'string') {
           try {
@@ -42,19 +57,28 @@ export const inmangaService = {
 
       if (!Array.isArray(results)) return [];
 
-      return results.map((m: any) => ({
-        id: `inm:${m.Identification}`,
-        type: 'manga',
-        attributes: {
-          title: { es: m.Name },
-          description: { es: '' }, // InManga doesn't provide description in search
-          status: m.Status || 'ongoing',
-          originalLanguage: 'ja',
-          lastChapter: m.LastChapterNumber?.toString(),
-          coverUrl: `${BASE_URL}/thumbnails/manga/${m.Name.replace(/\s+/g, '-')}/${m.Identification}`
-        },
-        source: 'inmanga'
-      }));
+      return results.map((m: any) => {
+        // Try to extract year from various date fields if available
+        let extractedYear = null;
+        const dateStr = m.LastPublicationDate || m.RegistrationDate || '';
+        const yearMatch = dateStr.match(/\d{4}/);
+        if (yearMatch) extractedYear = yearMatch[0];
+
+        return {
+          id: `inm:${m.Identification}`,
+          type: 'manga',
+          attributes: {
+            title: { es: m.Name },
+            description: { es: '' },
+            status: m.Status || 'ongoing',
+            originalLanguage: 'ja',
+            year: extractedYear,
+            lastChapter: m.LastChapterNumber?.toString(),
+            coverUrl: `${BASE_URL}/thumbnails/manga/${m.Name.replace(/\s+/g, '-')}/${m.Identification}`
+          },
+          source: 'inmanga'
+        };
+      });
     } catch (err) {
       console.error('[InManga] Search failed:', err);
       return [];
@@ -96,7 +120,7 @@ export const inmangaService = {
       // https://inmanga.com/chapter/getChapters?mangaIdentification=UUID
       const url = `${API_BASE}/chapter/getChapters?mangaIdentification=${cleanId}`;
       const rawText = await proxyService.fetchProxied(url, 'html', {
-          'X-Requested-With': 'XMLHttpRequest'
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
       });
       
       if (!rawText || rawText.trim().startsWith('<!DOCTYPE')) {

@@ -31,11 +31,11 @@ export const proxyService = {
   /**
    * Fetch through proxy with fallback
    */
-  async fetchProxied(url: string, type: 'html' | 'json' = 'html', headers: Record<string, string> = {}): Promise<string | any> {
+  async fetchProxied(url: string, type: 'html' | 'json' = 'html', options: RequestInit = {}): Promise<string | any> {
     const primary = this.proxyUrl(url, type);
     
     try {
-      const resp = await fetch(primary, { headers });
+      const resp = await fetch(primary, options);
       if (resp.ok) {
         return type === 'json' ? resp.json() : resp.text();
       }
@@ -44,14 +44,14 @@ export const proxyService = {
       console.warn(`[Proxy] Primary failed for ${url}, trying Secondary...`);
       const secondary = `${SECONDARY_PROXY}${encodeURIComponent(url)}`;
       try {
-        const resp = await fetch(secondary, { headers });
+        const resp = await fetch(secondary, options);
         if (resp.ok) {
           return type === 'json' ? resp.json() : resp.text();
         }
       } catch (secErr) {
         console.warn(`[Proxy] Secondary failed for ${url}, trying Tertiary...`);
         const tertiary = `${TERTIARY_PROXY}${encodeURIComponent(url)}`;
-        const resp = await fetch(tertiary, { headers });
+        const resp = await fetch(tertiary, options);
         if (resp.ok) {
           return type === 'json' ? resp.json() : resp.text();
         }

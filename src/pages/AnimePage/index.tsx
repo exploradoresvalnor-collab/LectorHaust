@@ -90,7 +90,7 @@ const AnimePage: React.FC = () => {
       
       (async () => {
         try {
-          const enhancedTrending = [];
+          const enhancedTrending: any[] = [];
           for (const anime of topTrending) {
              try {
                  const anilistInfo = await anilistService.getAnimeDetailsByName(anime.title);

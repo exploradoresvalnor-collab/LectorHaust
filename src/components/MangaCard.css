@@ -81,6 +81,21 @@
     font-weight: 800;
 }
 
+.card-year-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 900;
+    padding: 3px 6px;
+    border-radius: 4px;
+    z-index: 2;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
 /* --- INFO COLUMN (OVERLAY) --- */
 .card-info-column {
     position: absolute;
